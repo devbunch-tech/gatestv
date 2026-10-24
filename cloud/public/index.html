@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>GATES! TV — seu player em todas as telas</title>
+<meta name="description" content="GATES! TV: player para Android TV, celular, tablet e computador, com guia de programação, perfis e controle parental. Assine com PIX, boleto ou cartão." />
+<meta property="og:title" content="GATES! TV — seu player em todas as telas" />
+<meta property="og:description" content="Android TV, celular, tablet e computador. Guia de programação, perfis, controle parental. Assine com PIX, boleto ou cartão." />
+<meta property="og:image" content="/icon.png" />
+<meta name="theme-color" content="#121214" />
+<link rel="icon" href="/icon.png" />
+<style>
+  :root {
+    --brand: #ec0b43; --brand-2: #ff2a5f; --bg: #0f0f11; --bg-2: #16161a; --card: #1c1c21; --line: rgba(255,255,255,.09);
+    --text: #f1f1f3; --muted: #a2a2ab; --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  img { max-width: 100%; display: block; }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 20px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 52px; padding: 0 26px; border-radius: 12px; font-weight: 800; font-size: 16px; text-decoration: none; border: 0; cursor: pointer; transition: transform .12s, background .15s; }
+  .btn:active { transform: scale(.97); }
+  .btn.pri { background: var(--brand); color: #fff; box-shadow: 0 10px 30px rgba(236,11,67,.35); }
+  .btn.pri:hover { background: var(--brand-2); }
+  .btn.ghost { background: rgba(255,255,255,.08); color: var(--text); }
+  .btn.ghost:hover { background: rgba(255,255,255,.14); }
+  .eyebrow { color: var(--brand); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; font-size: 13px; }
+  h1, h2, h3 { line-height: 1.15; margin: 0; }
+  section { padding: 84px 0; }
+  .center { text-align: center; }
+  .sub { color: var(--muted); font-size: 18px; max-width: 640px; }
+  .center .sub { margin: 14px auto 0; }
+
+  /* Topo */
+  header { position: sticky; top: 0; z-index: 20; background: rgba(15,15,17,.86); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  header .wrap { display: flex; align-items: center; gap: 24px; height: 68px; }
+  header img { height: 30px; width: auto; }
+  nav { display: flex; gap: 22px; margin-left: auto; align-items: center; }
+  nav a { text-decoration: none; color: var(--muted); font-weight: 600; font-size: 15px; }
+  nav a:hover { color: var(--text); }
+  nav .btn { height: 42px; padding: 0 18px; font-size: 15px; }
+  @media (max-width: 760px) { nav a.hide-m { display: none; } nav { gap: 10px; } }
+
+  /* Destaque */
+  .hero { position: relative; overflow: hidden; padding: 72px 0 90px; }
+  .hero::before { content: ''; position: absolute; inset: -20% -10% auto; height: 640px; background: radial-gradient(600px 340px at 30% 30%, rgba(236,11,67,.30), transparent 70%), radial-gradient(520px 300px at 80% 10%, rgba(120,60,255,.18), transparent 70%); pointer-events: none; }
+  .hero .wrap { position: relative; display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; }
+  .hero h1 { font-size: clamp(36px, 5.4vw, 62px); letter-spacing: -.02em; margin: 14px 0 18px; }
+  .hero h1 span { color: var(--brand); }
+  .hero .sub { font-size: 19px; }
+  .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
+  .trust { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 26px; color: var(--muted); font-size: 14px; }
+  .trust span::before { content: '✓ '; color: var(--brand); font-weight: 900; }
+  @media (max-width: 900px) { .hero .wrap { grid-template-columns: 1fr; } .hero { padding-top: 40px; } }
+
+  /* Ilustração dos aparelhos (sem imagens de terceiros) */
+  .devices { position: relative; height: 420px; }
+  .tv { position: absolute; inset: 0 40px 70px 0; border-radius: 14px; background: #050506; border: 10px solid #1f1f25; box-shadow: 0 40px 80px rgba(0,0,0,.6); overflow: hidden; }
+  .tv::after { content: ''; position: absolute; left: 50%; bottom: -46px; width: 120px; height: 34px; transform: translateX(-50%); background: #1f1f25; border-radius: 0 0 10px 10px; }
+  .screen { position: absolute; inset: 0; padding: 18px; background: radial-gradient(400px 200px at 70% 0%, #3a1324, transparent 70%), #121216; }
+  .screen .bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .screen .bar img { height: 14px; }
+  .screen .bar i { height: 8px; border-radius: 4px; background: rgba(255,255,255,.12); flex: 0 0 60px; }
+  .screen .hero-tile { height: 110px; border-radius: 10px; background: linear-gradient(120deg, #ec0b43, #6b1bff 70%, #1d1d24); opacity: .9; margin-bottom: 14px; position: relative; }
+  .screen .hero-tile::after { content: '▶ Assistir'; position: absolute; left: 14px; bottom: 12px; font-size: 11px; font-weight: 800; background: #fff; color: #111; padding: 4px 9px; border-radius: 5px; }
+  .screen .row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 10px; }
+  .screen .row i { aspect-ratio: 2/3; border-radius: 6px; background: linear-gradient(160deg, hsl(var(--h), 70%, 45%), hsl(calc(var(--h) + 40), 60%, 22%)); }
+  .phone { position: absolute; right: 0; bottom: 0; width: 150px; height: 300px; border-radius: 26px; background: #050506; border: 7px solid #26262d; box-shadow: 0 30px 60px rgba(0,0,0,.7); overflow: hidden; }
+  .phone .screen { padding: 12px 10px; }
+  .phone .row { grid-template-columns: repeat(3, 1fr); }
+  .phone .hero-tile { height: 90px; }
+  .phone .tabs { position: absolute; left: 0; right: 0; bottom: 0; height: 34px; background: #0c0c0f; border-top: 1px solid var(--line); display: flex; justify-content: space-around; align-items: center; }
+  .phone .tabs i { width: 14px; height: 14px; border-radius: 4px; background: rgba(255,255,255,.2); }
+  .phone .tabs i:first-child { background: var(--brand); }
+  @media (max-width: 520px) { .devices { height: 330px; } .phone { width: 120px; height: 240px; } }
+
+  /* Recursos */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .feat { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .feat .ic { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: rgba(236,11,67,.14); color: var(--brand); margin-bottom: 14px; }
+  .feat h3 { font-size: 18px; margin-bottom: 6px; }
+  .feat p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  /* Telas */
+  .screens { background: var(--bg-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .chips { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 34px; }
+  .chip { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-weight: 700; }
+  .chip svg { color: var(--brand); }
+  .lite { margin: 26px auto 0; max-width: 640px; color: var(--muted); font-size: 15px; }
+  .lite b { color: var(--text); }
+
+  /* Planos */
+  .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 44px; }
+  .plan { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px 24px; display: flex; flex-direction: column; }
+  .plan.best { border: 2px solid var(--brand); box-shadow: 0 20px 50px rgba(236,11,67,.18); }
+  .plan .tag { position: absolute; top: -12px; left: 24px; background: var(--brand); color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .06em; padding: 4px 10px; border-radius: 999px; }
+  .plan h3 { font-size: 20px; }
+  .plan .price { font-size: 40px; font-weight: 900; margin: 12px 0 0; letter-spacing: -.02em; }
+  .plan .per { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+  .plan ul { list-style: none; padding: 0; margin: 0 0 24px; color: var(--muted); font-size: 15px; }
+  .plan li { margin: 7px 0; } .plan li::before { content: '✓  '; color: var(--brand); font-weight: 900; }
+  .plan .btn { margin-top: auto; }
+  .pay { margin-top: 18px; color: var(--muted); font-size: 14px; }
+
+  /* Como funciona */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; counter-reset: s; }
+  @media (max-width: 800px) { .steps { grid-template-columns: 1fr; } }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .step::before { counter-increment: s; content: counter(s); display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--brand); font-weight: 900; margin-bottom: 14px; }
+  .step h3 { font-size: 18px; margin-bottom: 6px; } .step p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  /* Downloads */
+  .dl { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 28px; }
+  .dl a { padding: 12px 18px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); text-decoration: none; font-weight: 700; }
+  .dl a:hover { border-color: var(--brand); }
+
+  /* Perguntas */
+  .faq { max-width: 780px; margin: 40px auto 0; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-bottom: 10px; }
+  summary { cursor: pointer; font-weight: 700; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+  summary::after { content: '+'; color: var(--brand); font-size: 22px; line-height: 1; }
+  details[open] summary::after { content: '−'; }
+  details p { color: var(--muted); margin: 12px 0 0; }
+
+  /* Chamada final */
+  .final { text-align: center; background: radial-gradient(700px 300px at 50% 100%, rgba(236,11,67,.25), transparent 70%); }
+  .final h2 { font-size: clamp(30px, 4vw, 44px); }
+
+  footer { border-top: 1px solid var(--line); padding: 34px 0; color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center; }
+  footer img { height: 22px; }
+  footer nav { margin-left: auto; }
+  h2.t { font-size: clamp(28px, 3.6vw, 40px); letter-spacing: -.01em; margin-top: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a href="/" aria-label="GATES! TV"><img src="/logo.png" alt="GATES! TV" /></a>
+    <nav>
+      <a class="hide-m" href="#recursos">Recursos</a>
+      <a class="hide-m" href="#planos">Planos</a>
+      <a class="hide-m" href="#duvidas">Dúvidas</a>
+      <a class="hide-m" href="/testar">Teste grátis</a>
+      <a href="/conta">Minha conta</a>
+      <a class="btn pri" href="/assinar">Assinar</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <div class="eyebrow">Player para todas as telas</div>
+        <h1>Tudo o que você assiste, <span>do jeito certo</span>, em qualquer tela.</h1>
+        <p class="sub">O GATES! TV organiza a sua lista com guia de programação, perfis para a família, controle parental e uma interface pensada para a TV, o celular e o computador.</p>
+        <div class="cta">
+          <a class="btn pri" href="/assinar">Assinar agora</a>
+          <a class="btn ghost" href="/testar">▶ Teste grátis</a>
+        </div>
+        <p class="sub" style="font-size:14px;margin:10px 0 0">Sem cartão e sem cobrança automática. <a href="/demo/" style="color:inherit">Ou veja uma demonstração no navegador</a>.</p>
+        <div class="trust"><span>PIX, boleto ou cartão</span><span>Cancele quando quiser</span><span>Liberação na hora</span></div>
+      </div>
+      <div class="devices" aria-hidden="true">
+        <div class="tv"><div class="screen">
+          <div class="bar"><img src="/logo.png" alt="" /><i></i><i></i><i></i></div>
+          <div class="hero-tile"></div>
+          <div class="row" id="r1"></div><div class="row" id="r2"></div>
+        </div></div>
+        <div class="phone"><div class="screen">
+          <div class="bar"><img src="/logo.png" alt="" /></div>
+          <div class="hero-tile"></div>
+          <div class="row" id="r3"></div><div class="row" id="r4"></div>
+        </div><div class="tabs"><i></i><i></i><i></i><i></i></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="recursos">
+    <div class="wrap center">
+      <div class="eyebrow">Recursos</div>
+      <h2 class="t">Feito para assistir sem complicação</h2>
+      <p class="sub">Interface no estilo dos grandes streamings, com tudo o que importa no dia a dia.</p>
+      <div class="grid" style="text-align:left">
+        <div class="feat"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v5M16 4v5"/></svg></div><h3>Guia de programação</h3><p>Veja o que está passando agora e o que vem a seguir em cada canal da sua lista.</p></div>
+        <div class="feat"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M14 20c.3-2.3 1.9-4 4-4 1.9 0 3 1.2 3 3"/></svg></div><h3>Perfis para a família</h3><p>Cada pessoa com seus favoritos e o "continuar assistindo". Perfis infantis com controle de idade.</p></div>
+        <div class="feat"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><h3>Controle parental</h3><p>Bloqueie canais, filmes e séries com PIN e defina a classificação indicativa de cada perfil.</p></div>
+        <div class="feat"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg></div><h3>Notas, elenco e trailers</h3><p>Sinopse, nota do IMDb, elenco e trailer de cada título, para escolher o que ver.</p></div>
+        <div class="feat"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="13" rx="2"/><path d="M8 21h8M12 18v3"/></svg></div><h3>Controle remoto de verdade</h3><p>Na TV, tudo funciona pelo controle: troca de canal, lista de canais, informações e favoritos.</p></div>
+        <div class="feat"><div class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></div><h3>Leve e estável</h3><p>Reconecta sozinho se a imagem travar e tem a versão LITE para aparelhos mais simples.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screens">
+    <div class="wrap center">
+      <div class="eyebrow">Onde assistir</div>
+      <h2 class="t">Uma assinatura, várias telas</h2>
+      <p class="sub" id="devices-sub">Use em até 3 aparelhos com a mesma assinatura.</p>
+      <div class="chips">
+        <div class="chip"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8"/></svg>Android TV e TV Box</div>
+        <div class="chip"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Celular Android</div>
+        <div class="chip"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M11 18h2"/></svg>Tablet</div>
+        <div class="chip"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M2 20h20"/></svg>Computador Windows</div>
+
+      </div>
+      <p class="lite"><b>Versão LITE:</b> para TV Box e celulares mais simples, carrega menos conteúdo de uma vez e fica mais rápida.</p>
+    </div>
+  </section>
+
+  <section id="planos">
+    <div class="wrap center">
+      <div class="eyebrow">Planos</div>
+      <h2 class="t">Escolha o seu plano</h2>
+      <p class="sub">Todos os recursos em todos os planos. Sem fidelidade.</p>
+      <div class="plans" id="plans" style="text-align:left"></div>
+      <p class="pay">Pagamento seguro por PIX, boleto ou cartão. Com PIX ou cartão, o acesso é liberado na hora.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap center">
+      <div class="eyebrow">Como funciona</div>
+      <h2 class="t">Comece a assistir em minutos</h2>
+      <div class="steps" style="text-align:left">
+        <div class="step"><h3>Assine</h3><p>Escolha o plano e pague com PIX, boleto ou cartão. Você recebe na hora o seu código de acesso.</p></div>
+        <div class="step"><h3>Instale o app</h3><p>Baixe o GATES! TV em <a href="/conta" style="color:#ec0b43">Minha conta</a> e siga o <a href="/instalar" style="color:#ec0b43">passo a passo de instalação</a> para TV, celular ou tablet.</p></div>
+        <div class="step"><h3>Entre e assista</h3><p>Entre com o e-mail e o CPF. Na TV, aparece um código para confirmar pelo celular, sem digitar com o controle.</p></div>
+      </div>
+      <div class="dl" id="dl"></div>
+    </div>
+  </section>
+
+  <section id="duvidas" style="padding-top:20px">
+    <div class="wrap center">
+      <div class="eyebrow">Dúvidas</div>
+      <h2 class="t">Perguntas frequentes</h2>
+      <div class="faq" style="text-align:left">
+        <details><summary>O GATES! TV já vem com canais?</summary><p>O GATES! TV é um aplicativo player: ele organiza e reproduz a lista que você adiciona (M3U ou Xtream Codes). O conteúdo e os direitos de exibição são de responsabilidade do fornecedor da sua lista.</p></details>
+        <details><summary>Em quantos aparelhos posso usar?</summary><p id="faq-devices">Em até 3 aparelhos por assinatura. Você pode remover um aparelho antigo na área "Minha conta" para liberar a vaga.</p></details>
+        <details><summary>Como funciona o pagamento?</summary><p>A cobrança é recorrente, conforme o plano escolhido. Você recebe a fatura por e-mail e paga com PIX, boleto ou cartão. Com cartão, a cobrança é automática.</p></details>
+        <details><summary>E se eu atrasar o pagamento?</summary><p id="faq-grace">O app avisa uma vez e você tem 4 dias para regularizar antes de o acesso ser suspenso. Assim que o pagamento é confirmado, tudo volta a funcionar sozinho.</p></details>
+        <details><summary>Posso cancelar quando quiser?</summary><p>Sim. Em "Minha conta" você cancela as próximas cobranças e continua usando até o fim do período já pago.</p></details>
+        <details><summary>Por que o app não está na Play Store?</summary><p>O GATES! TV é instalado direto pelo nosso site oficial. Por isso o Android mostra um aviso de "fonte desconhecida" ou do Play Protect na instalação — é normal. O <a href="/instalar" style="color:#ec0b43">manual de instalação</a> mostra o que tocar em cada tela.</p></details>
+        <details><summary>Funciona na minha TV?</summary><p>Funciona em TVs com Android TV / Google TV e em TV Box Android. Para aparelhos mais simples, use a versão LITE.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="wrap">
+      <h2>Pronto para começar?</h2>
+      <p class="sub" style="margin:14px auto 28px">Assine agora e assista hoje mesmo, em todas as suas telas.</p>
+      <a class="btn pri" href="/assinar">Assinar agora</a>
+      <a class="btn ghost" href="/testar" style="margin-left:8px">▶ Teste grátis</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <img src="/logo.png" alt="GATES! TV" />
+    <span>© <span id="y"></span> GATES! TV<span id="co"></span></span>
+    <nav>
+      <a href="/conta">Minha conta</a>
+      <a href="/instalar">Como instalar</a>
+      <a href="/ativar">Ativar TV</a>
+      <a href="/termos">Termos de uso</a>
+      <a href="/privacidade">Privacidade</a>
+      <a id="support" href="#" hidden>Suporte (WhatsApp)</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  $('y').textContent = new Date().getFullYear();
+  // Capas abstratas da ilustração (sem imagens de terceiros).
+  const tiles = (el, n) => { for (let i = 0; i < n; i++) { const t = document.createElement('i'); t.style.setProperty('--h', (i * 47 + el.id.length * 31) % 360); el.append(t); } };
+  tiles($('r1'), 6); tiles($('r2'), 6); tiles($('r3'), 3); tiles($('r4'), 3);
+
+  const money = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const per = (d) => (d >= 360 ? 'por ano' : d >= 175 ? 'a cada 6 meses' : d >= 85 ? 'a cada 3 meses' : 'por mês');
+  fetch('/api/v1/plans').then((r) => r.json()).then((j) => {
+    const plans = j.plans || [];
+    const monthly = plans.find((p) => p.days <= 31);
+    // Destaque: o plano com menor preço por mês (geralmente o mais longo).
+    const best = plans.reduce((a, p) => (!a || p.price / p.days < a.price / a.days ? p : a), null);
+    for (const p of plans) {
+      const el = document.createElement('div');
+      el.className = 'plan' + (p === best && plans.length > 1 ? ' best' : '');
+      const months = Math.max(1, Math.round(p.days / 30));
+      const save = monthly && months > 1 ? Math.round((1 - p.price / (monthly.price * months)) * 100) : 0;
+      const add = (tag, cls, text) => { const x = document.createElement(tag); if (cls) x.className = cls; x.textContent = text; el.append(x); return x; };
+      if (p === best && plans.length > 1) add('span', 'tag', 'MAIS VANTAJOSO');
+      add('h3', '', p.name);
+      add('div', 'price', money(p.price));
+      add('div', 'per', per(p.days) + (months > 1 ? ` · ${money(p.price / months)}/mês` : '') + (save > 0 ? ` · economia de ${save}%` : ''));
+      const ul = document.createElement('ul');
+      for (const t of ['Todos os recursos', `Até ${j.maxDevices || 3} aparelhos`, 'TV, celular, tablet e PC', 'Cancele quando quiser']) { const li = document.createElement('li'); li.textContent = t; ul.append(li); }
+      el.append(ul);
+      const a = document.createElement('a'); a.className = 'btn ' + (p === best ? 'pri' : 'ghost'); a.href = '/assinar?plano=' + encodeURIComponent(p.id); a.textContent = 'Assinar ' + p.name; el.append(a);
+      $('plans').append(el);
+    }
+    if (j.maxDevices) {
+      $('devices-sub').textContent = `Use em até ${j.maxDevices} aparelhos com a mesma assinatura.`;
+      $('faq-devices').textContent = `Em até ${j.maxDevices} aparelhos por assinatura. Você pode remover um aparelho antigo na área "Minha conta" para liberar a vaga.`;
+    }
+    if (j.graceDays) $('faq-grace').textContent = `O app avisa uma vez e você tem ${j.graceDays} dias para regularizar antes de o acesso ser suspenso. Assim que o pagamento é confirmado, tudo volta a funcionar sozinho.`;
+    const names = { tv: 'Android TV', tvLite: 'Android TV (LITE)', phone: 'Celular', phoneLite: 'Celular (LITE)', tablet: 'Tablet', windows: 'Windows' };
+    for (const [k, url] of Object.entries(j.downloads || {})) {
+      if (!url) continue;
+      const a = document.createElement('a'); a.href = url; a.textContent = '⬇  ' + names[k]; $('dl').append(a);
+    }
+    if (j.company) $('co').textContent = ' · ' + [j.company, j.cnpj && 'CNPJ ' + j.cnpj, j.address].filter(Boolean).join(' · ');
+    if (j.support) { const s = $('support'); s.hidden = false; s.href = 'https://wa.me/' + String(j.support).replace(/\D/g, ''); s.target = '_blank'; s.rel = 'noopener'; }
+  });
+</script>
+</body>
+</html>

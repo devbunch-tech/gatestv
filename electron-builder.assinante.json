@@ -1,0 +1,31 @@
+{
+  "appId": "br.com.gatestv.assinante",
+  "productName": "GATES TV Assinante",
+  "copyright": "PALMER TECH LTDA",
+  "directories": { "output": "release/assinante-win", "buildResources": "build" },
+  "files": ["dist-sub/**/*", "server/**/*", "electron/**/*", "build/icon.png", "package.json"],
+  "extraMetadata": {
+    "name": "gates-tv-assinante",
+    "productName": "GATES TV Assinante",
+    "gatesWeb": "dist-sub",
+    "gatesPort": 47136,
+    "gatesTitle": "GATES! TV",
+    "gatesUserData": "GATES TV Assinante"
+  },
+  "win": {
+    "target": [{ "target": "nsis", "arch": ["x64"] }],
+    "icon": "build/icon.png",
+    "artifactName": "GatesTV-Windows-Setup-${version}.exe"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "GATES! TV",
+    "uninstallDisplayName": "GATES! TV",
+    "installerLanguages": ["pt_BR"],
+    "language": "1046"
+  }
+}

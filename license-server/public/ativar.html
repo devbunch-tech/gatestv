@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ativar GATES! TV</title>
+<style>
+  :root { --brand: #ec0b43; --bg: #121214; --card: #1f1f23; --text: #ececee; --muted: #9a9aa3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 20px; background: radial-gradient(800px 400px at 50% 0%, #2a1a20, transparent 70%), var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  main { width: 100%; max-width: 420px; background: var(--card); border: 1px solid rgba(255,255,255,.08); border-radius: 16px; padding: 28px 22px; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  h1 span { color: var(--brand); font-weight: 900; letter-spacing: .02em; }
+  p { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin: 14px 0 6px; }
+  input { width: 100%; height: 48px; padding: 0 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: #121214; color: var(--text); font-size: 16px; outline: 0; }
+  input:focus { border-color: var(--brand); }
+  #code { text-transform: uppercase; letter-spacing: .3em; font-weight: 800; font-size: 22px; text-align: center; }
+  button { width: 100%; height: 50px; margin-top: 22px; border: 0; border-radius: 8px; background: var(--brand); color: #fff; font-size: 16px; font-weight: 700; cursor: pointer; }
+  button:disabled { opacity: .6; }
+  .msg { margin-top: 16px; padding: 12px 14px; border-radius: 8px; font-size: 14px; display: none; }
+  .msg.ok { display: block; background: rgba(46,204,113,.12); color: #6be3a0; }
+  .msg.err { display: block; background: rgba(255,70,90,.12); color: #ff7d8c; }
+  small { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Ativar <span>GATES!</span> TV</h1>
+  <p>Digite o código que aparece na tela do aparelho e os dados da sua assinatura.</p>
+  <form id="f">
+    <label for="code">Código do aparelho</label>
+    <input id="code" maxlength="6" autocomplete="off" required />
+    <label for="email">E-mail da assinatura</label>
+    <input id="email" type="email" autocomplete="email" required />
+    <label for="order">CPF ou código de acesso</label>
+    <input id="order" placeholder="000.000.000-00 ou GTV-XXXX-XXXX" required />
+    <small>O código de acesso aparece ao final da compra. <a href="/assinar" style="color:#ec0b43">Ainda não assina?</a></small>
+    <button id="b">Ativar aparelho</button>
+  </form>
+  <div id="m" class="msg"></div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const c = new URLSearchParams(location.search).get('c');
+  if (c) $('code').value = c.toUpperCase();
+  $('f').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const m = $('m');
+    m.className = 'msg';
+    $('b').disabled = true;
+    try {
+      const r = await fetch('/api/v1/pair/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: $('code').value, email: $('email').value, order: $('order').value }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.message || 'Não foi possível ativar.');
+      m.className = 'msg ok';
+      m.textContent = j.status === 'suspended'
+        ? 'Aparelho vinculado, mas a assinatura está suspensa. Regularize o pagamento na loja.'
+        : 'Pronto! O aparelho ' + (j.device ? '“' + j.device + '” ' : '') + 'já pode ser usado.';
+      $('f').style.display = 'none';
+    } catch (err) {
+      m.className = 'msg err';
+      m.textContent = err.message;
+    } finally {
+      $('b').disabled = false;
+    }
+  });
+</script>
+</body>
+</html>

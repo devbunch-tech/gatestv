@@ -1,0 +1,20 @@
+node_modules
+dist
+release
+android/out
+*.keystore
+
+# Servidor de licenças: chave privada e dados dos assinantes
+license-server/data/
+license-server/.env
+dist-sub/
+license-server/data-demo/
+dist-test/
+
+# Cloudflare: segredos gerados e testes locais
+cloud/.segredos.json
+cloud/.dev.vars
+cloud/.wrangler/
+dist-demo/
+
+videos/

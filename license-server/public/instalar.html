@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Como instalar — GATES! TV</title>
+<meta name="description" content="Passo a passo para instalar o GATES! TV no celular, tablet, Android TV e TV Box." />
+<link rel="icon" href="/icon.png" />
+<style>
+  :root { --brand: #ec0b43; --bg: #0f0f11; --card: #1c1c21; --line: rgba(255,255,255,.09); --text: #f1f1f3; --muted: #a2a2ab; --warn: #fbbf24; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  header { border-bottom: 1px solid var(--line); background: rgba(15,15,17,.9); position: sticky; top: 0; backdrop-filter: blur(10px); z-index: 5; }
+  header .w { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  header img { height: 28px; }
+  header nav a { color: var(--muted); text-decoration: none; font-weight: 600; margin-left: 18px; font-size: 15px; }
+  .w { max-width: 860px; margin: 0 auto; padding: 0 18px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); margin: 36px 0 8px; line-height: 1.2; }
+  h2 { font-size: 22px; margin: 0 0 10px; display: flex; align-items: center; gap: 10px; }
+  h3 { font-size: 17px; margin: 18px 0 6px; }
+  .lead { color: var(--muted); font-size: 18px; margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 22px 14px; margin: 16px 0; }
+  .note { border-left: 4px solid var(--warn); background: rgba(245,158,11,.08); border-radius: 10px; padding: 14px 16px; margin: 16px 0; }
+  .note b { color: var(--warn); }
+  ol { padding-left: 22px; margin: 8px 0 12px; } li { margin: 8px 0; }
+  li b, p b { color: #fff; }
+  .muted { color: var(--muted); }
+  code, .k { background: #0f0f12; border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; font-family: ui-monospace, Consolas, monospace; font-size: 15px; color: #fff; }
+  .toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+  .toc a { padding: 9px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); color: var(--text); text-decoration: none; font-weight: 600; font-size: 15px; }
+  .toc a:hover { border-color: var(--brand); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 22px; border-radius: 10px; background: var(--brand); color: #fff; font-weight: 800; text-decoration: none; margin: 6px 8px 6px 0; }
+  .btn.ghost { background: rgba(255,255,255,.09); }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 15px; }
+  td, th { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  footer { border-top: 1px solid var(--line); margin-top: 40px; padding: 26px 0; color: var(--muted); font-size: 14px; }
+  footer a { color: var(--muted); margin-right: 16px; }
+</style>
+</head>
+<body>
+<header><div class="w">
+  <a href="/"><img src="/logo.png" alt="GATES! TV" /></a>
+  <nav><a href="/conta">Minha conta</a><a href="/assinar">Assinar</a></nav>
+</div></header>
+
+<main class="w">
+  <h1>Como instalar o GATES! TV</h1>
+  <p class="lead">O GATES! TV é instalado direto pelo arquivo do app (APK no Android, instalador no Windows), sem passar por lojas de aplicativos. Por isso o Android mostra alguns avisos de segurança — é normal, e este guia mostra o que tocar em cada um.</p>
+  <p class="lead"><b>Está no teste grátis?</b> O passo a passo é o mesmo: baixe em <b>Minha conta</b> e entre com o e-mail e o CPF que você usou no cadastro do teste. <a href="/testar" style="color:#ec0b43">Ainda não começou o seu teste?</a></p>
+
+  <div class="toc">
+    <a href="#baixar">1. Baixar</a>
+    <a href="#celular">Celular e tablet</a>
+    <a href="#tv">Android TV e TV Box</a>
+    <a href="#google-tv">Google TV / Chromecast</a>
+    <a href="#windows">Computador Windows</a>
+    <a href="#entrar">Entrar no app</a>
+    <a href="#problemas">Problemas comuns</a>
+  </div>
+
+  <div class="note"><b>Por que aparece "fonte desconhecida" ou "Play Protect"?</b> O Android avisa sempre que um app é instalado fora da Play Store. O arquivo do GATES! TV é baixado somente do nosso site oficial (<span class="k" id="host">gatesapptv.pages.dev</span>), com conexão segura. Nunca instale o app a partir de arquivos enviados por outras pessoas.</div>
+
+  <section class="card" id="baixar">
+    <h2>1. Baixe o app na sua conta</h2>
+    <p>O download fica disponível para assinantes com a mensalidade em dia.</p>
+    <ol>
+      <li>Acesse <a href="/conta" style="color:#ec0b43"><b>Minha conta</b></a> e entre com o seu <b>e-mail</b> e <b>CPF</b>.</li>
+      <li>Em <b>"Baixar os apps"</b>, toque em <b>Gerar links de download</b>.</li>
+      <li>Escolha a versão do seu aparelho (tabela abaixo). Os links valem por 2 horas.</li>
+    </ol>
+    <table>
+      <tr><th>Aparelho</th><th>Versão</th></tr>
+      <tr><td>Celular Android</td><td><b>Celular</b> — ou <b>Celular LITE</b> se o aparelho for mais simples (2 GB de memória ou menos)</td></tr>
+      <tr><td>Tablet Android</td><td><b>Tablet</b> — ou <b>Tablet LITE</b></td></tr>
+      <tr><td>Android TV, Google TV e TV Box</td><td><b>Android TV</b> — ou <b>Android TV LITE</b> para TV Box mais simples</td></tr>
+      <tr><td>Computador com Windows 10 ou 11</td><td><b>Computador Windows</b></td></tr>
+    </table>
+    <a class="btn" href="/conta">Ir para Minha conta</a>
+  </section>
+
+  <section class="card" id="celular">
+    <h2>📱 Celular e tablet Android</h2>
+    <ol>
+      <li>No celular, abra <b>Minha conta</b> e toque no link da sua versão. O arquivo <b>GatesTV-Celular.apk</b> (ou Tablet) é baixado.</li>
+      <li>Toque em <b>Abrir</b> na notificação do download (ou abra o app <b>Arquivos → Downloads</b>).</li>
+      <li>Se aparecer <b>"Por segurança, seu telefone não tem permissão para instalar apps desconhecidos desta fonte"</b>, toque em <b>Configurações</b>, ative <b>"Permitir desta fonte"</b> e volte.</li>
+      <li>Toque em <b>Instalar</b>.</li>
+      <li>Se o <b>Play Protect</b> mostrar <b>"App não verificado"</b> ou <b>"Bloqueado pelo Play Protect"</b>, toque em <b>Mais detalhes</b> e depois em <b>Instalar mesmo assim</b> (em alguns aparelhos: <b>Instalar sem verificar</b>).</li>
+      <li>Se ele oferecer <b>"Enviar app para verificação"</b>, você pode escolher <b>Não enviar</b>.</li>
+      <li>Toque em <b>Abrir</b>. Pronto!</li>
+    </ol>
+    <p class="muted">Depois de instalar, você pode desativar de novo o "Permitir desta fonte", se preferir.</p>
+  </section>
+
+  <section class="card" id="tv">
+    <h2>📺 Android TV e TV Box</h2>
+    <h3>Opção A — pelo app "Downloader" (mais fácil)</h3>
+    <ol>
+      <li>Na TV, abra a <b>Play Store</b>, procure <b>Downloader</b> (ícone laranja, da AFTVnews) e instale. É gratuito.</li>
+      <li>Libere a instalação: <b>Configurações → Apps → Acesso especial do app → Instalar apps desconhecidos → Downloader → Permitir</b>. (Em alguns modelos: <b>Configurações → Segurança e restrições → Fontes desconhecidas</b>.)</li>
+      <li>Abra o <b>Downloader</b> e digite o <b>seu endereço da TV</b>, por exemplo <span class="k">gatesapptv.pages.dev/tv/123456</span>, e clique em <b>Go</b>. Ele aparece logo depois da compra e fica sempre em <b>Minha conta</b> — é só seu e vale sempre (para TV Box mais simples, coloque <span class="k">/lite</span> no final).</li>
+      <li>Quando o download terminar, clique em <b>Instalar</b>. Se aparecer o aviso do <b>Play Protect</b>, escolha <b>Mais detalhes → Instalar mesmo assim</b>.</li>
+      <li>Clique em <b>Abrir</b>. O GATES! TV também aparece na tela inicial da TV.</li>
+    </ol>
+    <h3>Opção B — pelo pen drive</h3>
+    <ol>
+      <li>No computador, baixe o arquivo <b>GatesTV-TV.apk</b> em <b>Minha conta</b> e copie para um pen drive.</li>
+      <li>Conecte o pen drive na TV e abra um gerenciador de arquivos (por exemplo <b>File Commander</b> ou <b>X-plore</b>, grátis na Play Store da TV).</li>
+      <li>Libere esse gerenciador em <b>Instalar apps desconhecidos</b> (passo 2 da opção A), abra o arquivo e clique em <b>Instalar</b>.</li>
+    </ol>
+  </section>
+
+  <section class="card" id="google-tv">
+    <h2>🔑 Google TV e Chromecast com Google TV</h2>
+    <p>No Google TV, a opção "Instalar apps desconhecidos" só aparece com o <b>modo desenvolvedor</b> ligado:</p>
+    <ol>
+      <li><b>Configurações → Sistema → Sobre</b>.</li>
+      <li>Clique <b>7 vezes</b> em <b>Build do SO do Android TV</b> até aparecer "Agora você é um desenvolvedor".</li>
+      <li>Volte e siga a <a href="#tv" style="color:#ec0b43">opção A</a> acima (o caminho da permissão fica em <b>Configurações → Apps → Segurança e restrições → Fontes desconhecidas</b>).</li>
+    </ol>
+  </section>
+
+  <section class="card" id="windows">
+    <h2>💻 Computador Windows</h2>
+    <ol>
+      <li>No computador, abra <b>Minha conta</b>, gere os links e clique em <b>Baixar</b> ao lado de <b>Computador Windows</b>. O arquivo <b>GatesTV-Windows-Setup.exe</b> (cerca de 86 MB) é baixado.</li>
+      <li>Se o navegador avisar que o arquivo "não é baixado com frequência", clique em <b>⋯ → Manter</b> (Edge) ou <b>Manter arquivo</b> (Chrome).</li>
+      <li>Abra o arquivo. Se aparecer a tela azul <b>"O Windows protegeu o computador"</b>, clique em <b>Mais informações</b> e depois em <b>Executar assim mesmo</b>.</li>
+      <li>Siga o instalador (<b>Avançar → Instalar</b>). Um atalho <b>GATES! TV</b> é criado na área de trabalho.</li>
+      <li>Abra o GATES! TV e entre com o <b>e-mail</b> e o <b>CPF</b>. Ele abre em tela cheia — aperte <b>F11</b> para alternar para janela.</li>
+    </ol>
+    <p class="muted">O aviso do Windows aparece porque o instalador é novo e distribuído direto pelo nosso site. Baixe sempre em Minha conta.</p>
+  </section>
+
+  <section class="card" id="entrar">
+    <h2>✅ Entrar no app</h2>
+    <ol>
+      <li><b>Celular e tablet:</b> abra o GATES! TV e entre com o <b>e-mail</b> e o <b>CPF</b> da assinatura (ou o código de acesso recebido na compra).</li>
+      <li><b>TV:</b> se você baixou pelo <b>seu endereço da TV</b> (ou pelos links de Minha conta), o app <b>entra sozinho</b> na primeira vez que abrir — não precisa digitar nada. Se ele mostrar um <b>código de 6 caracteres</b> (por exemplo, instalado por pen drive), faça assim: No celular, abra <a href="/conta" style="color:#ec0b43"><b>Minha conta</b></a> e digite o código em <b>Instalar e ativar na TV</b> (ou use <a href="/ativar" style="color:#ec0b43"><b id="ativar">gatesapptv.pages.dev/ativar</b></a>). A TV entra sozinha em alguns segundos.</li>
+      <li>Em seguida, adicione a sua lista em <b>Configurações → Fontes</b>.</li>
+    </ol>
+    <p class="muted">Você pode usar até <b id="max">3</b> aparelhos. Para trocar de aparelho, remova o antigo em <a href="/conta" style="color:#ec0b43">Minha conta</a>.</p>
+  </section>
+
+  <section class="card" id="problemas">
+    <h2>🛠️ Problemas comuns</h2>
+    <table>
+      <tr><th>Mensagem</th><th>O que fazer</th></tr>
+      <tr><td><b>"App não instalado"</b></td><td>Libere espaço no aparelho. Se você tinha uma versão antiga instalada de outra fonte, desinstale-a e instale de novo.</td></tr>
+      <tr><td><b>"Erro ao analisar o pacote"</b></td><td>O download não terminou. Gere um novo link em Minha conta e baixe de novo.</td></tr>
+      <tr><td><b>"Link de download expirado"</b></td><td>Os links valem 2 horas. Gere novos links em Minha conta.</td></tr>
+      <tr><td><b>Download indisponível</b></td><td>O download só fica liberado com a assinatura em dia. Confira em Minha conta e pague a fatura em aberto.</td></tr>
+      <tr><td><b>"Limite de aparelhos atingido"</b></td><td>Remova um aparelho antigo em Minha conta.</td></tr>
+      <tr><td><b>Atualizar o app</b></td><td>Baixe a versão nova e instale por cima — suas configurações são mantidas.</td></tr>
+    </table>
+    <p id="sup" hidden>Ainda com dúvidas? <a class="btn" id="wa" target="_blank" rel="noopener" href="#">Falar no WhatsApp</a></p>
+  </section>
+</main>
+
+<footer><div class="w">
+  <a href="/">Início</a><a href="/conta">Minha conta</a><a href="/termos">Termos de uso</a><a href="/privacidade">Privacidade</a>
+</div></footer>
+<script>
+  document.getElementById('host').textContent = location.host;
+  document.getElementById('ativar').textContent = location.host + '/ativar';
+  fetch('/api/v1/plans').then((r) => r.json()).then((j) => {
+    if (j.maxDevices) document.getElementById('max').textContent = j.maxDevices;
+    if (j.support) {
+      document.getElementById('sup').hidden = false;
+      document.getElementById('wa').href = 'https://wa.me/' + String(j.support).replace(/\D/g, '') + '?text=' + encodeURIComponent('Olá! Preciso de ajuda para instalar o GATES! TV.');
+    }
+  });
+</script>
+</body>
+</html>

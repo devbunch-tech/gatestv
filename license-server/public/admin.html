@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Painel GATES! TV</title>
+<style>
+  :root { --brand: #ec0b43; --bg: #121214; --card: #1f1f23; --line: rgba(255,255,255,.1); --text: #ececee; --muted: #9a9aa3; --ok: #6be3a0; --warn: #fbbf24; --bad: #ff7d8c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 22px 16px 60px; }
+  h1 { font-size: 22px; margin: 0; } h1 span { color: var(--brand); font-weight: 900; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .muted { color: var(--muted); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+  .stat b { display: block; font-size: 28px; }
+  .stat.ok b { color: var(--ok); } .stat.warn b { color: var(--warn); } .stat.bad b { color: var(--bad); }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  input, select { height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: #18181b; color: var(--text); font-size: 15px; }
+  input[type=search] { flex: 1; min-width: 200px; }
+  button { height: 40px; padding: 0 14px; border-radius: 8px; border: 0; background: rgba(255,255,255,.1); color: var(--text); font-weight: 600; cursor: pointer; }
+  button.pri { background: var(--brand); color: #fff; }
+  button.sm { height: 32px; padding: 0 10px; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  tr:hover td { background: rgba(255,255,255,.02); }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .active { background: rgba(46,204,113,.15); color: var(--ok); } .grace { background: rgba(245,158,11,.15); color: var(--warn); } .suspended { background: rgba(255,70,90,.15); color: var(--bad); }
+  .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .dev { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; border-bottom: 1px solid var(--line); }
+  .tab { background: none; border-radius: 0; border-bottom: 3px solid transparent; color: var(--muted); }
+  .tab.on { color: var(--text); border-bottom-color: var(--brand); }
+  .editor { max-width: 760px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .editor label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+  .editor input, .editor textarea { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: #18181b; color: var(--text); font: inherit; }
+  .editor input { height: 42px; }
+  code { font-size: 13px; background: #141418; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; }
+  .warn-t { color: var(--warn); font-size: 12px; }
+  button.danger { background: rgba(255,70,90,.18); color: var(--bad); }
+  main { max-width: 1280px; }
+  .bill-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .bill-card { background: var(--card, #1c1c21); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 4px; }
+  .bill-card small { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+  .bill-card b { font-size: 32px; }
+  .bill-card.real b { color: #6be3a0; } .bill-card.fore b { color: #fbbf24; }
+  .bill-card span { font-size: 13px; }
+  @media (max-width: 800px) { .bill-cards { grid-template-columns: 1fr; } }
+  .wa-filters { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0 8px; }
+  .wa-chk { display: inline-flex; align-items: center; gap: 7px; font-size: 14px; color: var(--text); cursor: pointer; }
+  .wa-chk input { width: 18px; height: 18px; accent-color: var(--brand); }
+  .wa-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 10px 0 6px; padding-top: 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .wa-list { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+  .wa-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .wa-row:last-child { border-bottom: 0; }
+  .wa-row small { color: var(--muted); }
+  .wa-row.off { opacity: .6; }
+  .wa-row > input[type=checkbox] { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--brand); }
+  .wa-row .wa-tel, .wa-row .wa-sit { flex: none; }
+  .wa-row .wa-who { flex: 1; min-width: 0; }
+  .wa-row .wa-who small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wa-row .wa-tel { width: 170px; text-align: right; font-size: 13px; }
+  .wa-row .wa-tel input { height: 32px; font-size: 13px; padding: 0 8px; width: 120px; }
+  .wa-row .wa-tel button { height: 32px; padding: 0 10px; font-size: 12px; margin-left: 4px; }
+  .wa-row .wa-sit { width: 190px; text-align: right; }
+  .wa-row .wa-sit small { display: block; }
+  .wa-f { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 14px; cursor: pointer; user-select: none; }
+  .wa-f input { width: 16px; height: 16px; accent-color: var(--brand); }
+  .wa-f b { color: var(--muted); font-weight: 600; }
+  #wa-q { margin-top: 4px; }
+  @media (max-width: 700px) { .wa-row { flex-wrap: wrap; } .wa-row .wa-tel, .wa-row .wa-sit { width: auto; text-align: left; } }
+  .wa-bar { height: 10px; border-radius: 6px; background: #141418; overflow: hidden; margin: 6px 0 14px; }
+  .wa-bar span { display: block; height: 100%; width: 0; background: var(--brand); transition: width .2s; }
+  .wa-now { background: #141418; border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .wa-now b { font-size: 16px; }
+  .wa-now p { white-space: pre-wrap; color: var(--muted); margin: 8px 0 0; font-size: 14px; }
+  #wa-dlg { max-width: 520px; }
+  .dev button { height: 22px; padding: 0 6px; font-size: 11px; margin-left: 4px; }
+  dialog { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 20px; max-width: 420px; width: 92vw; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
+  dialog input { width: 100%; }
+  .login { max-width: 360px; margin: 12vh auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
+  .login input { width: 100%; margin: 12px 0; }
+  .login button { width: 100%; }
+  .toast { position: fixed; right: 16px; bottom: 16px; padding: 12px 16px; border-radius: 8px; background: #2a2a30; border-left: 4px solid var(--brand); display: none; }
+  @media (max-width: 760px) { thead { display: none; } tr { display: block; border-bottom: 1px solid var(--line); } td { display: block; border: 0; padding: 6px 12px; } }
+</style>
+</head>
+<body>
+<div class="login" id="login">
+  <h1><span>GATES!</span> Painel</h1>
+  <p class="muted">Digite a senha de administrador (ADMIN_TOKEN do servidor).</p>
+  <input type="password" id="tok" autocomplete="current-password" />
+  <button class="pri" id="enter">Entrar</button>
+  <p class="muted" id="lerr"></p>
+</div>
+
+<main id="app" hidden>
+  <div class="top">
+    <h1><span>GATES!</span> Assinantes</h1>
+    <div class="muted" id="store"></div>
+  </div>
+  <div class="tabs">
+    <button class="tab on" data-tab="subs">Assinantes</button>
+    <button class="tab" data-tab="confirm">Página de confirmação</button>
+    <button class="tab" data-tab="paid">Página "Pagamento confirmado"</button>
+    <button class="tab" data-tab="billing">Faturamento</button>
+    <button class="tab" data-tab="whats">Enviar WhatsApp</button>
+  </div>
+  <section id="tab-confirm" hidden>
+    <div class="editor">
+      <p class="muted" style="margin-top:0">Textos que o cliente vê logo depois de preencher os dados da assinatura (com o código de acesso e o botão de pagamento). Use <b>**texto**</b> para negrito. As palavras "Minha conta" e "passo a passo de instalação" viram links sozinhas.</p>
+      <label>Título</label><input id="c-titulo" maxlength="80" />
+      <label>Texto abaixo do título (acima do código de acesso)</label><textarea id="c-subtitulo" rows="2" maxlength="300"></textarea>
+      <label>Texto do botão de pagamento</label><input id="c-botao" maxlength="60" />
+      <label>Passos (um por linha, até 6)</label><textarea id="c-passos" rows="6"></textarea>
+      <label>Texto final (rodapé)</label><textarea id="c-rodape" rows="2" maxlength="400"></textarea>
+      <label>Chamada para o WhatsApp de suporte (deixe vazio para não mostrar)</label><input id="c-whats" maxlength="120" />
+      <div class="actions" style="margin-top:16px">
+        <button class="pri" id="c-save">Salvar</button>
+        <button id="c-preview">Ver como o cliente vê</button>
+        <button id="c-reset">Restaurar textos padrão</button>
+      </div>
+    </div>
+  </section>
+  <section id="tab-paid" hidden>
+    <div class="editor">
+      <p class="muted" style="margin-top:0">Página que aparece <b>logo depois que o cliente paga</b> (o Asaas leva o cliente para cá automaticamente). Use <b>**texto**</b> para negrito; "Minha conta" e "passo a passo de instalação" viram links.</p>
+      <label>Título</label><input id="o-titulo" maxlength="80" />
+      <label>Texto</label><textarea id="o-texto" rows="2" maxlength="400"></textarea>
+      <label>Passos (um por linha, até 6)</label><textarea id="o-passos" rows="5"></textarea>
+      <label>Texto do botão (leva para Minha conta)</label><input id="o-botao" maxlength="60" />
+      <label>Chamada para o WhatsApp de suporte (vazio = não mostrar)</label><input id="o-whats" maxlength="120" />
+      <div class="actions" style="margin-top:16px">
+        <button class="pri" id="o-save">Salvar</button>
+        <button id="o-preview">Ver como o cliente vê</button>
+        <button id="o-reset">Restaurar textos padrão</button>
+      </div>
+    </div>
+  </section>
+  <section id="tab-billing" hidden>
+    <div class="bill-cards">
+      <div class="bill-card real"><small>Real</small><b id="b-real">—</b><span id="b-real-sub" class="muted"></span></div>
+      <div class="bill-card fore"><small>Previsto</small><b id="b-fore">—</b><span id="b-fore-sub" class="muted"></span></div>
+      <div class="bill-card recv"><small>Recebido neste mês (Asaas)</small><b id="b-recv">—</b><span id="b-recv-sub" class="muted"></span></div>
+    </div>
+    <p class="muted" style="font-size:13px;margin:10px 0 18px">Valores por mês: o plano semestral conta como 1/6 e o anual como 1/12 do valor. <b>Real</b> = assinantes em dia. <b>Previsto</b> = em dia + em teste grátis (cada teste conta como o plano <span id="b-trial-plan">Mensal</span>, que ele ainda vai escolher). <span id="b-extra"></span></p>
+    <table>
+      <thead><tr><th>Plano</th><th>Valor</th><th>Por mês</th><th>Em dia</th><th>Em teste</th><th>Real / mês</th><th>Previsto / mês</th></tr></thead>
+      <tbody id="b-plans"></tbody>
+    </table>
+    <h3 style="margin:26px 0 10px">Quem entra na conta</h3>
+    <table>
+      <thead><tr><th>Cliente</th><th>Situação</th><th>Plano</th><th>Por mês</th><th>Válido até</th></tr></thead>
+      <tbody id="b-people"></tbody>
+    </table>
+  </section>
+  <section id="tab-whats" hidden>
+    <div class="editor" style="max-width:1000px">
+      <label for="wa-msg" style="margin-top:0">Mensagem para enviar</label>
+      <textarea id="wa-msg" rows="5" placeholder="Olá {{nome}}! Novidade no GATES! TV: ..."></textarea>
+      <p class="muted" style="font-size:13px;margin:6px 0 0">Use <b>{{nome}}</b> (primeiro nome do cliente) e <b>{{link_tv}}</b> (endereço da TV para o Downloader, único de cada cliente).</p>
+
+      <label style="margin-top:18px">Situação do cliente</label>
+      <div class="wa-filters" id="wa-filters"></div>
+      <input id="wa-q" placeholder="Buscar por nome, e-mail, cidade ou telefone" autocomplete="off" />
+
+      <div class="wa-head">
+        <label class="wa-chk"><input type="checkbox" id="wa-all" /> Selecionar todos com celular (<span id="wa-count">0</span>)</label>
+        <span class="muted" id="wa-sel-count">0 selecionados</span>
+      </div>
+      <div id="wa-list" class="wa-list"></div>
+      <p class="muted" style="font-size:13px;margin:8px 0 0">Clientes sem celular aparecem na lista, mas só recebem depois que você adicionar o número. Quem pediu para não receber mensagens fica desmarcado.</p>
+
+      <div class="actions" style="margin-top:16px">
+        <button class="pri" id="wa-start">Iniciar envio</button>
+        <button id="wa-reload">Atualizar lista</button>
+        <button id="wa-vcf">Baixar contatos selecionados (para lista de transmissão)</button>
+      </div>
+      <p class="muted" style="font-size:13px;margin:10px 0 0">Ao iniciar, o WhatsApp abre um cliente por vez com o texto pronto — aperte <b>Enviar</b> lá e volte para chamar o próximo.</p>
+      <p class="muted" style="font-size:13px;margin:6px 0 0"><b>Lista de transmissão:</b> baixe os contatos, abra o arquivo no celular e salve todos na agenda. No WhatsApp: ⋮ → <b>Nova transmissão</b> → selecione os contatos. Só recebe quem também tiver o seu número salvo.</p>
+    </div>
+  </section>
+  <section id="tab-subs">
+  <div class="stats">
+    <div class="stat"><span class="muted">Total</span><b id="s-total">–</b></div>
+    <div class="stat ok"><span class="muted">Em dia</span><b id="s-active">–</b></div>
+    <div class="stat warn"><span class="muted">Pagamento pendente</span><b id="s-grace">–</b></div>
+    <div class="stat bad"><span class="muted">Suspensos</span><b id="s-suspended">–</b></div>
+    <div class="stat bad"><span class="muted">Bloqueados por você</span><b id="s-blocked">–</b></div>
+  </div>
+  <div class="bar">
+    <input type="search" id="q" placeholder="Buscar por e-mail" />
+    <select id="flt"><option value="">Todos</option><option value="active">Em dia</option><option value="grace">Pagamento pendente</option><option value="suspended">Suspensos</option><option value="blocked">Bloqueados</option><option value="trial_ready">Teste não iniciado</option><option value="trial">Em teste grátis</option><option value="trial_ended">Teste encerrado</option></select>
+    <button id="csv">Exportar planilha</button>
+    <button class="pri" id="new">+ Assinante manual</button>
+    <button id="out">Sair</button>
+  </div>
+  <table>
+    <thead><tr><th>Assinante</th><th>WhatsApp</th><th>Cidade</th><th>Último pagamento</th><th>Renovação</th><th>ID de liberação / aparelhos</th><th>Situação</th><th>Ações</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+  </section>
+</main>
+
+<dialog id="dlg">
+  <h2 id="dlg-t">Liberar acesso</h2>
+  <form method="dialog" id="dlg-f">
+    <div id="dlg-new">
+      <label>E-mail</label><input id="d-email" type="email" />
+      <label>Nome</label><input id="d-name" />
+    </div>
+    <label>Liberado até (vazio = sem data de fim)</label><input id="d-until" type="date" />
+    <div class="actions" style="margin-top:16px"><button class="pri" value="ok">Salvar</button><button value="cancel">Cancelar</button></div>
+  </form>
+</dialog>
+<dialog id="wa-dlg">
+  <h2>Enviando mensagens</h2>
+  <p class="muted" id="wa-prog">—</p>
+  <div class="wa-bar"><span id="wa-bar"></span></div>
+  <div class="wa-now" id="wa-now"></div>
+  <div class="actions" style="margin-top:16px;flex-wrap:wrap">
+    <button class="pri" id="wa-send">Abrir WhatsApp deste cliente</button>
+    <button id="wa-next">Já enviei — próximo</button>
+    <button id="wa-skip">Pular este</button>
+    <button class="danger" id="wa-stop">Parar</button>
+  </div>
+  <p class="muted" style="font-size:13px;margin-top:12px">Dica: deixe a janela do WhatsApp Web conectada numa aba para enviar mais rápido.</p>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  let token = sessionStorage.getItem('gates-admin') || '';
+  const fmt = (t) => (t ? new Date(t).toLocaleDateString('pt-BR') : '—');
+  const LABEL = { active: 'Em dia', grace: 'Pendente', suspended: 'Suspenso' };
+  const toast = (t) => { $('toast').textContent = t; $('toast').style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => ($('toast').style.display = 'none'), 3000); };
+
+  async function api(path, opt = {}) {
+    const r = await fetch('/admin/api/' + path, { ...opt, headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }, body: opt.body ? JSON.stringify(opt.body) : undefined });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 401) { logout(); throw new Error('Senha inválida.'); }
+    if (!j.ok) throw new Error(j.message || 'Erro');
+    return j;
+  }
+  function logout() { token = ''; sessionStorage.removeItem('gates-admin'); $('app').hidden = true; $('login').hidden = false; }
+
+  let shown = [];
+  const cell = (tr, text, cls) => { const td = tr.insertCell(); if (cls) td.className = cls; if (text != null) td.textContent = text; return td; };
+  const sub = (parent, text, cls = 'muted') => { const d = document.createElement('div'); d.className = cls; d.textContent = text; parent.append(d); return d; };
+  async function load() {
+    const s = await api('summary');
+    for (const k of ['total', 'active', 'grace', 'suspended']) $('s-' + k).textContent = s[k];
+    $('store').textContent = 'Pagamentos: ' + s.store + (s.connected ? '' : ' (ainda não configurado)');
+    const { customers } = await api('customers?q=' + encodeURIComponent($('q').value.trim().toLowerCase()));
+    $('s-blocked').textContent = customers.filter((c) => c.override === 'blocked').length;
+    const f = $('flt').value;
+    const list = customers.filter((c) => !f || (f === 'blocked' ? c.override === 'blocked' : f === 'trial' || f === 'trial_ended' || f === 'trial_ready' ? c.state.reason === f : c.state.status === f)).sort((x, y) => (y.updatedAt || 0) - (x.updatedAt || 0));
+    shown = list;
+    const tb = $('rows');
+    tb.textContent = '';
+    if (!list.length) { const tr = tb.insertRow(); const td = cell(tr, 'Nenhum assinante.', 'muted'); td.colSpan = 8; }
+    for (const c of list) {
+      const tr = tb.insertRow();
+      const path = 'customers/' + encodeURIComponent(c.email);
+      // Assinante
+      const who = cell(tr);
+      const strong = document.createElement('strong'); strong.textContent = c.name || '(sem nome)'; who.append(strong);
+      sub(who, c.email);
+      if (c.cancelledAt) sub(who, 'assinatura cancelada em ' + fmt(c.cancelledAt), 'warn-t');
+      if (c.referredBy) sub(who, 'indicado por ' + c.referredBy);
+      if (c.commissionsTotal) sub(who, 'comissões recebidas: ' + c.commissionsTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+      // WhatsApp (link para conversar + editar)
+      const wa = cell(tr);
+      const fmtTel = (t) => String(t).replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3');
+      if (c.phone) {
+        const l = document.createElement('a');
+        l.href = 'https://wa.me/55' + c.phone;
+        l.target = '_blank';
+        l.rel = 'noopener';
+        l.textContent = fmtTel(c.phone);
+        l.style.cssText = 'color:#6be3a0;font-weight:600;white-space:nowrap';
+        wa.append(l);
+      } else sub(wa, 'não informado', 'warn-t');
+      if (c.phoneBad) sub(wa, '⚠ número fora do padrão — confira o DDD', 'warn-t');
+      const ed = document.createElement('button');
+      ed.className = 'link-btn';
+      ed.style.cssText = 'display:block;font-size:12px;margin-top:2px';
+      ed.textContent = c.phone ? 'editar' : '+ adicionar';
+      ed.onclick = () => {
+        const v = prompt('WhatsApp de ' + (c.name || c.email) + ' — DDD + celular, sem o 55 (ex.: 48 99999-9999):', c.phone ? fmtTel(c.phone) : '');
+        if (v === null) return;
+        let d = v.replace(/\D/g, '');
+        if (d.length === 13 && d.startsWith('55')) d = d.slice(2);
+        if (d && (d.length !== 11 || d[2] !== '9')) return toast('Digite o DDD (2 números) e o celular com 9 dígitos, começando com 9.');
+        act(path, 'POST', { phone: d }, d ? 'WhatsApp salvo.' : 'WhatsApp removido.');
+      };
+      wa.append(ed);
+      // Cidade
+      cell(tr, c.city || '—');
+      // Datas
+      cell(tr, fmt(c.lastPaymentAt));
+      const ren = cell(tr, c.state.reason === 'manual' ? 'liberado até ' + fmt(c.state.paidUntil) : fmt(c.renewalAt));
+      if (c.state.status === 'grace') sub(ren, 'suspende em ' + fmt(c.state.suspendAt), 'warn-t');
+      // ID de liberação e aparelhos
+      const idc = cell(tr);
+      const code = document.createElement('code'); code.textContent = c.accessCode || '—'; idc.append(code);
+      const devs = Object.entries(c.devices || {});
+      if (!devs.length) sub(idc, 'nenhum aparelho');
+      for (const [id, d] of devs) {
+        const line = document.createElement('div'); line.className = 'dev';
+        line.textContent = (d.name || d.platform || 'Aparelho') + ' · ID ' + id.slice(0, 8) + '… · ' + (d.city ? d.city + ' · ' : '') + fmt(d.lastSeen);
+        line.title = 'ID completo: ' + id;
+        const x = document.createElement('button'); x.textContent = 'remover';
+        x.onclick = () => confirm('Remover este aparelho? Ele precisará entrar de novo.') && act(path + '/devices/' + encodeURIComponent(id), 'DELETE', null, 'Aparelho removido.');
+        line.append(x); idc.append(line);
+      }
+      // Situação
+      const st = cell(tr);
+      const waiting = c.state.reason === 'awaiting_payment';
+      const blocked = c.override === 'blocked';
+      const pill = document.createElement('span');
+      const trial = c.state.reason === 'trial', trialEnded = c.state.reason === 'trial_ended', trialReady = c.state.reason === 'trial_ready';
+      pill.className = 'pill ' + (blocked ? 'suspended' : waiting || trial || trialReady ? 'grace' : c.state.status);
+      pill.textContent = blocked ? 'Bloqueado' : trialReady ? 'Teste não iniciado' : trial ? 'Em teste grátis' : trialEnded ? 'Teste encerrado' : waiting ? 'Aguardando pagamento' : LABEL[c.state.status] || c.state.status;
+      st.append(pill);
+      if (trialReady) sub(st, 'começa quando ativar o 1º aparelho', 'warn-t');
+      if (trial) sub(st, 'até ' + new Date(c.trialUntil).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }), 'warn-t');
+      sub(st, blocked ? 'bloqueado por você' : c.override === 'active' ? 'liberado por você' : 'não bloqueado');
+      // Ações
+      const ac = cell(tr, null, 'actions');
+      const btn = (t, fn, cls = 'sm') => { const b2 = document.createElement('button'); b2.className = cls; b2.textContent = t; b2.onclick = fn; ac.append(b2); };
+      if (blocked) btn('Desbloquear', () => act(path, 'POST', { override: null, overrideUntil: '' }, 'Desbloqueado: volta a seguir os pagamentos.'), 'sm pri');
+      else btn('Bloquear', () => confirm('Bloquear ' + c.email + '? O app deixa de abrir em todos os aparelhos.') && act(path, 'POST', { override: 'blocked' }, 'Bloqueado.'), 'sm danger');
+      btn('Liberar até…', () => openDlg(c));
+      if (c.override === 'active') btn('Tirar liberação', () => act(path, 'POST', { override: null, overrideUntil: '' }, 'Volta a seguir os pagamentos.'));
+      btn('Atualizar', () => act(path + '/sync', 'POST', {}, 'Pagamentos atualizados.'));
+      if (c.gateway && c.gateway.subscriptions && !c.cancelledAt) btn('Cancelar cobranças', () => confirm('Cancelar as cobranças futuras de ' + c.email + '?') && act(path + '/cancel', 'POST', {}, 'Assinatura cancelada no Asaas.'));
+      btn('Excluir', () => {
+        const charges = c.gateway && c.gateway.subscriptions && Object.keys(c.gateway.subscriptions).length && !c.cancelledAt;
+        const v = prompt(
+          'Excluir ' + (c.name || c.email) + ' (' + c.email + ')?\n\n' +
+            'O cadastro some do painel, os aparelhos param de funcionar' + (charges ? ' e as cobranças futuras no Asaas são canceladas' : '') + '.\n' +
+            'Não dá para desfazer. Digite EXCLUIR para confirmar:'
+        );
+        if (v === null) return;
+        if (v.trim().toUpperCase() !== 'EXCLUIR') return toast('Exclusão cancelada (digite EXCLUIR para confirmar).');
+        act(path, 'DELETE', null, 'Cliente excluído.');
+      }, 'sm danger');
+    }
+  }
+  // Planilha (abre no Excel e no Google Planilhas).
+  $('csv').onclick = () => {
+    const q = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const rows = [['Nome', 'E-mail', 'WhatsApp', 'Cidade', 'Último pagamento', 'Renovação', 'Código de acesso', 'Aparelhos (ID)', 'Situação', 'Bloqueado']];
+    for (const c of shown)
+      rows.push([c.name, c.email, c.phone || '', c.city, fmt(c.lastPaymentAt), fmt(c.renewalAt), c.accessCode, Object.entries(c.devices || {}).map(([id, d]) => (d.name || d.platform) + ' (' + id + ')').join(' | '), LABEL[c.state.status] || c.state.status, c.override === 'blocked' ? 'sim' : 'não']);
+    const blob = new Blob(['\ufeff' + rows.map((r) => r.map(q).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'assinantes-gatestv-' + new Date().toISOString().slice(0, 10) + '.csv'; link.click();
+  };
+  async function act(path, method, body, ok) {
+    try { await api(path, { method, body: body || undefined }); toast(ok); load(); } catch (e) { toast(e.message); }
+  }
+
+  let editing = null;
+  function openDlg(c) {
+    editing = c;
+    $('dlg-t').textContent = c ? 'Liberar acesso' : 'Novo assinante manual';
+    $('dlg-new').hidden = !!c;
+    $('d-until').value = '';
+    $('dlg').showModal();
+  }
+  $('dlg').addEventListener('close', () => {
+    if ($('dlg').returnValue !== 'ok') return;
+    const until = $('d-until').value;
+    if (editing) act('customers/' + encodeURIComponent(editing.email), 'POST', { override: 'active', overrideUntil: until || '' }, 'Acesso liberado.');
+    else act('customers', 'POST', { email: $('d-email').value, name: $('d-name').value, until }, 'Assinante criado.');
+  });
+  // ---------- Abas ----------
+  document.querySelectorAll('.tab').forEach((b) =>
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach((x) => x.classList.toggle('on', x === b));
+      $('tab-subs').hidden = b.dataset.tab !== 'subs';
+      $('tab-confirm').hidden = b.dataset.tab !== 'confirm';
+      $('tab-paid').hidden = b.dataset.tab !== 'paid';
+      $('tab-whats').hidden = b.dataset.tab !== 'whats';
+      $('tab-billing').hidden = b.dataset.tab !== 'billing';
+      if (b.dataset.tab === 'confirm') loadConfirm();
+      if (b.dataset.tab === 'paid') loadPaid();
+      if (b.dataset.tab === 'whats') waLoad();
+      if (b.dataset.tab === 'billing') billLoad();
+    })
+  );
+  // ---------- Página de confirmação ----------
+  const fill = (c) => {
+    $('c-titulo').value = c.titulo || '';
+    $('c-subtitulo').value = c.subtitulo || '';
+    $('c-botao').value = c.botaoPagar || '';
+    $('c-passos').value = (c.passos || []).join('\n');
+    $('c-rodape').value = c.rodape || '';
+    $('c-whats').value = c.whatsapp || '';
+  };
+  async function loadConfirm() {
+    try { fill((await api('content/confirmacao')).content); } catch (e) { toast(e.message); }
+  }
+  $('c-save').onclick = async () => {
+    try {
+      const body = {
+        titulo: $('c-titulo').value, subtitulo: $('c-subtitulo').value, botaoPagar: $('c-botao').value,
+        passos: $('c-passos').value.split('\n').map((x) => x.trim()).filter(Boolean),
+        rodape: $('c-rodape').value, whatsapp: $('c-whats').value,
+      };
+      fill((await api('content/confirmacao', { method: 'POST', body })).content);
+      toast('Página de confirmação salva.');
+    } catch (e) { toast(e.message); }
+  };
+  $('c-reset').onclick = async () => {
+    if (!confirm('Voltar aos textos padrão?')) return;
+    try { fill((await api('content/confirmacao', { method: 'POST', body: { reset: true } })).content); toast('Textos padrão restaurados.'); } catch (e) { toast(e.message); }
+  };
+  $('c-preview').onclick = () => window.open('/assinar?preview=1', '_blank', 'noopener');
+  const fillPaid = (c) => {
+    $('o-titulo').value = c.titulo || '';
+    $('o-texto').value = c.texto || '';
+    $('o-passos').value = (c.passos || []).join('\n');
+    $('o-botao').value = c.botao || '';
+    $('o-whats').value = c.whatsapp || '';
+  };
+  async function loadPaid() {
+    try { fillPaid((await api('content/obrigado')).content); } catch (e) { toast(e.message); }
+  }
+  $('o-save').onclick = async () => {
+    try {
+      const body = { titulo: $('o-titulo').value, texto: $('o-texto').value, botao: $('o-botao').value, whatsapp: $('o-whats').value, passos: $('o-passos').value.split('\n').map((x) => x.trim()).filter(Boolean) };
+      fillPaid((await api('content/obrigado', { method: 'POST', body })).content);
+      toast('Página "Pagamento confirmado" salva.');
+    } catch (e) { toast(e.message); }
+  };
+  $('o-reset').onclick = async () => {
+    if (!confirm('Voltar aos textos padrão?')) return;
+    try { fillPaid((await api('content/obrigado', { method: 'POST', body: { reset: true } })).content); toast('Textos padrão restaurados.'); } catch (e) { toast(e.message); }
+  };
+  $('o-preview').onclick = () => window.open('/obrigado?preview=1', '_blank', 'noopener');
+
+  // ---------- Enviar WhatsApp (disparo assistido, um cliente por vez) ----------
+  const waOnlyDigits = (v) => String(v || '').replace(/\D/g, '');
+  const waIntl = (p) => { const d = waOnlyDigits(p); return d.length <= 11 ? '55' + d : d; };
+  const firstName = (c) => (c.name || '').trim().split(/\s+/)[0] || 'cliente';
+  // Situações (mesma regra da lista de assinantes).
+  const WA_SIT = {
+    active: { label: 'Em dia', pill: 'active', on: true },
+    grace: { label: 'Atrasado (prazo de aviso)', pill: 'grace', on: true },
+    waiting: { label: 'Aguardando 1º pagamento', pill: 'grace', on: false },
+    trialReady: { label: 'Teste não iniciado', pill: 'grace', on: false },
+    trial: { label: 'Em teste grátis', pill: 'grace', on: false },
+    trialEnded: { label: 'Teste encerrado (não assinou)', pill: 'suspended', on: false },
+    suspended: { label: 'Suspenso', pill: 'suspended', on: false },
+    blocked: { label: 'Bloqueado', pill: 'suspended', on: false },
+  };
+  const waSit = (c) => (c.override === 'blocked' ? 'blocked' : c.state.reason === 'awaiting_payment' ? 'waiting' : c.state.reason === 'trial_ready' ? 'trialReady' : c.state.reason === 'trial' ? 'trial' : c.state.reason === 'trial_ended' ? 'trialEnded' : c.state.status);
+  let waAll = [], waPeople = [];
+  const waWant = Object.fromEntries(Object.entries(WA_SIT).map(([k, v]) => [k, v.on]));
+  async function waLoad() {
+    $('wa-list').innerHTML = '<p class="muted" style="padding:12px;margin:0">Carregando clientes…</p>';
+    try { waAll = (await api('customers')).customers; } catch (e) { $('wa-list').innerHTML = ''; return toast(e.message); }
+    waRefresh();
+  }
+  function waFilters() {
+    const box = $('wa-filters');
+    box.textContent = '';
+    for (const [k, v] of Object.entries(WA_SIT)) {
+      const n = waAll.filter((c) => waSit(c) === k).length;
+      const l = document.createElement('label'); l.className = 'wa-f';
+      const i = document.createElement('input'); i.type = 'checkbox'; i.checked = waWant[k];
+      i.onchange = () => { waWant[k] = i.checked; waRefresh(); };
+      const t = document.createElement('span'); t.textContent = v.label + ' ';
+      const b = document.createElement('b'); b.textContent = '(' + n + ')';
+      t.append(b); l.append(i, t); box.append(l);
+    }
+  }
+  function waRefresh() {
+    waFilters();
+    const q = $('wa-q').value.trim().toLowerCase();
+    const list = waAll
+      .filter((c) => waWant[waSit(c)])
+      .filter((c) => !q || [c.name, c.email, c.city, c.phone].some((v) => String(v || '').toLowerCase().includes(q)))
+      .sort((x, y) => (x.name || x.email).localeCompare(y.name || y.email, 'pt-BR'));
+    waPeople = list.filter((c) => c.phone).map((c) => ({ email: c.email, name: c.name, phone: c.phone, status: waSit(c), tvLink: c.tvLink || '' }));
+    const box = $('wa-list');
+    box.textContent = '';
+    if (!list.length) { const p = document.createElement('p'); p.className = 'muted'; p.style.cssText = 'padding:12px;margin:0'; p.textContent = 'Nenhum cliente nesta situação.'; box.append(p); }
+    for (const c of list) {
+      const row = document.createElement('div'); row.className = 'wa-row' + (c.phone ? '' : ' off');
+      const chk = document.createElement('input'); chk.type = 'checkbox'; chk.dataset.email = c.email;
+      chk.disabled = !c.phone; chk.checked = !!c.phone && c.optMessages !== false;
+      chk.onchange = waSelCount;
+      const who = document.createElement('div'); who.className = 'wa-who';
+      const b = document.createElement('b'); b.textContent = c.name || '(sem nome)'; b.style.fontWeight = '600';
+      const em = document.createElement('small'); em.textContent = c.email + (c.city ? ' · ' + c.city : '');
+      who.append(b, em);
+      if (c.optMessages === false) { const w = document.createElement('small'); w.className = 'warn-t'; w.textContent = 'pediu para não receber mensagens'; who.append(w); }
+      const tel = document.createElement('div'); tel.className = 'wa-tel';
+      if (c.phone) tel.textContent = c.phone.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3');
+      else {
+        const inp = document.createElement('input'); inp.placeholder = 'DDD + celular'; inp.inputMode = 'tel';
+        const sv = document.createElement('button'); sv.textContent = 'Salvar';
+        sv.onclick = async () => {
+          let d = inp.value.replace(/\D/g, '');
+          if (d.length === 13 && d.startsWith('55')) d = d.slice(2);
+          if (d.length !== 11 || d[2] !== '9') return toast('Digite o DDD (2 números) e o celular com 9 dígitos, começando com 9.');
+          try {
+            const r = await api('customers/' + encodeURIComponent(c.email), { method: 'POST', body: { phone: d } });
+            Object.assign(c, r.customer);
+            toast('Celular salvo.');
+            waRefresh();
+          } catch (e) { toast(e.message); }
+        };
+        tel.append(inp, sv);
+      }
+      const sit = document.createElement('div'); sit.className = 'wa-sit';
+      const k = waSit(c);
+      const pill = document.createElement('span'); pill.className = 'pill ' + WA_SIT[k].pill; pill.textContent = WA_SIT[k].label;
+      sit.append(pill);
+      const extra = k === 'trial' ? 'termina ' + new Date(c.trialUntil).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : k === 'trialEnded' ? 'terminou ' + fmt(c.trialUntil) : k === 'grace' ? 'suspende em ' + fmt(c.state.suspendAt) : k === 'active' && c.renewalAt ? 'renova em ' + fmt(c.renewalAt) : k === 'suspended' && c.state.paidUntil ? 'venceu em ' + fmt(c.state.paidUntil) : '';
+      if (extra) { const e = document.createElement('small'); e.className = 'muted'; e.textContent = extra; sit.append(e); }
+      row.append(chk, who, tel, sit); box.append(row);
+    }
+    $('wa-count').textContent = waPeople.length;
+    $('wa-all').checked = waPeople.length > 0 && waChecked().length === waPeople.length;
+    waSelCount();
+  }
+  const waChecked = () => [...document.querySelectorAll('#wa-list input[type=checkbox]:checked')].map((x) => x.dataset.email);
+  function waSelCount() { $('wa-sel-count').textContent = waChecked().length + ' selecionados'; }
+  $('wa-all').onchange = () => { document.querySelectorAll('#wa-list input[type=checkbox]:not(:disabled)').forEach((x) => (x.checked = $('wa-all').checked)); waSelCount(); };
+  $('wa-q').oninput = waRefresh;
+  $('wa-reload').onclick = waLoad;
+  // Contatos selecionados em um arquivo .vcf (abre direto na agenda do celular).
+  $('wa-vcf').onclick = () => {
+    const emails = new Set(waChecked());
+    const list = waPeople.filter((c) => emails.has(c.email));
+    if (!list.length) return toast('Selecione pelo menos um cliente.');
+    const esc = (v) => String(v || '').replace(/[\\;,]/g, (m) => '\\' + m).replace(/\r?\n/g, ' ');
+    const vcf = list
+      .map((c) => ['BEGIN:VCARD', 'VERSION:3.0', 'FN:' + esc((c.name || c.email) + ' (GATES! TV)'), 'N:;' + esc(c.name || c.email) + ';;;', 'TEL;TYPE=CELL:+' + waIntl(c.phone), 'EMAIL:' + esc(c.email), 'END:VCARD'].join('\r\n'))
+      .join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([vcf], { type: 'text/vcard' }));
+    a.download = 'clientes-gates-tv.vcf';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast(list.length + ' contato(s) baixados.');
+  };
+
+  let waQueue = [], waIdx = 0, waSent = 0, waSkip = 0;
+  $('wa-start').onclick = () => {
+    const msg = $('wa-msg').value.trim();
+    if (!msg) return toast('Escreva a mensagem primeiro.');
+    const emails = new Set(waChecked());
+    waQueue = waPeople.filter((c) => emails.has(c.email));
+    if (!waQueue.length) return toast('Selecione pelo menos um cliente.');
+    waIdx = 0; waSent = 0; waSkip = 0;
+    $('wa-dlg').showModal();
+    waShow();
+  };
+  function waText(c) { return $('wa-msg').value.replace(/\{\{\s*nome\s*\}\}/gi, firstName(c)).replace(/\{\{\s*link_tv\s*\}\}/gi, c.tvLink); }
+  function waShow() {
+    const c = waQueue[waIdx];
+    if (!c) {
+      $('wa-prog').textContent = 'Concluído: ' + waSent + ' enviados, ' + waSkip + ' pulados.';
+      $('wa-bar').style.width = '100%';
+      $('wa-now').innerHTML = '<b>Tudo pronto! ✅</b>';
+      ['wa-send', 'wa-next', 'wa-skip'].forEach((id) => ($(id).disabled = true));
+      return;
+    }
+    ['wa-send', 'wa-next', 'wa-skip'].forEach((id) => ($(id).disabled = false));
+    $('wa-prog').textContent = 'Cliente ' + (waIdx + 1) + ' de ' + waQueue.length + ' (' + waSent + ' enviados, ' + waSkip + ' pulados)';
+    $('wa-bar').style.width = Math.round((waIdx / waQueue.length) * 100) + '%';
+    const b = document.createElement('b'); b.textContent = c.name || c.email;
+    const sm = document.createElement('div'); sm.className = 'muted'; sm.textContent = c.phone;
+    const p = document.createElement('p'); p.textContent = waText(c);
+    $('wa-now').textContent = ''; $('wa-now').append(b, sm, p);
+  }
+  function waOpen() { const c = waQueue[waIdx]; if (c) window.open('https://wa.me/' + waIntl(c.phone) + '?text=' + encodeURIComponent(waText(c)), '_blank', 'noopener'); }
+  $('wa-send').onclick = waOpen;
+  $('wa-next').onclick = () => { waSent++; waIdx++; waShow(); };
+  $('wa-skip').onclick = () => { waSkip++; waIdx++; waShow(); };
+  $('wa-stop').onclick = () => $('wa-dlg').close();
+
+
+  // ---------- Faturamento ----------
+  const brl = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  async function billLoad() {
+    let d;
+    try { d = await api('billing'); } catch (e) { return toast(e.message); }
+    $('b-real').textContent = brl(d.real.monthly) + '/mês';
+    $('b-real-sub').textContent = d.real.count + ' assinante(s) em dia · ' + brl(d.real.cycle) + ' por ciclo';
+    $('b-fore').textContent = brl(d.forecast.monthly) + '/mês';
+    $('b-fore-sub').textContent = d.real.count + ' em dia + ' + d.forecast.trialCount + ' em teste';
+    $('b-recv').textContent = brl(d.received.value);
+    $('b-recv-sub').textContent = d.received.count + ' pagamento(s) desde ' + new Date(d.received.since).toLocaleDateString('pt-BR');
+    $('b-trial-plan').textContent = d.trialPlan;
+    const extra = [];
+    if (d.late) extra.push(d.late + ' atrasado(s) no prazo de aviso não entram na conta');
+    if (d.manual) extra.push(d.manual + ' liberado(s) manualmente sem cobrança não entram na conta');
+    $('b-extra').textContent = extra.length ? extra.join(' · ') + '.' : '';
+    const tb = $('b-plans');
+    tb.textContent = '';
+    for (const p of d.plans) {
+      const tr = tb.insertRow();
+      [p.name, brl(p.price), brl(p.monthly), p.paid, p.trial, brl(p.realMonthly), brl(p.forecastMonthly)].forEach((v) => cell(tr, String(v)));
+    }
+    const tr = tb.insertRow();
+    tr.style.fontWeight = '700';
+    ['Total', '', '', d.real.count, d.forecast.trialCount, brl(d.real.monthly), brl(d.forecast.monthly)].forEach((v) => cell(tr, String(v)));
+    const pb = $('b-people');
+    pb.textContent = '';
+    if (!d.people.length) { const r = pb.insertRow(); const td = cell(r, 'Ninguém em dia ou em teste ainda.', 'muted'); td.colSpan = 5; }
+    for (const x of d.people) {
+      const r = pb.insertRow();
+      const who = cell(r);
+      const s = document.createElement('strong'); s.textContent = x.name || '(sem nome)'; who.append(s);
+      sub(who, x.email);
+      const st = cell(r);
+      const pill = document.createElement('span');
+      pill.className = 'pill ' + (x.kind === 'paid' ? 'active' : 'grace');
+      pill.textContent = x.kind === 'paid' ? 'Em dia' : 'Em teste grátis';
+      st.append(pill);
+      cell(r, x.kind === 'trial' ? x.plan + ' (estimado)' : x.plan + (x.price !== d.plans.find((p) => p.name === x.plan)?.price ? ' · paga ' + brl(x.price) : '') + (x.manual ? ' · também liberado manualmente' : ''));
+      cell(r, brl(x.monthly));
+      cell(r, x.until ? new Date(x.until).toLocaleString('pt-BR', x.kind === 'trial' ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } : { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
+    }
+  }
+  if (location.hash === '#pagamento') setTimeout(() => document.querySelector('[data-tab="paid"]').click(), 0);
+  if (location.hash === '#confirmacao') setTimeout(() => document.querySelector('[data-tab="confirm"]').click(), 0);
+  if (location.hash === '#faturamento') setTimeout(() => document.querySelector('[data-tab="billing"]').click(), 0);
+  if (location.hash === '#whatsapp') setTimeout(() => document.querySelector('[data-tab="whats"]').click(), 0);
+
+  $('new').onclick = () => openDlg(null);
+  $('out').onclick = logout;
+  $('q').oninput = () => { clearTimeout(load.t); load.t = setTimeout(load, 300); };
+  $('flt').onchange = load;
+  $('enter').onclick = async () => {
+    token = $('tok').value.trim();
+    try { await api('summary'); sessionStorage.setItem('gates-admin', token); start(); } catch (e) { $('lerr').textContent = e.message; }
+  };
+  $('tok').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') $('enter').click();
+  });
+  function start() { $('login').hidden = true; $('app').hidden = false; load(); }
+  if (token) api('summary').then(start).catch(() => {});
+</script>
+</body>
+</html>

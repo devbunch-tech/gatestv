@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Minha conta — GATES! TV</title>
+<link rel="icon" href="/icon.png" />
+<style>
+  :root { --brand: #ec0b43; --bg: #0f0f11; --card: #1c1c21; --line: rgba(255,255,255,.09); --text: #f1f1f3; --muted: #a2a2ab; --ok: #6be3a0; --warn: #fbbf24; --bad: #ff7d8c; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(800px 380px at 50% 0%, #2a1a20, transparent 70%), var(--bg); color: var(--text); font: 16px/1.55 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  header { max-width: 760px; margin: 0 auto; padding: 22px 18px; display: flex; align-items: center; justify-content: space-between; }
+  header img { height: 28px; }
+  header a { color: var(--muted); text-decoration: none; font-weight: 600; }
+  main { max-width: 760px; margin: 0 auto; padding: 0 18px 60px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+  h1 { font-size: 24px; margin: 0 0 6px; } h2 { font-size: 18px; margin: 0 0 12px; }
+  p.muted, .muted { color: var(--muted); }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin: 14px 0 6px; }
+  input { width: 100%; height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: #121214; color: var(--text); font-size: 16px; outline: 0; }
+  input:focus { border-color: var(--brand); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; height: 46px; padding: 0 20px; border-radius: 10px; border: 0; font-weight: 800; font-size: 15px; cursor: pointer; text-decoration: none; background: rgba(255,255,255,.09); color: var(--text); }
+  .btn.pri { background: var(--brand); color: #fff; }
+  .btn.full { width: 100%; margin-top: 20px; height: 52px; }
+  .btn:disabled { opacity: .6; }
+  .msg { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: rgba(255,70,90,.12); color: var(--bad); display: none; }
+  .status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .pill { padding: 5px 14px; border-radius: 999px; font-weight: 800; font-size: 14px; }
+  .active { background: rgba(46,204,113,.15); color: var(--ok); } .grace, .waiting { background: rgba(245,158,11,.15); color: var(--warn); } .suspended { background: rgba(255,70,90,.15); color: var(--bad); }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-top: 18px; }
+  .fact { background: #141418; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .fact small { color: var(--muted); display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  .fact b { font-size: 17px; word-break: break-all; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  .dev { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .dev:last-child { border-bottom: 0; }
+  .dev small { color: var(--muted); display: block; }
+  .dev .btn { height: 36px; font-size: 13px; }
+  .dl-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  .dl-row:last-child { border-bottom: 0; }
+  .dl-row small { display: block; color: var(--muted); }
+  .dl-row code { background: #121214; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; color: #fff; font-size: 14px; }
+  .link { background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 14px; padding: 0; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/"><img src="/logo.png" alt="GATES! TV" /></a>
+  <a href="/">← Voltar ao site</a>
+</header>
+<main>
+  <form class="card" id="login">
+    <h1>Minha conta</h1>
+    <p class="muted">Entre com o e-mail da assinatura e o seu CPF (ou o código de acesso recebido na compra).</p>
+    <label for="email">E-mail</label>
+    <input id="email" type="email" autocomplete="email" required />
+    <label for="doc">CPF ou código de acesso</label>
+    <input id="doc" autocomplete="off" placeholder="000.000.000-00 ou GTV-XXXX-XXXX" required />
+    <button class="btn pri full" id="go">Entrar</button>
+    <div class="msg" id="lmsg"></div>
+    <p class="muted" style="margin:16px 0 0;font-size:14px">Ainda não assina? <a href="/assinar" style="color:#ec0b43">Conheça os planos</a></p>
+  </form>
+
+  <div id="acc" hidden>
+    <div class="card">
+      <h1 id="hello">Olá!</h1>
+      <div class="status"><span class="pill" id="pill"></span><span class="muted" id="statusText"></span></div>
+      <div class="facts">
+        <div class="fact"><small>Plano</small><b id="plan">—</b></div>
+        <div class="fact"><small>Válido até</small><b id="until">—</b></div>
+        <div class="fact"><small>Código de acesso</small><b id="code">—</b></div>
+      </div>
+      <div class="actions">
+        <a class="btn pri" id="pay" target="_blank" rel="noopener" hidden>Pagar agora</a>
+        <a class="btn" id="renew" hidden>Renovar / trocar de plano</a>
+        <button class="btn" id="refresh">Atualizar</button>
+      </div>
+      <div class="msg" id="amsg"></div>
+    </div>
+
+    <div class="card" id="refCard">
+      <h2>Indique e ganhe <span id="refPct">20</span>%</h2>
+      <p class="muted" style="margin:0 0 12px">Compartilhe o seu link. A cada mensalidade paga por quem assinar pelo seu link, você recebe <b id="refPct2">20</b>% direto na sua conta do Asaas — enquanto a pessoa continuar pagando e a sua assinatura estiver em dia. <a href="/termos#indicacao" style="color:#ec0b43">Ver regras</a>.</p>
+      <div class="fact" style="margin-bottom:12px"><small>Seu link de indicação</small><b id="refLink">—</b></div>
+      <div class="actions" style="margin-top:0">
+        <button class="btn" id="refCopy">Copiar link</button>
+        <a class="btn" id="refWa" target="_blank" rel="noopener">Enviar no WhatsApp</a>
+      </div>
+      <div class="facts">
+        <div class="fact"><small>Indicados</small><b id="refCount">0</b></div>
+        <div class="fact"><small>Pagando</small><b id="refPaying">0</b></div>
+        <div class="fact"><small>Comissões recebidas</small><b id="refTotal">R$ 0,00</b></div>
+      </div>
+      <p class="muted" id="refWarn" style="font-size:14px;margin:12px 0 0" hidden></p>
+      <label for="wallet" style="margin-top:16px">ID da carteira Asaas para receber (Wallet ID)</label>
+      <input id="wallet" placeholder="ex.: 0b4f2a1c-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
+      <p class="muted" style="font-size:13px;margin:6px 0 0">Crie uma conta grátis no Asaas e copie o <b>Wallet ID</b> em <b>Minha conta → Integrações</b>. Sem ele, as comissões não podem ser repassadas.</p>
+      <button class="btn" id="walletSave" style="margin-top:10px">Salvar carteira</button>
+      <div class="msg" id="refmsg"></div>
+    </div>
+
+    <div class="card" id="tvCard" hidden>
+      <h2>📺 Instalar e ativar na TV</h2>
+      <p class="muted" style="margin:0 0 6px"><b>1.</b> Na TV, abra o app <b>Downloader</b> e digite:</p>
+      <div class="fact" style="margin-bottom:6px"><b id="tvLink" style="font-size:22px;letter-spacing:.02em">—</b></div>
+      <p class="muted" style="margin:0 0 14px;font-size:13px">TV Box mais simples ou travando? Use a versão leve: <b id="tvLite">—</b>. O endereço é seu e vale sempre. <span id="tvWait" hidden>Ele começa a funcionar assim que o pagamento for confirmado.</span></p>
+      <p id="tvHand" style="margin:0 0 12px;padding:12px 14px;border-radius:10px;background:rgba(236,11,67,.12);color:#fff" hidden>📺 Confirme abaixo para começar o download na TV.</p>
+      <p class="muted" style="margin:0 0 6px">Ou digite só <b>gatesapptv.pages.dev/tv</b> no Downloader: a TV mostra um código; digite-o aqui embaixo.</p>
+      <p class="muted" style="margin:0 0 6px"><b>2.</b> Abra o GATES! TV na TV. Baixado por esse endereço, ele <b>já entra sozinho</b> na sua conta. Se aparecer um código na tela, digite aqui:</p>
+      <input id="tvPair" maxlength="6" autocomplete="off" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:.3em;font-weight:800;font-size:20px;text-align:center" />
+      <button class="btn pri full" id="tvPairGo" style="margin-top:10px">Ativar TV</button>
+      <div class="msg" id="tvmsg"></div>
+    </div>
+
+    <div class="card" id="phoneCard" hidden>
+      <h2>📱 Cadastre seu WhatsApp</h2>
+      <p class="muted" style="margin:0 0 12px">Usamos para avisos da assinatura e suporte. Leva 10 segundos.</p>
+      <input id="phoneIn" data-tel />
+      <button class="btn pri full" id="phoneGo" style="margin-top:10px">Salvar WhatsApp</button>
+      <div class="msg" id="phonemsg"></div>
+    </div>
+
+    <div class="card" id="dlCard">
+      <h2>Baixar os apps</h2>
+      <p class="muted" style="margin:0 0 12px">Gere os links e escolha a versão do seu aparelho. Na TV, digite o endereço curto no app <b>Downloader</b>. Veja o <a href="/instalar" style="color:#ec0b43">passo a passo de instalação</a>.</p>
+      <button class="btn pri" id="dlGo">Gerar links de download</button>
+      <div id="dlList"></div>
+      <div class="msg" id="dlmsg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Aparelhos conectados <span class="muted" id="devCount"></span></h2>
+      <div id="devices"></div>
+      <p class="muted" style="font-size:14px;margin:12px 0 0">Para usar em um aparelho novo e o limite estiver cheio, remova um aparelho antigo aqui.</p>
+    </div>
+
+    <div class="card">
+      <h2>Como entrar no app</h2>
+      <p class="muted" style="margin:0">No app, use este e-mail e o seu CPF (ou o código de acesso). Na TV, escolha "Ativar com um código" e digite o código no quadro <b>Instalar e ativar na TV</b> acima.</p>
+    </div>
+
+    <div class="card" id="cancelCard" hidden>
+      <h2>Cancelar assinatura</h2>
+      <p class="muted" style="margin:0 0 14px">As próximas cobranças são canceladas. Você continua usando até o fim do período já pago.</p>
+      <button class="btn" id="cancel">Cancelar assinatura</button>
+    </div>
+    <p class="center" style="text-align:center"><button class="link" id="logout">Sair</button></p>
+  </div>
+</main>
+<script src="/tel.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const fmt = (t) => (t ? new Date(t).toLocaleDateString('pt-BR') : '—');
+  const money = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  let creds = JSON.parse(sessionStorage.getItem('gates-conta') || 'null');
+
+  async function call(path, extra = {}) {
+    const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...creds, ...extra }) });
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) throw new Error(j.message || 'Não foi possível carregar.');
+    return j.account;
+  }
+
+  function show(a) {
+    $('login').hidden = true;
+    $('acc').hidden = false;
+    $('hello').textContent = a.name ? `Olá, ${a.name.split(' ')[0]}!` : 'Olá!';
+    const waiting = a.reason === 'awaiting_payment';
+    const ready = a.reason === 'trial_ready';
+    const trial = a.reason === 'trial' || ready, trialEnded = a.reason === 'trial_ended';
+    const when = (t) => new Date(t).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const label = trial ? 'Teste grátis' : trialEnded ? 'Teste encerrado' : waiting ? 'Aguardando pagamento' : { active: 'Em dia', grace: 'Pagamento pendente', suspended: 'Suspensa' }[a.status] || a.status;
+    $('pill').className = 'pill ' + (waiting || trial ? 'waiting' : a.status);
+    $('pill').textContent = label;
+    $('statusText').textContent = ready
+      ? 'Seu teste grátis começa a contar quando você ativar o app no primeiro aparelho.'
+      : trial
+      ? `Seu teste vai até ${when(a.trialUntil)}. Gostou? Assine para continuar sem interrupção.`
+      : trialEnded ? 'Seu teste grátis terminou. Assine um plano para continuar assistindo.'
+      : a.cancelled
+      ? `Cancelada — você pode usar até ${fmt(a.paidUntil)}.`
+      : waiting ? 'Pague a primeira fatura para liberar o acesso.'
+      : a.status === 'grace' ? `Regularize até ${fmt(a.suspendAt)} para não ser suspenso.`
+      : a.status === 'suspended' ? (a.reason === 'blocked' ? 'Acesso bloqueado. Fale com o suporte.' : 'Renove para voltar a assistir.')
+      : 'Tudo certo. A renovação é automática.';
+    $('plan').textContent = a.plan ? `${a.plan.name} · ${money(a.plan.price)}` : trial || trialEnded ? 'Teste grátis' : '—';
+    $('until').textContent = ready ? 'começa na ativação' : fmt(a.paidUntil);
+    $('code').textContent = a.accessCode || '—';
+    $('pay').hidden = !a.payUrl;
+    if (a.payUrl) $('pay').href = a.payUrl;
+    $('renew').hidden = !(a.status === 'suspended' || a.cancelled || trial);
+    $('renew').textContent = trial || trialEnded ? 'Assinar agora' : 'Renovar / trocar de plano';
+    $('renew').href = a.renewUrl;
+    $('cancelCard').hidden = !a.canCancel;
+    const r = a.referral || {};
+    $('refPct').textContent = $('refPct2').textContent = r.percent || 20;
+    $('refLink').textContent = r.link || '—';
+    $('refWa').href = 'https://wa.me/?text=' + encodeURIComponent('Assine o GATES! TV pelo meu link: ' + (r.link || ''));
+    $('refCount').textContent = r.indicated || 0;
+    $('refPaying').textContent = r.paying || 0;
+    $('refTotal').textContent = money(r.total || 0);
+    $('wallet').placeholder = r.walletId ? 'cadastrada: ' + r.walletId : 'ex.: 0b4f2a1c-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+    const warn = !r.eligible ? 'Sua assinatura precisa estar em dia para receber comissões.' : !r.walletId ? 'Cadastre o ID da sua carteira Asaas abaixo para começar a receber.' : '';
+    $('refWarn').hidden = !warn;
+    $('refWarn').textContent = warn;
+    $('dlCard').hidden = !(a.status === 'active' || a.status === 'grace');
+    $('phoneCard').hidden = !!a.phone && !a.phoneBad;
+    if (a.phoneBad) $('phoneIn').telSet(a.phone);
+    $('tvCard').hidden = !a.tvLink || (a.status === 'suspended' && !waiting);
+    $('tvLink').textContent = a.tvLink || '—';
+    $('tvLite').textContent = a.tvLink ? a.tvLink + '/lite' : '—';
+    $('tvWait').hidden = !waiting;
+    $('devCount').textContent = `(${a.devices.length} de ${a.maxDevices})`;
+    const box = $('devices');
+    box.textContent = '';
+    if (!a.devices.length) { const p = document.createElement('p'); p.className = 'muted'; p.style.margin = '0'; p.textContent = 'Nenhum aparelho conectado ainda.'; box.append(p); }
+    for (const d of a.devices) {
+      const row = document.createElement('div'); row.className = 'dev';
+      const info = document.createElement('div');
+      const n = document.createElement('b'); n.textContent = d.name || d.platform || 'Aparelho';
+      const s = document.createElement('small'); s.textContent = 'Último uso: ' + fmt(d.lastSeen);
+      info.append(n, s);
+      const btn = document.createElement('button'); btn.className = 'btn'; btn.textContent = 'Remover';
+      btn.onclick = async () => { if (!confirm('Remover este aparelho? Ele precisará entrar de novo.')) return; try { show(await call('/api/v1/account/device', { deviceId: d.id })); } catch (e) { err('amsg', e.message); } };
+      row.append(info, btn); box.append(row);
+    }
+  }
+  const err = (id, t) => { $(id).textContent = t; $(id).style.display = 'block'; };
+
+  $('login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('lmsg').style.display = 'none';
+    $('go').disabled = true;
+    creds = { email: $('email').value.trim(), doc: $('doc').value.trim() };
+    try { const a = await call('/api/v1/account'); sessionStorage.setItem('gates-conta', JSON.stringify(creds)); show(a); }
+    catch (e2) { err('lmsg', e2.message); creds = null; }
+    finally { $('go').disabled = false; }
+  });
+  $('dlGo').onclick = async () => {
+    $('dlmsg').style.display = 'none';
+    $('dlGo').disabled = true;
+    try {
+      const r = await fetch('/api/v1/account/downloads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(creds) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.message || 'Não foi possível gerar os links.');
+      const box = $('dlList');
+      box.textContent = '';
+      for (const f of j.files) {
+        const row = document.createElement('div'); row.className = 'dl-row';
+        const info = document.createElement('div');
+        const n = document.createElement('b'); n.textContent = f.label;
+        const s = document.createElement('small'); s.append('Na TV (Downloader): ');
+        const c = document.createElement('code'); c.textContent = f.url.replace(/^https?:\/\//, '');
+        s.append(c); info.append(n, s);
+        const a = document.createElement('a'); a.className = 'btn'; a.href = f.url; a.textContent = '⬇ Baixar';
+        row.append(info, a); box.append(row);
+      }
+      const exp = document.createElement('p'); exp.className = 'muted'; exp.style.fontSize = '13px';
+      exp.textContent = 'Links válidos até ' + new Date(j.expiresAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + '.';
+      box.append(exp);
+    } catch (e) { err('dlmsg', e.message); }
+    finally { $('dlGo').disabled = false; }
+  };
+  $('tvPairGo').onclick = async () => {
+    const m = $('tvmsg');
+    m.style.display = 'none';
+    m.style.color = '';
+    m.style.background = '';
+    const code = $('tvPair').value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length !== 6) return err('tvmsg', 'Digite os 6 caracteres que aparecem na TV.');
+    $('tvPairGo').disabled = true;
+    try {
+      // Primeiro tenta o código da página de download (gatesapptv.pages.dev/tv); se não for, é o código do app.
+      const h = await (await fetch('/api/v1/handoff/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, email: creds.email, doc: creds.doc }) })).json().catch(() => ({}));
+      if (h.ok || (h.error && h.error !== 'pair_expired')) {
+        if (!h.ok) throw new Error(h.message || 'Não foi possível liberar o download.');
+        $('tvPair').value = '';
+        $('tvHand').hidden = true;
+        m.textContent = 'Pronto! O download começou na TV. Quando terminar, toque em Instalar e depois em Abrir: o app já entra na sua conta.';
+        m.style.display = 'block';
+        m.style.color = '#6be3a0';
+        m.style.background = 'rgba(46,204,113,.12)';
+        return;
+      }
+      const r = await fetch('/api/v1/pair/confirm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, email: creds.email, order: creds.doc }) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.message || 'Não foi possível ativar. Confira o código na TV.');
+      $('tvPair').value = '';
+      m.textContent = j.status === 'suspended' ? 'TV vinculada, mas a assinatura ainda não está liberada. Assim que o pagamento for confirmado ela entra.' : 'Pronto! A TV ' + (j.device ? '“' + j.device + '” ' : '') + 'entra sozinha em alguns segundos.';
+      m.style.display = 'block';
+      m.style.color = '#6be3a0';
+      m.style.background = 'rgba(46,204,113,.12)';
+      call('/api/v1/account').then(show).catch(() => {});
+    } catch (e) { err('tvmsg', e.message); }
+    finally { $('tvPairGo').disabled = false; }
+  };
+  $('phoneGo').onclick = async () => {
+    $('phonemsg').style.display = 'none';
+    const te = $('phoneIn').telError();
+    if (te) return err('phonemsg', te);
+    try { show(await call('/api/v1/account/phone', { phone: $('phoneIn').value })); }
+    catch (e) { err('phonemsg', e.message); }
+  };
+  $('refCopy').onclick = () => {
+    const t = $('refLink').textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => ($('refCopy').textContent = 'Copiado!'), () => prompt('Copie o link:', t));
+    setTimeout(() => ($('refCopy').textContent = 'Copiar link'), 2500);
+  };
+  $('walletSave').onclick = async () => {
+    $('refmsg').style.display = 'none';
+    try {
+      const r = await fetch('/api/v1/account/wallet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...creds, walletId: $('wallet').value }) });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.message || 'Não foi possível salvar.');
+      $('wallet').value = '';
+      show(j.account);
+    } catch (e) { err('refmsg', e.message); }
+  };
+  $('refresh').onclick = async () => { try { show(await call('/api/v1/account')); } catch (e) { err('amsg', e.message); } };
+  $('cancel').onclick = async () => {
+    if (!confirm('Cancelar a assinatura? As próximas cobranças não serão feitas.')) return;
+    try { show(await call('/api/v1/account/cancel')); } catch (e) { err('amsg', e.message); }
+  };
+  $('logout').onclick = () => { sessionStorage.removeItem('gates-conta'); creds = null; $('acc').hidden = true; $('login').hidden = false; };
+  const q = new URLSearchParams(location.search);
+  if (q.get('email')) $('email').value = q.get('email');
+  // Veio do QR code da TV: deixa o código pronto no quadro da TV.
+  const tvQ = (q.get('tv') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (tvQ) {
+    $('tvPair').value = tvQ;
+    $('tvHand').hidden = false;
+    const lm = document.createElement('p');
+    lm.className = 'muted';
+    lm.style.cssText = 'margin:0 0 14px;color:#fff';
+    lm.textContent = '📺 Entre com o e-mail e o CPF da assinatura para liberar o download na TV.';
+    $('login').prepend(lm);
+  }
+  const showTvFocus = () => tvQ && setTimeout(() => $('tvCard').scrollIntoView({ behavior: 'smooth', block: 'center' }), 200);
+  const _show = show;
+  show = (a) => (_show(a), showTvFocus());
+  if (creds) call('/api/v1/account').then(show).catch(() => sessionStorage.removeItem('gates-conta'));
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "appId": "br.com.gatestv.teste",
+  "productName": "GATES! TV Teste",
+  "copyright": "GATES! TV",
+  "directories": {
+    "output": "release/teste-win",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist-test/**/*",
+    "server/**/*",
+    "electron/**/*",
+    "build/icon.png",
+    "package.json"
+  ],
+  "extraMetadata": {
+    "name": "gates-iptv-teste",
+    "productName": "GATES! TV Teste",
+    "gatesWeb": "dist-test",
+    "gatesPort": 47142,
+    "gatesTitle": "GATES! TV Teste"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "icon": "build/icon.png",
+    "artifactName": "GatesTV-TESTE-Setup-${version}.exe"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "GATES! TV Teste",
+    "installerLanguages": [
+      "pt_BR"
+    ],
+    "language": "1046"
+  }
+}

@@ -1,0 +1,45 @@
+# GATES! TV na Cloudflare Pages (grátis, uso comercial permitido): site, checkout, área do
+# assinante, painel e servidor de licenças em https://gatesapptv.pages.dev
+# Publicar: node cloud/deploy.mjs
+name = "gatesapptv"
+pages_build_output_dir = "./public"
+compatibility_date = "2025-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "gatesapptv"
+database_id = "15edc610-e9c6-4300-aa29-91edca56ee76"
+
+# APKs para download (só assinantes em dia baixam; ver /conta e /instalar).
+[[kv_namespaces]]
+binding = "FILES"
+id = "3118fa8cfd8a4a6fbeb3038454b1d1fb"
+
+# Configurações públicas (os segredos — chave do Asaas, senha do painel, chave de assinatura —
+# ficam em "segredos" da Cloudflare: node cloud/deploy.mjs --segredos).
+[vars]
+PUBLIC_URL = "https://gatesapptv.pages.dev"
+BRAND_NAME = "GATES! TV"
+PLANS = "mensal:Mensal:10.90:30:MONTHLY,semestral:Semestral:40.00:182:SEMIANNUALLY,anual:Anual:80.00:365:YEARLY"
+# Teste grátis (horas). 0 desliga.
+TRIAL_HOURS = "1"
+ASAAS_ENV = "production"
+ASAAS_BILLING_TYPE = "UNDEFINED"
+GRACE_DAYS = "4"
+REFERRAL_PERCENT = "20"
+PAYMENT_TOLERANCE_HOURS = "36"
+TOKEN_DAYS = "3"
+MAX_DEVICES = "3"
+RESYNC_MINUTES = "30"
+DOWNLOAD_TV = ""
+DOWNLOAD_TV_LITE = ""
+DOWNLOAD_PHONE = ""
+DOWNLOAD_PHONE_LITE = ""
+DOWNLOAD_TABLET = ""
+DOWNLOAD_WINDOWS = ""
+SUPPORT_WHATSAPP = "5548988665900"
+COMPANY_NAME = "PALMER TECH LTDA"
+CONTACT_EMAIL = "prsergiokent@gmail.com"
+# Dados exibidos nos Termos (recomendado pelo Decreto 7.962/2013 para vendas online)
+COMPANY_CNPJ = "69.132.404/0001-35"
+COMPANY_ADDRESS = "Rua Domenico Sonego, 127, Bloco 2, Santa Bárbara, Criciúma/SC, CEP 88804-050"

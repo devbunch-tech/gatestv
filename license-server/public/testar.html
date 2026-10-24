@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Teste grátis — GATES! TV</title>
+<meta name="description" content="Teste o GATES! TV grátis, sem pagar nada e sem cartão." />
+<link rel="icon" href="/icon.png" />
+<style>
+  :root { --brand: #ec0b43; --bg: #121214; --card: #1f1f23; --line: rgba(255,255,255,.1); --text: #ececee; --muted: #9a9aa3; --ok: #6be3a0; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(900px 420px at 50% 0%, #2a1a20, transparent 70%), var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  main { max-width: 620px; margin: 0 auto; padding: 32px 16px 60px; }
+  header { text-align: center; margin-bottom: 22px; }
+  .logo { font-weight: 900; font-size: 30px; letter-spacing: .02em; color: var(--brand); text-decoration: none; }
+  h1 { margin: 6px 0 4px; font-size: 26px; }
+  p.sub { margin: 0; color: var(--muted); }
+  .perks { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+  .perks li { padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.06); font-size: 13px; color: #d4d4d9; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin: 14px 0 6px; }
+  input { width: 100%; height: 48px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: #121214; color: var(--text); font-size: 16px; outline: 0; }
+  input:focus { border-color: var(--brand); }
+  input.bad { border-color: #ff5a6e; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
+  .err { color: #ff7d8c; font-size: 13px; margin-top: 4px; min-height: 1em; }
+  button.main, a.main { display: flex; align-items: center; justify-content: center; width: 100%; height: 54px; margin-top: 22px; border: 0; border-radius: 10px; background: var(--brand); color: #fff; font-size: 17px; font-weight: 800; cursor: pointer; text-decoration: none; }
+  button.main:disabled { opacity: .6; cursor: progress; }
+  .safe { margin-top: 12px; text-align: center; color: var(--muted); font-size: 13px; }
+  .safe a { color: var(--text); }
+  .terms { display: flex; gap: 10px; align-items: flex-start; margin: 18px 0 0; font-size: 14px; color: var(--muted); font-weight: 400; cursor: pointer; }
+  .terms input { width: 20px; height: 20px; flex-shrink: 0; margin: 1px 0 0; accent-color: var(--brand); }
+  .terms a { color: var(--text); }
+  .msg { margin-top: 14px; padding: 12px 14px; border-radius: 8px; background: rgba(255,70,90,.12); color: #ff7d8c; display: none; }
+  .msg a { color: #fff; font-weight: 700; }
+  .done { text-align: center; }
+  .check { width: 64px; height: 64px; margin: 0 auto 10px; border-radius: 50%; display: grid; place-items: center; background: rgba(46,204,113,.16); color: var(--ok); font-size: 34px; font-weight: 900; }
+  .until { display: inline-block; margin: 8px 0 4px; padding: 8px 16px; border-radius: 999px; background: rgba(46,204,113,.12); color: var(--ok); font-weight: 700; }
+  .tvbox { margin: 20px 0 0; padding: 18px; border-radius: 12px; background: #121214; border: 1px solid rgba(236,11,67,.45); }
+  .tvbox > b { font-size: 18px; }
+  .tvbox p { margin: 6px 0; color: var(--muted); font-size: 14px; }
+  .tvlink { margin: 10px 0; font-size: 21px; font-weight: 900; letter-spacing: .01em; color: #fff; overflow-wrap: anywhere; }
+  .tvlink span { color: var(--brand); display: inline-block; white-space: nowrap; }
+  .steps { text-align: left; margin: 20px 0 0; padding-left: 20px; color: var(--muted); }
+  .steps li { margin: 8px 0; }
+  .steps b { color: var(--text); }
+  .steps a { color: var(--brand); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <a class="logo" href="/">GATES! TV</a>
+    <h1>Teste grátis por <span id="h">1 hora</span></h1>
+    <p class="sub">Use o app completo na TV, no celular, no tablet ou no computador. Sem pagar nada e sem cartão.</p>
+    <ul class="perks"><li>✓ Sem cartão de crédito</li><li>✓ Sem cobrança automática</li><li>✓ Até 2 aparelhos</li></ul>
+  </header>
+
+  <section id="form-step">
+    <form class="card" id="f" novalidate>
+      <label for="name">Nome completo</label>
+      <input id="name" autocomplete="name" required />
+      <div class="err" data-for="name"></div>
+      <div class="row">
+        <div>
+          <label for="email">E-mail</label>
+          <input id="email" type="email" autocomplete="email" required />
+          <div class="err" data-for="email"></div>
+        </div>
+        <div>
+          <label for="cpf">CPF</label>
+          <input id="cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" required />
+          <div class="err" data-for="cpf"></div>
+        </div>
+      </div>
+      <label for="phone-num">WhatsApp</label>
+      <input id="phone" data-tel />
+      <div class="err" data-for="phone"></div>
+      <label class="terms"><input type="checkbox" id="terms" /> <span>Li e aceito os <a href="/termos#teste" target="_blank">Termos de uso</a> e a <a href="/privacidade" target="_blank">Política de privacidade</a>. O teste vale uma vez por pessoa.</span></label>
+      <div class="err" data-for="terms"></div>
+      <label class="terms"><input type="checkbox" id="optmsg" checked /> <span>Aceito receber avisos e novidades do GATES! TV por WhatsApp. (Você pode cancelar quando quiser.)</span></label>
+      <button class="main" id="go">Começar meu teste grátis</button>
+      <div class="msg" id="m"></div>
+      <p class="safe">Já testou ou prefere assinar? <a href="/assinar">Ver planos</a></p>
+    </form>
+  </section>
+
+  <section id="done-step" class="card done" hidden>
+    <div class="check">✓</div>
+    <h1>Seu teste está liberado!</h1>
+    <div class="until" id="until"></div>
+    <div class="tvbox" id="tvbox" hidden>
+      <b>📺 Vai testar na TV?</b>
+      <p>Na TV, abra o app <b>Downloader</b> e digite:</p>
+      <div class="tvlink" id="tvlink"></div>
+      <p>Depois abra o GATES! TV na TV, escolha a opção de código e digite o código que aparecer em <b>Minha conta</b>.</p>
+    </div>
+    <ol class="steps">
+      <li><b>Celular, tablet ou computador:</b> baixe o app em <a href="/conta">Minha conta</a> e entre com o seu <b>e-mail</b> e o seu <b>CPF</b>.</li>
+      <li>Primeira vez? Veja o <a href="/instalar">passo a passo de instalação</a>.</li>
+      <li>Gostou? <a href="/assinar" id="buy">Assine a partir de <span id="from">R$ 10,90</span>/mês</a> e continue sem interrupção.</li>
+    </ol>
+    <a class="main" href="/conta">Ir para Minha conta</a>
+  </section>
+</main>
+<script src="/tel.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const money = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  fetch('/api/v1/plans').then((r) => r.json()).then((j) => {
+    if (j.trialHours) $("h").textContent = j.trialHours === 1 ? "1 hora" : j.trialHours + " horas";
+    const m = (j.plans || []).find((p) => p.days <= 31);
+    if (m) $('from').textContent = money(m.price);
+  }).catch(() => {});
+
+  $('cpf').addEventListener('input', (e) => {
+    const d = e.target.value.replace(/\D/g, '').slice(0, 11);
+    e.target.value = d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  });
+
+  function showTv(link) {
+    if (!link) return;
+    const i = link.lastIndexOf('/tv/') + 4;
+    $('tvlink').textContent = link.slice(0, i);
+    const n = document.createElement('span'); n.textContent = link.slice(i); $('tvlink').append(n);
+    $('tvbox').hidden = false;
+  }
+
+  $('f').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    document.querySelectorAll('.err').forEach((x) => (x.textContent = ''));
+    document.querySelectorAll('input').forEach((x) => x.classList.remove('bad'));
+    $('m').style.display = 'none';
+    const telErr = $('phone').telError();
+    if (telErr) { document.querySelector('.err[data-for="phone"]').textContent = telErr; return; }
+    $('go').disabled = true;
+    $('go').textContent = 'Liberando seu teste…';
+    try {
+      const body = { name: $('name').value, email: $('email').value.trim(), cpf: $('cpf').value, phone: $('phone').value, acceptTerms: $('terms').checked, optMessages: $('optmsg').checked };
+      const r = await fetch('/api/v1/trial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!j.ok) {
+        for (const [k, v] of Object.entries(j.errors || {})) {
+          const el = document.querySelector(`.err[data-for="${k}"]`);
+          if (el) { el.textContent = v; $(k)?.classList.add('bad'); }
+        }
+        if (j.error === 'trial_used') {
+          $('m').innerHTML = 'O teste grátis já foi usado com estes dados. <a href="/assinar?email=' + encodeURIComponent(body.email) + '">Ver os planos →</a>';
+          $('m').style.display = 'block';
+          return;
+        }
+        throw new Error(j.errors ? 'Confira os campos destacados.' : j.message || 'Não foi possível liberar o teste.');
+      }
+      // Já deixa a pessoa entrada em Minha conta (mesma aba), para baixar e ativar a TV sem digitar de novo.
+      try { sessionStorage.setItem('gates-conta', JSON.stringify({ email: body.email, doc: body.cpf })); } catch {}
+      $('form-step').hidden = true;
+      $('done-step').hidden = false;
+      // As horas do teste só começam a contar quando o primeiro aparelho é ativado.
+      const hrs = j.hours === 1 ? '1 hora' : (j.hours || 1) + ' horas';
+      $('until').textContent = j.until ? 'Válido até ' + new Date(j.until).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'O teste de ' + hrs + ' começa a contar quando você ativar o primeiro aparelho';
+      $('buy').href = '/assinar?email=' + encodeURIComponent(body.email);
+      showTv(j.tvLink);
+      scrollTo(0, 0);
+    } catch (err) {
+      $('m').textContent = err.message;
+      $('m').style.display = 'block';
+    } finally {
+      $('go').disabled = false;
+      $('go').textContent = 'Começar meu teste grátis';
+    }
+  });
+</script>
+</body>
+</html>

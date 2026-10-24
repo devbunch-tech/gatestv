@@ -1,0 +1,9 @@
+-- Banco D1 do GATES! TV (assinantes, webhooks já processados, pareamentos de TV, limite de tentativas).
+CREATE TABLE IF NOT EXISTS customers (email TEXT PRIMARY KEY, data TEXT NOT NULL, updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS webhooks (id TEXT PRIMARY KEY, at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS pairs (id TEXT PRIMARY KEY, code TEXT NOT NULL, data TEXT NOT NULL, expires_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS pairs_code ON pairs (code);
+CREATE TABLE IF NOT EXISTS hits (k TEXT NOT NULL, at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS hits_k ON hits (k, at);
+CREATE TABLE IF NOT EXISTS downloads (code TEXT PRIMARY KEY, file TEXT NOT NULL, email TEXT NOT NULL, expires_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL, updated_at INTEGER NOT NULL);

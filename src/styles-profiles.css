@@ -1,0 +1,82 @@
+/* =================== Perfis =================== */
+.avatar-tile {
+  display: inline-grid; place-items: center; flex-shrink: 0;
+  border-radius: 22%;
+  background: radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--c) 70%, #fff), var(--c) 55%, color-mix(in srgb, var(--c) 60%, #000));
+  line-height: 1; user-select: none;
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.15);
+}
+.avatar-tile.add { background: rgba(255, 255, 255, 0.06); color: var(--muted); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.15); }
+
+/* "Quem está assistindo?" */
+.gate {
+  position: fixed; inset: 0; overflow-y: auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+  padding: 40px 16px;
+  background: radial-gradient(900px 500px at 50% 0%, #2a1a20, transparent 70%), var(--bg-deep);
+}
+.gate-logo { height: 46px; }
+.gate h1 { font-size: clamp(26px, 4vw, 44px); font-weight: 600; text-align: center; }
+.gate-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 28px; max-width: 1100px; }
+.gate-profile { display: flex; flex-direction: column; align-items: center; gap: 12px; width: 150px; color: var(--muted); transition: color 0.15s; }
+.gate-profile strong { font-size: 17px; font-weight: 600; text-align: center; }
+.gate-avatar { position: relative; display: block; border-radius: 26%; outline: 4px solid transparent; outline-offset: 4px; transition: outline-color 0.15s, transform 0.15s; }
+.gate-profile:hover, .gate-profile:focus-visible { color: var(--text); outline: none; }
+.gate-profile:hover .gate-avatar, .gate-profile:focus-visible .gate-avatar, .tv .gate-profile:focus .gate-avatar { outline-color: #fff; transform: scale(1.05); }
+.gate-edit {
+  position: absolute; inset: 0; display: grid; place-items: center; border-radius: 22%;
+  background: rgba(0, 0, 0, 0.5); color: #fff;
+}
+.gate-lock {
+  position: absolute; right: -6px; bottom: -6px; display: grid; place-items: center;
+  width: 30px; height: 30px; border-radius: 50%; background: #111; color: #fff; box-shadow: 0 0 0 3px var(--bg-deep);
+}
+.gate-manage { margin-top: 8px; text-transform: uppercase; letter-spacing: 0.1em; font-size: 13px; }
+.kids-tag {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  background: linear-gradient(90deg, #f59e0b, #ec4899); color: #fff;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+/* Topo */
+.profile-btn { display: inline-flex; align-items: center; gap: 10px; padding: 3px 12px 3px 3px; border-radius: 999px; transition: background 0.15s; }
+.profile-btn span:last-child { font-weight: 600; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.profile-btn:hover, .profile-btn:focus-visible { background: rgba(255, 255, 255, 0.1); outline: none; }
+.profile-btn:focus-visible .avatar-tile { outline: 3px solid var(--brand); outline-offset: 2px; }
+.profile-btn .avatar-tile { border-radius: 30%; }
+
+/* Menu do avatar */
+.profile-menu { width: min(420px, 100%); }
+.pm-current { display: flex; align-items: center; gap: 14px; padding: 4px 4px 14px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+.pm-current div { display: flex; flex-direction: column; }
+.pm-current strong { font-size: 18px; }
+.profile-menu .menu-list > button .avatar-tile { border-radius: 30%; }
+
+/* Editor */
+.profile-editor { width: min(640px, 100%); }
+.pe-top { display: flex; align-items: flex-end; gap: 18px; margin-bottom: 8px; }
+.pe-top .field { margin-bottom: 0; }
+.pe-emojis { display: flex; flex-wrap: wrap; gap: 6px; }
+.pe-emoji { width: 44px; height: 44px; border-radius: 10px; font-size: 24px; background: rgba(255, 255, 255, 0.05); transition: background 0.15s, transform 0.1s; }
+.pe-emoji:hover { background: rgba(255, 255, 255, 0.12); }
+.pe-emoji.active { background: var(--brand-soft); box-shadow: inset 0 0 0 2px var(--brand); }
+.pe-emoji:focus-visible { outline: 3px solid var(--brand); outline-offset: 1px; }
+.pe-colors { display: flex; gap: 10px; margin-top: 12px; }
+.pe-color { width: 30px; height: 30px; border-radius: 50%; }
+.pe-color.active, .pe-color:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.pe-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.danger-btn { margin-left: auto; color: #ff7d8c; }
+.danger-btn.confirm { background: #c81e3a; color: #fff; }
+
+/* Perfil infantil: visual mais leve e colorido */
+.app.kids { background: radial-gradient(1200px 600px at 70% -10%, #24203a 0%, transparent 60%), var(--bg); }
+.app.kids .nav-item.active::before { background: linear-gradient(#f59e0b, #ec4899); }
+
+@media (max-width: 900px) {
+  .gate-grid { gap: 18px; }
+  .gate-profile { width: 110px; }
+  .gate-avatar .avatar-tile { width: 100px !important; height: 100px !important; font-size: 52px !important; }
+  .profile-btn span:last-child { display: none; }
+  .profile-btn { padding: 3px; }
+  .pe-top { flex-direction: column; align-items: stretch; }
+}

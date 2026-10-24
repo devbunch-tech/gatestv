@@ -1,0 +1,85 @@
+{
+  "name": "gates-iptv",
+  "productName": "GATES! TV",
+  "description": "GATES! TV — IPTV com interface no estilo Plex",
+  "author": "GATES! TV",
+  "private": true,
+  "version": "1.0.3",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "app": "vite build && electron .",
+    "logos": "node scripts/fetch-channel-logos.mjs",
+    "build:win": "vite build && electron-builder --win nsis",
+    "build:android": "vite build && node android/build-apk.mjs tv",
+    "build:mobile": "vite build && node android/build-apk.mjs phone,tablet,phone-admin",
+    "build:admin": "vite build && node android/build-apk.mjs phone-admin",
+    "build:assinantes": "node android/build-apk.mjs assinantes",
+    "build:win:assinante": "node scripts/build-win-assinante.mjs",
+    "build:teste": "node android/build-apk.mjs teste && node scripts/build-win-teste.mjs",
+    "teste:servidor": "node license-server/demo.mjs",
+    "license-server": "node license-server/server.mjs",
+    "test:license": "node --test license-server/test/e2e.test.mjs license-server/test/nuvemshop.test.mjs license-server/test/checkout.test.mjs",
+    "build:apks": "vite build && node android/build-apk.mjs all",
+    "build:smarttv": "node scripts/build-smarttv.mjs"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "hls.js": "^1.5.17",
+    "idb-keyval": "^6.2.1",
+    "jimp": "^0.22.12",
+    "mpegts.js": "^1.8.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "vite": "^5.4.11"
+  },
+  "build": {
+    "appId": "br.com.gatestv.app",
+    "productName": "GATES! TV",
+    "copyright": "GATES! TV",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "server/**/*",
+      "electron/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "GatesTV-Setup-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GATES! TV",
+      "installerLanguages": [
+        "pt_BR"
+      ],
+      "language": "1046"
+    }
+  },
+  "dependencies": {
+    "qrcode-generator": "^1.4.4"
+  }
+}

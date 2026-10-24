@@ -1,0 +1,376 @@
+/* =====================================================================
+   Celular e tablet (toque). Tudo aqui vale só com html.touch, então o
+   app do Windows e o da TV não mudam. O celular é desenhado a partir
+   de 320px de largura e cresce com a tela; o tablet usa cards maiores.
+   ===================================================================== */
+
+html.touch {
+  --tabbar: 58px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --topbar: 54px;
+  --gutter: 14px;
+  --card-w: clamp(96px, 29vw, 138px);
+  --card-wide-w: clamp(176px, 62vw, 260px);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+html.device-tablet {
+  --topbar: 60px;
+  --gutter: 24px;
+  --card-w: clamp(128px, 17vw, 170px);
+  --card-wide-w: clamp(220px, 32vw, 300px);
+}
+html.touch body { overscroll-behavior-y: none; }
+/* Segurar o dedo não seleciona texto nem abre o menu do sistema (o app abre o próprio menu). */
+html.touch button, html.touch a, html.touch [role='button'], html.touch img {
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+}
+/* Sem efeitos de "passar o mouse" (no toque eles ficam presos depois do toque). */
+html.touch .card:hover .card-media { outline-color: transparent; }
+html.touch .card-hover, html.touch .row-nav { display: none !important; }
+html.touch .episode:hover .episode-thumb { outline-color: transparent; }
+html.touch .episode .play-circle { opacity: 0.9; transform: translate(-50%, -50%) scale(0.8); }
+/* Retorno visual ao tocar. */
+html.touch .card:active .card-media, html.touch .group-tile:active, html.touch .episode:active,
+html.touch .guide-row:active, html.touch .featured-game:active, html.touch .game-card:active {
+  transform: scale(0.97); transition: transform 0.08s;
+}
+html.touch .btn:active, html.touch .chip:active, html.touch .bottom-tab:active { transform: scale(0.95); }
+/* Áreas de toque de pelo menos 44px. */
+html.touch .icon-btn { width: 44px; height: 44px; }
+html.touch .btn { height: 46px; padding: 0 20px; font-size: 15px; }
+html.touch .btn.round { width: 46px; padding: 0; }
+html.touch .chip { padding: 9px 16px; font-size: 14px; }
+html.touch .hint-line, html.touch .player .hint, html.touch .lb-hint { display: none !important; }
+
+/* ---------- Estrutura: barra de cima + conteúdo + abas embaixo ---------- */
+html.touch .app {
+  grid-template-columns: minmax(0, 1fr) !important;
+  grid-template-rows: var(--topbar) minmax(0, 1fr);
+  height: 100vh; height: 100dvh;
+}
+html.touch .sidebar, html.touch .scrim, html.touch .menu-btn { display: none !important; }
+html.touch .main {
+  padding-bottom: calc(var(--tabbar) + var(--safe-b) + 24px);
+  scroll-behavior: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+}
+html.touch .main > div:not(.home):not(.details):not(.live):not(.lib-overview) { padding: 18px var(--gutter) 0; }
+
+html.touch .topbar { gap: 8px; padding: 0 6px 0 var(--gutter); backdrop-filter: none; background: rgba(18, 18, 20, 0.97); }
+html.touch .brand { width: auto; }
+html.touch .brand img { height: 24px; }
+html.touch .topbar-spacer { flex: 1; }
+html.touch .topbar-right { gap: 2px; }
+html.touch .profile-btn > span:not(.avatar-tile) { display: none; }
+html.touch .profile-btn { padding: 5px; }
+html.touch .avatar { display: grid; }
+html.touch .topbar.search-mode { padding: 0 var(--gutter) 0 4px; }
+html.touch .topbar.search-mode .search { max-width: none; height: 40px; }
+html.touch .search input { font-size: 16px; } /* 16px evita o zoom automático do teclado */
+html.device-tablet .search { max-width: 380px; }
+
+.bottom-tabs { display: none; }
+html.touch .bottom-tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  height: calc(var(--tabbar) + var(--safe-b)); padding-bottom: var(--safe-b);
+  background: rgba(16, 16, 18, 0.98); border-top: 1px solid var(--line);
+}
+.bottom-tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  min-width: 0; color: var(--muted); font-size: 11px; font-weight: 600; transition: color 0.15s;
+}
+.bottom-tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+.bottom-tab.active { color: var(--text); }
+.bottom-tab.active svg { color: var(--brand); }
+html.device-tablet .bottom-tab { flex-direction: row; gap: 8px; font-size: 13px; }
+html.touch .app.playing .bottom-tabs { display: none; }
+@media (max-width: 340px) {
+  .bottom-tab { font-size: 10px; }
+}
+
+/* Avisos acima das abas. */
+html.touch .toasts { left: 12px; right: 12px; bottom: calc(var(--tabbar) + var(--safe-b) + 12px); align-items: stretch; }
+html.touch .toast { max-width: none; }
+
+/* ---------- Fileiras e cards (deslizar com o dedo, encaixando no card) ---------- */
+html.touch .row { margin: 18px 0 4px; }
+html.touch .row-head { padding: 0 var(--gutter); margin-bottom: 8px; }
+html.touch .row-head h2 { font-size: 17px; }
+html.touch .row-head h2 a svg { opacity: 1; transform: none; }
+html.touch .row-track {
+  gap: 10px; padding: 4px var(--gutter) 8px;
+  scroll-snap-type: x mandatory; scroll-padding: 0 var(--gutter);
+  overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+}
+html.touch .row-track > * { scroll-snap-align: start; }
+html.touch .card { width: var(--card-w); }
+html.touch .card-wide { width: var(--card-wide-w); }
+html.touch .card-title { font-size: 13px; margin-top: 6px; }
+html.touch .card-sub { font-size: 11px; }
+html.touch .grid-poster { grid-template-columns: repeat(auto-fill, minmax(min(var(--card-w), 30%), 1fr)); gap: 16px 10px; }
+html.device-phone .grid-poster { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+html.touch .grid-wide { grid-template-columns: repeat(auto-fill, minmax(min(var(--card-wide-w), 100%), 1fr)); gap: 14px 10px; }
+html.device-phone .grid-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html.touch .see-all-card { width: var(--card-w); }
+html.touch .page-head { margin-bottom: 12px; gap: 10px; }
+html.touch .page-head h1 { font-size: 22px; }
+html.touch .chips { gap: 6px; }
+
+/* ---------- Início ---------- */
+html.touch .home.clean { padding-top: 6px; }
+html.touch .home.clean .row { margin: 20px 0 6px; }
+html.touch .home.clean .row-head h2 { font-size: 17px; }
+html.touch .featured-track {
+  scroll-snap-type: x mandatory; scroll-padding: 0 var(--gutter); gap: 10px;
+  padding-left: var(--gutter); padding-right: var(--gutter); overscroll-behavior-x: contain;
+}
+html.touch .featured-track > * { scroll-snap-align: start; }
+html.device-phone .featured-game { width: calc(100vw - 2 * var(--gutter) - 18px); min-width: 0; }
+html.device-phone .fg-teams { gap: 6px; }
+html.device-phone .fg-team strong { font-size: 13px; }
+html.device-phone .fg-team .crest { width: 52px !important; height: 52px !important; }
+html.device-phone .fg-time, html.device-phone .fg-score { font-size: 28px; }
+html.device-phone .fg-top { gap: 8px; }
+html.device-phone .fg-league-text strong { font-size: 13px; }
+html.device-phone .game-card { width: min(78vw, 280px); }
+
+/* ---------- Destaque de Filmes/Séries ---------- */
+html.touch .lib-hero { min-height: 0; aspect-ratio: auto; touch-action: pan-y; }
+html.device-phone .lib-hero { min-height: min(118vw, 520px); }
+html.device-phone .lib-hero-shade { background: linear-gradient(0deg, var(--bg) 4%, rgba(27, 27, 29, 0.7) 45%, rgba(27, 27, 29, 0.1) 80%); }
+html.touch .lib-hero-content { padding: 40px var(--gutter) 34px; max-width: 100%; }
+html.device-phone .lib-hero h1 { font-size: clamp(24px, 7.5vw, 32px); }
+html.device-phone .lib-hero-plot { -webkit-line-clamp: 3; font-size: 13px; }
+html.device-phone .lib-hero .meta { gap: 4px 12px; font-size: 13px; }
+html.device-phone .lib-hero-where { gap: 6px; }
+html.touch .hero-actions { gap: 8px; flex-wrap: wrap; }
+html.device-phone .lib-hero .hero-actions .btn { flex: 1 1 130px; justify-content: center; padding: 0 12px; }
+html.touch .lib-hero .hero-dots { left: 0; right: 0; bottom: 12px; justify-content: center; }
+html.touch .hero-dots button { width: 7px; height: 7px; }
+html.touch .hero-dots button.active { width: 20px; }
+html.device-tablet .lib-hero { min-height: 420px; }
+
+/* Categorias em blocos (celular). */
+html.touch .group-tiles-wrap { padding: 14px var(--gutter) 24px; }
+html.touch .group-tiles { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+html.device-phone .group-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html.touch .group-tile { min-height: 96px; padding: 12px 8px; gap: 6px; }
+html.touch .group-tile strong { font-size: 13px; }
+html.touch .library-head { padding: 16px var(--gutter) 0; }
+
+/* ---------- TV ao vivo ---------- */
+html.touch .live { display: block; }
+html.touch .live-groups {
+  position: sticky; top: 0; z-index: 5; max-height: none;
+  display: flex; gap: 6px; overflow-x: auto; padding: 10px var(--gutter);
+  border: 0; border-bottom: 1px solid var(--line); background: rgba(27, 27, 29, 0.97);
+  scrollbar-width: none; overscroll-behavior-x: contain;
+}
+html.touch .live-groups::-webkit-scrollbar { display: none; }
+html.touch .group-item {
+  width: auto; flex-shrink: 0; padding: 8px 14px; border-radius: 999px; gap: 6px;
+  background: rgba(255, 255, 255, 0.07); box-shadow: none; font-size: 13px;
+}
+html.touch .group-item.active { background: var(--brand); color: #fff; box-shadow: none; }
+html.touch .group-item span { max-width: 44vw; }
+html.touch .live-main { padding: 14px var(--gutter) 0; }
+html.touch .live-main .page-head { flex-direction: column; align-items: stretch; }
+html.touch .live-main .search.small { max-width: none; height: 42px; }
+html.touch .guide { gap: 6px; }
+html.touch .guide-row {
+  grid-template-columns: 64px minmax(0, 1fr) 44px;
+  grid-template-areas: 'logo info fav' 'logo now fav';
+  gap: 2px 12px; padding: 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.04);
+}
+html.touch .guide-num { display: none; }
+html.touch .guide-logo { grid-area: logo; align-self: center; }
+html.touch .guide-info { grid-area: info; }
+html.touch .guide-info span { display: none; }
+html.touch .guide-now { grid-area: now; display: flex !important; flex-direction: column; align-items: stretch; gap: 3px; min-width: 0; }
+html.touch .guide-prog { display: flex; gap: 6px; align-items: center; min-width: 0; font-size: 12px; }
+html.touch .guide-prog strong { font-weight: 500; color: rgba(255, 255, 255, 0.8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.touch .guide-prog span, html.touch .guide-next { display: none; }
+html.touch .guide-row > .icon-btn:not(.fav) { display: none; }
+html.touch .guide-row > .icon-btn.fav { grid-area: fav; align-self: center; display: inline-grid; }
+html.device-tablet .guide-row {
+  grid-template-columns: 96px minmax(0, 1fr) minmax(0, 1.4fr) 44px 44px;
+  grid-template-areas: 'logo info now info2 fav';
+  gap: 14px;
+}
+html.device-tablet .guide-row > .icon-btn:nth-last-child(3) { display: inline-grid; grid-area: info2; }
+html.device-tablet .guide-info span, html.device-tablet .guide-prog span, html.device-tablet .guide-next { display: block; }
+
+/* ---------- Detalhes ---------- */
+html.touch .details { padding: 0 var(--gutter) 30px; }
+html.touch .details .back {
+  position: sticky; top: 8px; z-index: 3; margin: 8px 0 0 -6px;
+  background: rgba(0, 0, 0, 0.45); color: #fff;
+}
+html.device-phone .details-bg { height: 62vw; filter: brightness(0.6); mask-image: linear-gradient(180deg, #000 55%, transparent); }
+html.device-phone .details-main { flex-direction: column; gap: 14px; padding-top: 30vw; }
+/* A imagem de fundo já mostra o título; sem o pôster, o botão Assistir aparece sem rolar. */
+html.device-phone .details-poster { display: none; }
+html.device-phone .details-info { padding-top: 0; }
+html.device-phone .details-info h1 { font-size: clamp(22px, 7vw, 30px); }
+html.device-phone .details .meta { margin: 8px 0 14px; gap: 4px 12px; font-size: 13px; }
+html.device-phone .details .overview { font-size: 14px; line-height: 1.55; }
+html.device-phone .details-actions { flex-wrap: wrap; gap: 8px; }
+html.device-phone .details-actions > .btn:first-child { flex: 1 1 100%; justify-content: center; height: 50px; font-size: 16px; }
+html.device-phone .details-actions > .btn.ghost:not(.round) { flex: 1 1 auto; justify-content: center; }
+html.device-phone .providers-row > small { width: 100%; }
+html.touch .versions .chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+html.touch .season-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--gutter)) 14px; padding: 0 var(--gutter); }
+html.touch .season-tabs .chip { flex-shrink: 0; }
+html.touch .episodes { margin-top: 26px; }
+/* Episódios em lista (miniatura + título), fácil de tocar. */
+html.device-phone .episode-list { grid-template-columns: 1fr; gap: 10px; }
+html.device-phone .episode { display: grid; grid-template-columns: 42% minmax(0, 1fr); gap: 12px; align-items: center; }
+html.device-phone .episode-info { margin-top: 0; }
+html.device-phone .episode-info strong { font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+html.device-tablet .episode-list { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+html.touch .details-rows { margin-top: 20px; }
+html.device-tablet .details-poster { width: 200px; }
+
+/* ---------- Menus e janelas: "folha" que sobe de baixo no celular ---------- */
+html.touch .modal-scrim { backdrop-filter: none; }
+html.device-phone .modal-scrim { padding: 0; place-items: end stretch; }
+html.device-phone .modal {
+  width: 100%; max-height: 88vh; max-height: 88dvh; border-radius: 16px 16px 0 0; border-bottom: 0;
+  padding-bottom: var(--safe-b); animation: sheet 0.22s ease-out;
+}
+html.device-phone .modal.pin { border-radius: 16px; margin: auto 12px; width: auto; }
+html.device-phone .modal-scrim.pin-scrim { place-items: center stretch; }
+@keyframes sheet { from { transform: translateY(40px); opacity: 0.4; } }
+html.device-phone .modal::before {
+  content: ''; display: block; width: 40px; height: 4px; margin: 8px auto -4px;
+  border-radius: 2px; background: rgba(255, 255, 255, 0.25);
+}
+html.device-phone .modal.trailer::before { display: none; }
+html.touch .menu-list > button { min-height: 50px; padding: 10px 12px; }
+html.device-phone .program .modal-body > :not(.program-hero) { margin-left: 16px; margin-right: 16px; }
+html.device-phone .trailer { border-radius: 0; }
+html.touch .pin-pad button { min-height: 56px; }
+
+/* ---------- Perfis, login e configurações ---------- */
+/* "safe center": se não couber, começa do topo em vez de cortar o logo. */
+html.touch .gate { justify-content: safe center; }
+html.device-phone .gate { padding: 28px 12px calc(28px + var(--safe-b)); gap: 20px; }
+html.device-phone .gate-logo { height: 34px; }
+html.device-phone .gate h1 { font-size: 22px; }
+html.device-phone .gate-grid { gap: 16px 8px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; max-width: 400px; }
+html.device-phone .gate-profile { width: auto; gap: 8px; }
+html.device-phone .gate-avatar .avatar-tile { width: min(84px, 24vw) !important; height: min(84px, 24vw) !important; font-size: 40px !important; }
+html.device-phone .gate-avatar { outline-width: 3px; outline-offset: 3px; }
+html.device-phone .gate-profile strong { font-size: 13px; }
+html.touch .settings { max-width: none; }
+html.touch .settings-nav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--gutter)) 16px; padding: 0 var(--gutter); }
+html.touch .settings-nav > * { flex-shrink: 0; }
+html.device-phone .panel { padding: 16px 14px; border-radius: 10px; }
+html.touch .field input, html.touch .field select { height: 46px; font-size: 16px; }
+html.device-phone .field-row { flex-direction: column; gap: 0; }
+html.device-phone .playlist { flex-wrap: wrap; }
+html.touch .tabs { overflow-x: auto; scrollbar-width: none; }
+html.touch .tab { flex-shrink: 0; }
+html.touch .person-head { flex-direction: column; align-items: flex-start; }
+
+/* ---------- Player ---------- */
+html.touch .player { touch-action: none; }
+.gesture-layer { position: absolute; inset: 0; z-index: 1; }
+html.touch .player-top, html.touch .player-bottom { z-index: 3; padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+html.touch .player-top { padding-top: 10px; padding-right: 110px; gap: 10px; }
+html.touch .player-title strong { font-size: 15px; }
+html.touch .player-title span { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.device-phone .player-logo { display: none; }
+html.touch .player-bottom { padding-top: 40px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+html.touch .volume, html.touch .controls .play, html.touch .controls > button:first-child, html.touch .controls > button:nth-child(3) { display: none; }
+html.device-phone .up-next { display: none; }
+html.touch .controls { margin-top: 6px; gap: 2px; }
+html.touch .seek { gap: 10px; }
+html.touch .seek input[type='range'] { height: 6px; }
+html.touch .seek input[type='range']::-webkit-slider-thumb { width: 20px; height: 20px; }
+html.touch .player-watermark { top: 16px; right: 16px; height: 22px; }
+html.device-tablet .player-watermark { top: 28px; right: 28px; height: 26px; }
+
+/* Botões grandes no centro: anterior / reproduzir / próximo. */
+.touch-center {
+  position: absolute; left: 50%; top: 50%; z-index: 3; transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: clamp(24px, 9vw, 64px);
+  transition: opacity 0.25s;
+}
+.player.idle .touch-center { opacity: 0; pointer-events: none; }
+.tc-btn {
+  display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%;
+  color: #fff; background: rgba(0, 0, 0, 0.45);
+}
+.tc-btn.play { width: 74px; height: 74px; background: rgba(236, 11, 67, 0.88); }
+.tc-btn.play.is-loading { visibility: hidden; }
+.tc-btn:disabled { opacity: 0.3; }
+.tc-btn:active { transform: scale(0.92); }
+.tc-skip { font-size: 15px; font-weight: 800; }
+
+/* Indicador do toque duplo (±10 s). */
+.seek-flash {
+  position: absolute; top: 50%; z-index: 4; transform: translateY(-50%);
+  padding: 12px 18px; border-radius: 999px; background: rgba(0, 0, 0, 0.55);
+  font-weight: 800; font-size: 16px; pointer-events: none; animation: flash 0.65s ease-out forwards;
+}
+.seek-flash.left { left: 12%; }
+.seek-flash.right { right: 12%; }
+@keyframes flash { 0% { opacity: 0; transform: translateY(-50%) scale(0.8); } 20% { opacity: 1; transform: translateY(-50%) scale(1); } 100% { opacity: 0; } }
+
+/* Faixa do canal e lista de canais. */
+html.touch .live-banner { z-index: 4; left: 10px; right: 10px; bottom: 96px; padding: 12px 14px; backdrop-filter: none; background: rgba(16, 16, 18, 0.94); }
+html.device-phone .lb-num { font-size: 18px; min-width: 0; }
+html.device-phone .lb-clock { font-size: 16px; }
+html.device-phone .lb-title strong { font-size: 15px; }
+html.device-phone .lb-logo { width: 52px; }
+html.touch .live-banner.expanded { max-height: calc(100% - 160px); overflow-y: auto; }
+html.touch .panel-scrim { position: absolute; inset: 0; z-index: 4; background: rgba(0, 0, 0, 0.35); }
+html.touch .channel-list {
+  z-index: 5; width: min(380px, 86vw); padding: 12px 8px calc(30px + env(safe-area-inset-bottom));
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+}
+html.touch .cl-row { min-height: 56px; grid-template-columns: 30px 56px 1fr; gap: 10px; }
+html.touch .cl-row.sel { background: transparent; }
+html.touch .cl-row.current { background: var(--brand-soft); }
+html.touch .cl-row:active { background: rgba(255, 255, 255, 0.1); }
+html.touch .cl-progress { left: 106px; }
+html.touch .vod-info { z-index: 4; left: 10px; right: 10px; bottom: 96px; max-height: calc(100% - 160px); overflow-y: auto; }
+html.touch .player-center { z-index: 2; }
+html.touch .player-error { margin: 0 14px; }
+html.touch .num-osd { display: none; }
+
+/* Celular: título, notas, versões e o botão Assistir logo no topo; sinopse e o resto depois. */
+html.device-phone .details-info { display: flex; flex-direction: column; }
+html.device-phone .details-info > h1, html.device-phone .details-info > .original { order: -4; }
+html.device-phone .details-info > .meta:not(.subtle) { order: -3; margin-bottom: 6px; }
+html.device-phone .details-info > .versions, html.device-phone .details-info > .details-actions,
+html.device-phone .details-info > .details-progress { order: -2; }
+html.device-phone .details-info > .details-actions { margin: 6px 0 16px; }
+html.device-phone .details-info > .meta.subtle { margin: 0 0 12px; }
+html.device-phone .lib-hero .hero-actions .btn { white-space: nowrap; flex: 1 1 auto; }
+
+/* Celular deitado (pouca altura): faixa do canal e controles mais compactos. */
+@media (max-height: 520px) {
+  html.touch .live-banner { max-width: 560px; bottom: 74px; padding: 10px 12px; }
+  html.touch .lb-head { margin-bottom: 6px; gap: 10px; }
+  html.touch .lb-progress { margin: 6px 0; }
+  html.touch .lb-next { font-size: 12px; margin-top: 2px; }
+  html.touch .live-banner.expanded, html.touch .vod-info { top: 64px; bottom: 74px; max-height: none; }
+  html.touch .player-bottom { padding-top: 24px; }
+  html.touch .controls { margin-top: 2px; }
+  html.touch .player-error { padding: 14px; }
+  html.touch .player-error-actions { margin-top: 10px; }
+}
+
+/* Busca e Favoritos: fileiras de ponta a ponta para deslizar. */
+html.touch .search-page .row-track, html.touch .favorites .row-track { margin: 0 calc(-1 * var(--gutter)); padding: 4px var(--gutter) 8px; }
+/* Fontes nas configurações: dados em cima, botões embaixo. */
+html.device-phone .playlist-info { flex: 1 1 calc(100% - 40px); }
+html.device-phone .playlist > .icon-btn { margin-left: auto; }
+html.device-phone .playlist > .icon-btn ~ .icon-btn { margin-left: 0; }
+
+/* Edição admin: perfil identificado só pelas letras (sem foto/emoji). */
+.avatar-tile.initials { font-weight: 800; letter-spacing: 0.02em; color: #fff; }
+html.edition-admin .pe-photo, html.edition-admin .pe-emojis { display: none; }

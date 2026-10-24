@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "include": [
+    "/api/*",
+    "/admin/api/*",
+    "/webhooks/*",
+    "/health",
+    "/d/*",
+    "/tv",
+    "/tv/*"
+  ],
+  "exclude": []
+}

@@ -1,0 +1,27 @@
+/* =====================================================================
+   Modo LITE (html.lite): para aparelhos com hardware mais simples.
+   Tira o que mais pesa para a placa de vídeo: desfoques, sombras,
+   transparências animadas e transições. O conteúdo é o mesmo.
+   ===================================================================== */
+html.lite *, html.lite *::before, html.lite *::after {
+  transition: none !important;
+  animation-duration: 0s !important;
+  animation-iteration-count: 1 !important;
+  scroll-behavior: auto !important;
+}
+/* Mantém só o "piscar" do selo AO VIVO, que é barato. */
+html.lite .badge-live::before { animation: pulse 1.4s infinite !important; }
+html.lite .spinner { animation: spin 0.8s linear infinite !important; }
+
+html.lite .topbar, html.lite .modal-scrim, html.lite .live-banner, html.lite .search, html.lite .channel-list,
+html.lite .bottom-tabs, html.lite .toast { backdrop-filter: none !important; }
+html.lite .hero-bg, html.lite .details-bg, html.lite .lib-hero-bg, html.lite .fg-poster { filter: brightness(0.4) !important; transform: none !important; }
+html.lite .card-media, html.lite .featured-game, html.lite .game-card, html.lite .modal, html.lite .toast, html.lite .details-poster,
+html.lite .hero-poster, html.lite .play-circle, html.lite .live-banner { box-shadow: none !important; }
+html.lite .card .card-hover { display: none; }
+html.lite .card:hover .card-media, html.lite .card:focus-visible .card-media { transform: none !important; }
+html.lite .app { background: var(--bg); }
+html.lite .gate, html.lite .login { background: var(--bg-deep); }
+/* Fileiras fora da tela não são desenhadas até chegarem perto. */
+html.lite .row, html.lite .group-tiles-wrap, html.lite .details-rows { content-visibility: auto; contain-intrinsic-size: auto 320px; }
+html.lite .guide-row { content-visibility: auto; contain-intrinsic-size: auto 64px; }

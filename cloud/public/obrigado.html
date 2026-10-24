@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Pagamento confirmado — GATES! TV</title>
+<link rel="icon" href="/icon.png" />
+<style>
+  :root { --brand: #ec0b43; --bg: #0f0f11; --card: #1c1c21; --line: rgba(255,255,255,.09); --text: #f1f1f3; --muted: #a2a2ab; --ok: #6be3a0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: radial-gradient(800px 400px at 50% 0%, rgba(46,204,113,.16), transparent 70%), var(--bg); color: var(--text); font: 16px/1.6 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  main { width: 100%; max-width: 560px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 30px 26px; text-align: center; }
+  img.logo { height: 32px; margin: 0 auto 18px; display: block; }
+  .check { width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 50%; display: grid; place-items: center; background: rgba(46,204,113,.16); color: var(--ok); font-size: 38px; font-weight: 900; }
+  h1 { font-size: 26px; margin: 0 0 8px; }
+  p.sub { color: var(--muted); margin: 0 0 18px; }
+  ol { text-align: left; padding-left: 22px; color: #d4d4d9; margin: 0 0 22px; }
+  li { margin: 8px 0; } ol a { color: var(--brand); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; height: 52px; padding: 0 26px; border-radius: 12px; background: var(--brand); color: #fff; font-weight: 800; text-decoration: none; width: 100%; }
+  .tvbox { margin: 22px 0 0; padding: 18px; border-radius: 12px; background: #121214; border: 1px solid rgba(236,11,67,.45); text-align: center; }
+  .tvbox > b { font-size: 18px; }
+  .tvbox p { margin: 6px 0; color: var(--muted); font-size: 14px; }
+  [hidden] { display: none !important; }
+  .tvlink { margin: 10px 0; font-size: 21px; font-weight: 900; letter-spacing: .01em; color: #fff; overflow-wrap: anywhere; }
+  .tvlink span { color: #ec0b43; display: inline-block; white-space: nowrap; }
+  .wa { display: block; margin-top: 16px; color: var(--ok); font-weight: 700; text-decoration: none; }
+  .preview-tag { display: inline-block; margin-bottom: 12px; padding: 4px 12px; border-radius: 999px; background: #fbbf24; color: #1a1a1a; font-size: 12px; font-weight: 800; }
+</style>
+</head>
+<body>
+<main>
+  <span class="preview-tag" id="pv" hidden>PRÉ-VISUALIZAÇÃO — assim o cliente vê depois de pagar</span>
+  <img class="logo" src="/logo.png" alt="GATES! TV" />
+  <div class="check">✓</div>
+  <h1 id="t">Pagamento confirmado! 🎉</h1>
+  <p class="sub" id="x">Bem-vindo ao GATES! TV. Sua assinatura já está liberada.</p>
+  <div class="tvbox" id="tvbox" hidden>
+      <b>📺 Vai assistir na TV?</b>
+      <p>Na TV, abra o app <b>Downloader</b> e digite:</p>
+      <div class="tvlink" id="tvlink"></div>
+      <p>Depois de instalar, abra o GATES! TV na TV e ative pelo código em Minha conta.</p>
+    </div>
+  <ol id="s"></ol>
+  <a class="btn" id="b" href="/conta">Ir para Minha conta</a>
+  <a class="wa" id="w" target="_blank" rel="noopener" hidden></a>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const rich = (t) =>
+    esc(t)
+      .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+      .replace(/Minha conta/g, '<a href="/conta">Minha conta</a>')
+      .replace(/passo a passo de instalação/g, '<a href="/instalar">passo a passo de instalação</a>');
+  function showTv(link) {
+    if (!link) return;
+    const i = link.lastIndexOf('/tv/') + 4;
+    $('tvlink').textContent = link.slice(0, i);
+    const n = document.createElement('span'); n.textContent = link.slice(i); $('tvlink').append(n);
+    $('tvbox').hidden = false;
+  }
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('preview') === '1') { $('pv').hidden = false; showTv(location.host + '/tv/123456'); }
+  if (/^\d{6}$/.test(qs.get('tv') || '')) showTv(location.host + '/tv/' + qs.get('tv'));
+  fetch('/api/v1/content/obrigado')
+    .then((r) => r.json())
+    .then((j) => {
+      const c = j.content || {};
+      $('t').textContent = c.titulo || 'Pagamento confirmado!';
+      $('x').textContent = c.texto || '';
+      $('x').hidden = !c.texto;
+      $('s').innerHTML = (c.passos || []).map((p) => '<li>' + rich(p) + '</li>').join('');
+      $('b').textContent = c.botao || 'Ir para Minha conta';
+      if (c.whatsapp && j.support) {
+        $('w').hidden = false;
+        $('w').textContent = c.whatsapp;
+        $('w').href = 'https://wa.me/' + String(j.support).replace(/\D/g, '');
+      }
+    })
+    .catch(() => {});
+</script>
+</body>
+</html>

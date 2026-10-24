@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Assinar GATES! TV</title>
+<style>
+  :root { --brand: #ec0b43; --bg: #121214; --card: #1f1f23; --line: rgba(255,255,255,.1); --text: #ececee; --muted: #9a9aa3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: radial-gradient(900px 420px at 50% 0%, #2a1a20, transparent 70%), var(--bg); color: var(--text); font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 16px 60px; }
+  header { text-align: center; margin-bottom: 26px; }
+  .logo { font-weight: 900; font-size: 30px; letter-spacing: .02em; color: var(--brand); }
+  h1 { margin: 6px 0 4px; font-size: 24px; }
+  p.sub { margin: 0; color: var(--muted); }
+  .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 22px 0; }
+  .plan { position: relative; text-align: left; padding: 18px; border-radius: 12px; border: 2px solid var(--line); background: var(--card); color: var(--text); cursor: pointer; font: inherit; }
+  .plan:hover { border-color: rgba(236,11,67,.5); }
+  .plan.sel { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(236,11,67,.2); }
+  .plan strong { display: block; font-size: 18px; }
+  .plan .price { font-size: 28px; font-weight: 800; margin: 6px 0 2px; }
+  .plan .price small { font-size: 14px; color: var(--muted); font-weight: 400; }
+  .plan .per { color: var(--muted); font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin: 14px 0 6px; }
+  input { width: 100%; height: 48px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: #121214; color: var(--text); font-size: 16px; outline: 0; }
+  input:focus { border-color: var(--brand); }
+  input.bad { border-color: #ff5a6e; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
+  .err { color: #ff7d8c; font-size: 13px; margin-top: 4px; min-height: 1em; }
+  button.main { width: 100%; height: 54px; margin-top: 22px; border: 0; border-radius: 10px; background: var(--brand); color: #fff; font-size: 17px; font-weight: 800; cursor: pointer; }
+  button.main:disabled { opacity: .6; cursor: progress; }
+  .safe { margin-top: 12px; text-align: center; color: var(--muted); font-size: 13px; }
+  .done { text-align: center; }
+  .code { display: inline-block; margin: 10px 0 6px; padding: 12px 18px; border-radius: 10px; background: #121214; border: 1px dashed var(--brand); font-size: 26px; font-weight: 900; letter-spacing: .1em; }
+  .pay { display: block; margin: 18px auto 0; max-width: 340px; padding: 16px; border-radius: 10px; background: var(--brand); color: #fff; font-weight: 800; text-decoration: none; }
+  .tvbox { margin: 22px 0 0; padding: 18px; border-radius: 12px; background: #121214; border: 1px solid rgba(236,11,67,.45); text-align: center; }
+  .tvbox > b { font-size: 18px; }
+  .tvbox p { margin: 6px 0; color: var(--muted); font-size: 14px; }
+  [hidden] { display: none !important; }
+  .tvlink { margin: 10px 0; font-size: 21px; font-weight: 900; letter-spacing: .01em; color: #fff; overflow-wrap: anywhere; }
+  .tvlink span { color: #ec0b43; display: inline-block; white-space: nowrap; }
+  .steps { text-align: left; margin: 22px 0 0; padding-left: 20px; color: var(--muted); }
+  .steps li { margin: 6px 0; }
+  .steps b { color: var(--text); }
+  .dl { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+  .dl a { padding: 9px 14px; border-radius: 999px; background: rgba(255,255,255,.08); color: var(--text); text-decoration: none; font-size: 14px; }
+  .terms { display: flex; gap: 10px; align-items: flex-start; margin: 18px 0 0; font-size: 14px; color: var(--muted); font-weight: 400; cursor: pointer; }
+  .terms input { width: 20px; height: 20px; flex-shrink: 0; margin: 1px 0 0; accent-color: var(--brand); }
+  .terms a { color: var(--text); }
+  .preview-tag { display: inline-block; margin-bottom: 12px; padding: 4px 12px; border-radius: 999px; background: #fbbf24; color: #1a1a1a; font-size: 12px; font-weight: 800; }
+  .steps a { color: #ec0b43; }
+  .msg { margin-top: 14px; padding: 12px 14px; border-radius: 8px; background: rgba(255,70,90,.12); color: #ff7d8c; display: none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="logo" id="brand">GATES! TV</div>
+    <h1>Assine e assista em todas as telas</h1>
+    <p class="sub">Android TV, celular, tablet e computador. Pague com PIX, boleto ou cartão. Cancele quando quiser.</p>
+  </header>
+
+  <section id="form-step">
+    <div class="plans" id="plans"></div>
+    <form class="card" id="f" novalidate>
+      <label for="name">Nome completo</label>
+      <input id="name" autocomplete="name" required />
+      <div class="err" data-for="name"></div>
+      <div class="row">
+        <div>
+          <label for="email">E-mail</label>
+          <input id="email" type="email" autocomplete="email" required />
+          <div class="err" data-for="email"></div>
+        </div>
+        <div>
+          <label for="cpf">CPF</label>
+          <input id="cpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" required />
+          <div class="err" data-for="cpf"></div>
+        </div>
+      </div>
+      <label for="phone-num">WhatsApp</label>
+      <input id="phone" data-tel />
+      <div class="err" data-for="phone"></div>
+      <label class="terms"><input type="checkbox" id="terms" /> <span>Li e aceito os <a href="/termos" target="_blank">Termos de uso</a> e a <a href="/privacidade" target="_blank">Política de privacidade</a>.</span></label>
+      <label class="terms"><input type="checkbox" id="optmsg" checked /> <span>Aceito receber avisos e novidades do GATES! TV por WhatsApp. (Você pode cancelar quando quiser.)</span></label>
+      <div class="err" data-for="terms"></div>
+      <button class="main" id="go">Continuar para o pagamento</button>
+      <div class="msg" id="m"></div>
+      <p class="safe">🔒 Pagamento processado com segurança pelo Asaas. Seus dados não ficam no app.</p>
+    </form>
+  </section>
+
+  <section id="done-step" class="card done" hidden>
+    <span class="preview-tag" id="preview-tag" hidden>PRÉ-VISUALIZAÇÃO — assim o cliente vê depois de assinar</span>
+    <h1 id="d-title">Quase lá!</h1>
+    <p class="sub" id="d-sub">Guarde seu código de acesso (ele também funciona junto com o seu e-mail):</p>
+    <div class="code" id="code"></div>
+    <a class="pay" id="pay" target="_blank" rel="noopener">Pagar agora (PIX, boleto ou cartão)</a>
+    <div class="tvbox" id="tvbox" hidden>
+      <b>📺 Vai assistir na TV?</b>
+      <p>Na TV, abra o app <b>Downloader</b> e digite:</p>
+      <div class="tvlink" id="tvlink"></div>
+      <p>O app baixa direto assim que o pagamento for confirmado. <b>Tire um print desta tela</b> — esse endereço é seu e vale sempre (também fica em Minha conta).</p>
+    </div>
+    <ol class="steps" id="d-steps"></ol>
+    <div class="dl" id="dl"></div>
+    <p class="safe" id="d-foot">As próximas mensalidades chegam por e-mail. Se atrasar, você tem 4 dias antes da suspensão.</p>
+    <p class="safe" id="d-wa-box" hidden><a id="d-wa" target="_blank" rel="noopener" style="color:#6be3a0;font-weight:700"></a></p>
+  </section>
+</main>
+<script src="/tel.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const money = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const per = (d) => (d >= 360 ? 'por ano' : d >= 175 ? 'a cada 6 meses' : d >= 85 ? 'a cada 3 meses' : 'por mês');
+  let plan = null;
+  const q = new URLSearchParams(location.search);
+  // Link de indicação (/assinar?ref=CODIGO): guardado no aparelho por 30 dias.
+  let refCode = '';
+  try {
+    const fromUrl = (q.get('ref') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (fromUrl) localStorage.setItem('gates-ref', JSON.stringify({ c: fromUrl, at: Date.now() }));
+    const saved = JSON.parse(localStorage.getItem('gates-ref') || 'null');
+    if (saved && Date.now() - saved.at < 30 * 864e5) refCode = saved.c;
+  } catch {}
+  if (q.get('email')) $('email').value = q.get('email');
+
+  fetch('/api/v1/plans').then((r) => r.json()).then((j) => {
+    $('brand').textContent = j.brand;
+    j.plans.forEach((p, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'plan';
+      const name = document.createElement('strong'); name.textContent = p.name;
+      const price = document.createElement('div'); price.className = 'price'; price.textContent = money(p.price);
+      const perEl = document.createElement('div'); perEl.className = 'per';
+      perEl.textContent = per(p.days) + (p.days > 31 ? ` · ${money(p.price / Math.round(p.days / 30))}/mês` : '');
+      b.append(name, price, perEl);
+      b.onclick = () => { plan = p.id; document.querySelectorAll('.plan').forEach((x) => x.classList.toggle('sel', x === b)); };
+      $('plans').append(b);
+      if ((q.get('plano') || '') === p.id || (!q.get('plano') && i === 0)) b.click();
+    });
+  });
+
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const rich = (t) =>
+    esc(t)
+      .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+      .replace(/Minha conta/g, '<a href="/conta">Minha conta</a>')
+      .replace(/passo a passo de instalação/g, '<a href="/instalar">passo a passo de instalação</a>');
+  async function applyConfirmation() {
+    try {
+      const j = await (await fetch('/api/v1/content/confirmacao')).json();
+      const c = j.content || {};
+      $('d-title').textContent = c.titulo || 'Quase lá!';
+      $('d-sub').textContent = c.subtitulo || '';
+      $('d-sub').hidden = !c.subtitulo;
+      $('pay').textContent = c.botaoPagar || 'Pagar agora';
+      $('d-steps').innerHTML = (c.passos || []).map((p) => '<li>' + rich(p) + '</li>').join('');
+      $('d-foot').textContent = c.rodape || '';
+      $('d-foot').hidden = !c.rodape;
+      if (c.whatsapp && j.support) {
+        $('d-wa-box').hidden = false;
+        $('d-wa').textContent = c.whatsapp;
+        $('d-wa').href = 'https://wa.me/' + String(j.support).replace(/\D/g, '');
+      }
+    } catch {
+      /* mantém os textos padrão da página */
+    }
+  }
+  applyConfirmation();
+  function showTv(link) {
+    if (!link) return;
+    const i = link.lastIndexOf('/tv/') + 4;
+    $('tvlink').textContent = link.slice(0, i);
+    const n = document.createElement('span'); n.textContent = link.slice(i); $('tvlink').append(n);
+    $('tvbox').hidden = false;
+  }
+  // Pré-visualização para o painel: /assinar?preview=1
+  if (q.get('preview') === '1') {
+    $('form-step').hidden = true;
+    $('done-step').hidden = false;
+    $('preview-tag').hidden = false;
+    $('code').textContent = 'GTV-EXEM-PLO1';
+    $('pay').href = '#';
+    showTv(location.host + '/tv/123456');
+  }
+
+  $('cpf').addEventListener('input', (e) => {
+    const d = e.target.value.replace(/\D/g, '').slice(0, 11);
+    e.target.value = d.replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  });
+
+  $('f').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    document.querySelectorAll('.err').forEach((x) => (x.textContent = ''));
+    document.querySelectorAll('input').forEach((x) => x.classList.remove('bad'));
+    $('m').style.display = 'none';
+    const telErr = $('phone').telError();
+    if (telErr) { document.querySelector('.err[data-for="phone"]').textContent = telErr; return; }
+    $('go').disabled = true;
+    $('go').textContent = 'Gerando sua assinatura…';
+    try {
+      const r = await fetch('/api/v1/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan, name: $('name').value, email: $('email').value, cpf: $('cpf').value, phone: $('phone').value, acceptTerms: $('terms').checked, optMessages: $('optmsg').checked, ref: refCode }),
+      });
+      const j = await r.json();
+      if (!j.ok) {
+        for (const [k, v] of Object.entries(j.errors || {})) {
+          const el = document.querySelector(`.err[data-for="${k}"]`);
+          if (el) { el.textContent = v; $(k)?.classList.add('bad'); }
+        }
+        throw new Error(j.errors ? 'Confira os campos destacados.' : j.message || 'Não foi possível continuar.');
+      }
+      $('form-step').hidden = true;
+      $('done-step').hidden = false;
+      $('code').textContent = j.code;
+      showTv(j.tvLink);
+      if (j.invoiceUrl) $('pay').href = j.invoiceUrl; else $('pay').hidden = true;
+      const names = { tv: 'Android TV', tvLite: 'Android TV (Lite)', phone: 'Celular', phoneLite: 'Celular (Lite)', tablet: 'Tablet', windows: 'Windows' };
+      for (const [k, url] of Object.entries(j.downloads || {})) {
+        if (!url) continue;
+        const a = document.createElement('a'); a.href = url; a.textContent = '⬇ ' + names[k]; $('dl').append(a);
+      }
+      scrollTo(0, 0);
+    } catch (err) {
+      $('m').textContent = err.message;
+      $('m').style.display = 'block';
+    } finally {
+      $('go').disabled = false;
+      $('go').textContent = 'Continuar para o pagamento';
+    }
+  });
+</script>
+</body>
+</html>

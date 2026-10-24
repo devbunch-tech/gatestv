@@ -1,0 +1,5 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="TVCamara" group-title="Canais abertos",TV Câmara
+https://stream3.camara.gov.br/tv1/manifest.m3u8
+#EXTINF:-1 tvg-id="TVBrasil" group-title="Canais abertos",TV Brasil
+https://tvbrasil-stream.ebc.com.br/index.m3u8
