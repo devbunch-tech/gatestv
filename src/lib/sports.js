@@ -1,24 +1,40 @@
-// Esportes: próximos jogos e lutas (TheSportsDB), escudos dos times e ligação com os canais do EPG.
+// Esportes: próximos jogos e lutas (agenda da ESPN via servidor), escudos dos times e ligação com os canais do EPG.
 import { get, set } from 'idb-keyval';
 import { useEffect, useState } from 'react';
 import { normTitle } from './meta';
 
 const API = 'https://www.thesportsdb.com/api/v1/json/123';
-// A agenda vem pronta do nosso servidor (ele consulta o TheSportsDB por todos os aparelhos).
+// A agenda vem pronta do nosso servidor (ele consulta a ESPN por todos os aparelhos).
+// O TheSportsDB (API acima) só é usado para buscar escudos dos jogos do guia.
 const FEED = (import.meta.env.VITE_LICENSE_API || 'https://gatesapptv.pages.dev').replace(/\/$/, '') + '/api/v1/sports';
 
 export const LEAGUES = {
-  pl: { id: 4328, name: 'Premier League', short: 'Premier League', rounds: 'Rodada' },
-  br: { id: 4351, name: 'Brasileirão Série A', short: 'Brasileirão', rounds: 'Rodada' },
-  nfl: { id: 4391, name: 'NFL', short: 'NFL', rounds: 'Semana' },
-  nba: { id: 4387, name: 'NBA', short: 'NBA', rounds: '' },
-  ufc: { id: 4443, name: 'UFC', short: 'UFC', rounds: '', fight: true },
+  pl: { name: 'Premier League', short: 'Premier League', rounds: 'Rodada' },
+  br: { name: 'Brasileirão Série A', short: 'Brasileirão', rounds: 'Rodada' },
+  lib: { name: 'Copa Libertadores', short: 'Libertadores', rounds: '' },
+  sula: { name: 'Copa Sul-Americana', short: 'Sul-Americana', rounds: '' },
+  cdb: { name: 'Copa do Brasil', short: 'Copa do Brasil', rounds: '' },
+  carioca: { name: 'Campeonato Carioca', short: 'Carioca', rounds: '' },
+  ucl: { name: 'Champions League', short: 'Champions', rounds: '' },
+  uel: { name: 'Europa League', short: 'Europa League', rounds: '' },
+  nfl: { name: 'NFL', short: 'NFL', rounds: 'Semana' },
+  nba: { name: 'NBA', short: 'NBA', rounds: '' },
+  ufc: { name: 'UFC', short: 'UFC', rounds: '', fight: true },
+  atp: { name: 'Tênis ATP', short: 'ATP', rounds: '', individual: true },
+  wta: { name: 'Tênis WTA', short: 'WTA', rounds: '', individual: true },
 };
+// Futebol: competições do Brasil e da América do Sul x competições europeias (destaques equilibrados).
+const SOCCER_BR = ['br', 'lib', 'sula', 'cdb', 'carioca'];
+const SOCCER_EU = ['pl', 'ucl', 'uel'];
 // Quantos dias à frente a agenda mostra (hoje + próximos).
 const DAYS_AHEAD = 2;
 const FAVORITE_BR = 'vasco da gama';
 const FAVORITE_NFL = 'new england patriots';
-const DURATION = { pl: 2 * 3600e3, br: 2 * 3600e3, nfl: 3.5 * 3600e3, nba: 2.5 * 3600e3, ufc: 5 * 3600e3, other: 2.5 * 3600e3 };
+// Copas podem ter prorrogação e pênaltis.
+const DURATION = {
+  pl: 2 * 3600e3, br: 2 * 3600e3, carioca: 2 * 3600e3, lib: 2.5 * 3600e3, sula: 2.5 * 3600e3, cdb: 2.5 * 3600e3, ucl: 2.5 * 3600e3, uel: 2.5 * 3600e3,
+  nfl: 3.5 * 3600e3, nba: 2.5 * 3600e3, ufc: 5 * 3600e3, atp: 2.5 * 3600e3, wta: 2.5 * 3600e3, other: 2.5 * 3600e3,
+};
 
 // "UFC 333 Volkanovski vs Evloev" / "UFC Fight Night: Silva vs Costa" -> evento + lutadores.
 function splitFight(title) {
@@ -157,12 +173,21 @@ function toEvent(key, l, e) {
     leagueBadge: e.strLeagueBadge,
     home: fight ? f.a : e.strHomeTeam,
     away: fight ? f.b : e.strAwayTeam,
+    homeShort: e.strHomeTeamShort,
+    awayShort: e.strAwayTeamShort,
     fight,
+    individual: !!l.individual,
     homeBadge: e.strHomeTeamBadge,
     awayBadge: e.strAwayTeamBadge,
     start,
-    end: start + DURATION[key],
-    round: fight ? f.card : e.intRound && l.rounds ? `${l.rounds} ${e.intRound}` : '',
+    end: start + (DURATION[key] || DURATION.other),
+    round: fight
+      ? f.card
+      : l.individual
+        ? [e.strTournament, e.strRound].filter(Boolean).join(' · ')
+        : e.intRound && l.rounds
+          ? `${l.rounds} ${e.intRound}`
+          : e.strRound || '',
     poster: e.strThumb || e.strBanner || e.strFanart || e.strPoster || e.strSquare || '',
     venue: e.strVenue || '',
     status: e.strStatus || '',
@@ -198,40 +223,41 @@ export async function todaysEvents(now = Date.now()) {
 const isLiveEvt = (e, now) => e.start <= now && now < e.end;
 const involves = (e, canon) => canonicalTeam(e.home) === canon || canonicalTeam(e.away) === canon;
 
-// Destaques: 2 da Premier League + 2 do Brasileirão (Vasco primeiro) + NFL (Patriots primeiro),
-// NBA e o próximo card do UFC.
+// Destaques: 2 do futebol brasileiro/sul-americano (Brasileirão, Libertadores, Sul-Americana, Copa do Brasil,
+// Carioca; Vasco primeiro) + 2 do europeu (Premier League, Champions, Europa League) + NFL (Patriots primeiro),
+// NBA, o próximo card do UFC e tênis (ATP/WTA).
 // Dá preferência aos jogos que algum canal da lista transmite.
 export function pickFeatured(events, now = Date.now(), hasChannel = () => true) {
   const ch = (e) => (hasChannel(e) ? 1 : 0);
-  const by = (k) =>
+  const by = (keys, fav) =>
     events
-      .filter((e) => e.league === k)
-      .sort(
-        (a, b) =>
-          (k === 'br' ? involves(b, FAVORITE_BR) - involves(a, FAVORITE_BR) : 0) ||
-          ch(b) - ch(a) ||
-          isLiveEvt(b, now) - isLiveEvt(a, now) ||
-          a.start - b.start
-      );
-  const pl = by('pl');
-  const br = by('br');
-  const picked = [...pl.slice(0, 2), ...br.slice(0, 2)];
-  // Se uma liga não tiver 2 jogos hoje, completa com a outra.
-  const extra = [...pl.slice(2), ...br.slice(2)].sort((a, b) => a.start - b.start);
+      .filter((e) => keys.includes(e.league))
+      .sort((a, b) => (fav ? involves(b, fav) - involves(a, fav) : 0) || ch(b) - ch(a) || isLiveEvt(b, now) - isLiveEvt(a, now) || a.start - b.start);
+  const br = by(SOCCER_BR, FAVORITE_BR);
+  const eu = by(SOCCER_EU);
+  const picked = [...br.slice(0, 2), ...eu.slice(0, 2)];
+  // Se um grupo não tiver 2 jogos hoje, completa com o outro.
+  const extra = [...br.slice(2), ...eu.slice(2)].sort((a, b) => a.start - b.start);
   while (picked.length < 4 && extra.length) picked.push(extra.shift());
-  const others = (k, n, fav) =>
-    events
-      .filter((e) => e.league === k)
-      .sort((a, b) => (fav ? involves(b, fav) - involves(a, fav) : 0) || ch(b) - ch(a) || isLiveEvt(b, now) - isLiveEvt(a, now) || a.start - b.start)
-      .slice(0, n);
-  const more = [...others('nfl', 2, FAVORITE_NFL), ...others('nba', 2), ...others('ufc', 1)];
+  const more = [...by(['nfl'], FAVORITE_NFL).slice(0, 2), ...by(['nba']).slice(0, 2), ...by(['ufc']).slice(0, 1), ...by(['atp', 'wta']).slice(0, 2)];
   return [...picked, ...more].sort((a, b) => isLiveEvt(b, now) - isLiveEvt(a, now) || a.start - b.start);
 }
 
+// Tênis: o guia costuma trazer só o sobrenome ("Sinner x Alcaraz").
+const playerKeys = (name) => {
+  const full = normTitle(strip(name));
+  const last = full.split(' ').pop();
+  return last && last.length >= 3 && last !== full ? [full, last] : [full];
+};
+
 // Canal da lista que transmite o jogo (pelo EPG: programa no horário com os dois times no título).
 export function findChannels(evt, live, programmesFor) {
-  const hk = teamKeys(evt.home);
-  const ak = teamKeys(evt.away);
+  const keys = (name, short) => {
+    const k = evt.individual ? playerKeys(name) : teamKeys(name);
+    return short && short !== name ? [...k, ...teamKeys(short)] : k;
+  };
+  const hk = keys(evt.home, evt.homeShort);
+  const ak = keys(evt.away, evt.awayShort);
   const out = [];
   for (const ch of live) {
     const progs = programmesFor(ch);
@@ -249,7 +275,8 @@ export function findChannels(evt, live, programmesFor) {
   return out;
 }
 
-// Prioridade de jogos do EPG: Vasco > Premier League / Brasileirão > Patriots > demais.
+// Prioridade de jogos do EPG: Vasco > Premier League / Brasileirão > copas (Libertadores, Champions…) > Patriots >
+// UFC / NFL / NBA > vôlei e tênis > demais.
 const PL_TEAMS = /arsenal|aston villa|bournemouth|brentford|brighton|burnley|chelsea|crystal palace|everton|fulham|leeds|liverpool|manchester|man city|man utd|newcastle|nottingham|sunderland|tottenham|west ham|wolves|wolverhampton/;
 const BR_TEAMS = /vasco|flamengo|fluminense|botafogo|palmeiras|corinthians|sao paulo|santos|gremio|internacional|atletico|athletico|cruzeiro|bahia|fortaleza|bragantino|vitoria|sport|ceara|juventude|mirassol|coritiba|remo|chapecoense/;
 export function gamePriority(title, category = '') {
@@ -257,6 +284,7 @@ export function gamePriority(title, category = '') {
   if (/\bvasco\b/.test(t)) return 4;
   if (/premier league|campeonato ingles|ingles/.test(t)) return 3;
   if (/brasileir|serie a\b/.test(t) && !/serie b|serie c/.test(t)) return 3;
+  if (/libertadores|sul americana|sudamericana|copa do brasil|champions|liga dos campeoes|europa league|liga europa|carioca/.test(t)) return 2.8;
   const teams = t.split(/\s(?:x|vs|v|versus)\s/);
   if (teams.length === 2 && PL_TEAMS.test(teams[0]) && PL_TEAMS.test(teams[1])) return 3;
   if (teams.length === 2 && BR_TEAMS.test(teams[0]) && BR_TEAMS.test(teams[1]) && !/libertadores|copa|sul americana|estadual|carioca|paulista/.test(t)) return 2.5;
@@ -264,5 +292,7 @@ export function gamePriority(title, category = '') {
   if (/\bufc\b/.test(t)) return 1.6;
   if (/\bnfl\b|futebol americano/.test(t)) return 1.5;
   if (/\bnba\b/.test(t)) return 1.4;
+  if (/\bvolei\b|volley|superliga/.test(t)) return 1.3;
+  if (/\btenis\b|tennis|\batp\b|\bwta\b/.test(t)) return 1.3;
   return 0;
 }
