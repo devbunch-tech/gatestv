@@ -20,7 +20,7 @@ id = "3118fa8cfd8a4a6fbeb3038454b1d1fb"
 [vars]
 PUBLIC_URL = "https://gatesapptv.pages.dev"
 BRAND_NAME = "GATES! TV"
-PLANS = "mensal:Mensal:10.90:30:MONTHLY,semestral:Semestral:40.00:182:SEMIANNUALLY,anual:Anual:80.00:365:YEARLY"
+PLANS = "mensal:Mensal:16.90:30:MONTHLY,semestral:Semestral:60.00:182:SEMIANNUALLY,anual:Anual:120.00:365:YEARLY"
 # Teste grátis (horas). 0 desliga.
 TRIAL_HOURS = "1"
 ASAAS_ENV = "production"
