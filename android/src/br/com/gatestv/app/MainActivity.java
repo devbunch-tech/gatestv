@@ -71,6 +71,11 @@ public class MainActivity extends Activity {
             getWindow().setNavigationBarColor(Color.parseColor("#121214"));
         }
 
+        // Atualização automática da interface: aplica a versão já baixada antes de abrir o app.
+        if (otaEnabled()) {
+            OtaUpdater.applyPending(this);
+            LocalServer.webDir = OtaUpdater.activeDir(this, getAssets());
+        }
         try {
             LocalServer.start(getAssets(), port);
         } catch (Exception e) {
@@ -116,6 +121,7 @@ public class MainActivity extends Activity {
         web.requestFocus();
         web.loadUrl("http://127.0.0.1:" + port + (isTv() ? "/?tv=1" : "/?device=" + device)
                 + (edition.isEmpty() ? "" : "&edition=" + edition) + (lite ? "&lite=1" : ""));
+        if (otaEnabled()) startOtaCheck();
     }
 
     private void readFlavor() {
@@ -126,6 +132,8 @@ public class MainActivity extends Activity {
                 port = ai.metaData.getInt("gates.port", 47123);
                 edition = ai.metaData.getString("gates.edition", "");
                 lite = ai.metaData.getBoolean("gates.lite", false);
+                otaUrl = ai.metaData.getString("gates.ota", "");
+                otaKey = ai.metaData.getString("gates.otaKey", "");
             }
         } catch (Exception ignored) {
         }
@@ -215,6 +223,37 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (web != null) web.onResume();
+        // Voltou para o app: se uma atualização da interface terminou de baixar, já passa a usá-la.
+        if (wentBackground && otaEnabled() && web != null) {
+            if (OtaUpdater.applyPending(this)) {
+                LocalServer.webDir = OtaUpdater.activeDir(this, getAssets());
+                web.reload();
+            }
+            if (System.currentTimeMillis() - lastOtaCheck > 6 * 3600e3) startOtaCheck();
+        }
+        wentBackground = false;
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        wentBackground = true;
+    }
+
+    // ---------------------------------------------------------------- atualização automática
+
+    private String otaUrl = "";
+    private String otaKey = "";
+    private boolean wentBackground = false;
+    private long lastOtaCheck = 0;
+
+    private boolean otaEnabled() {
+        return !otaUrl.isEmpty() && !otaKey.isEmpty();
+    }
+
+    private void startOtaCheck() {
+        lastOtaCheck = System.currentTimeMillis();
+        OtaUpdater.checkAsync(getApplicationContext(), getAssets(), otaUrl, otaKey);
     }
 
     private CastClient castClient;

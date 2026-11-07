@@ -7,6 +7,7 @@ import { isDemo, vibrate } from '../lib/device';
 const TABS = [
   { to: '/', label: 'Início', icon: 'home', end: true },
   { to: '/live', label: 'Ao vivo', icon: 'tv' },
+  { to: '/sports', label: 'Esportes', icon: 'ball' },
   { to: '/movies', label: 'Filmes', icon: 'film' },
   { to: '/series', label: 'Séries', icon: 'series' },
   { to: '/favorites', label: 'Favoritos', icon: 'heart' },

@@ -104,7 +104,8 @@ function PlayerView({ item, rawQueue }) {
     const t = tried();
     const i = sameChannel.findIndex((c) => c.id === item.id);
     const ring = [...sameChannel.slice(i + 1), ...sameChannel.slice(0, Math.max(i, 0))].filter((c) => c.id !== item.id && !t.ids.has(c.id));
-    return ring.find((c) => liveHealth[c.id]?.ok !== false) || ring[0] || null;
+    // Primeiro as que a validação confirmou no ar, depois as não testadas, por último as reprovadas.
+    return ring.find((c) => liveHealth[c.id]?.ok === true) || ring.find((c) => liveHealth[c.id]?.ok !== false) || ring[0] || null;
   };
   // Versão dublada ⇄ legendada do mesmo filme/episódio (botão "Legendado"/"Dublado" do player).
   // A legenda das listas IPTV vem gravada na imagem da versão legendada: trocar de versão é o
@@ -307,11 +308,13 @@ function PlayerView({ item, rawQueue }) {
         capLevelToPlayerSize: true,
         abrEwmaDefaultEstimate: 5e6,
         manifestLoadingMaxRetry: 1,
-        // Ao vivo: o servidor costuma falhar alguns segundos ao atualizar a lista do canal
-        // (levelLoadError) — insiste mais antes de desistir, enquanto o colchão segura a imagem.
-        levelLoadingMaxRetry: isLive ? 6 : 2,
+        // Ao vivo: desiste rápido de uma fonte que não responde (o padrão do hls.js é 10–20 s por tentativa).
+        ...(isLive ? { manifestLoadingTimeOut: 6000, levelLoadingTimeOut: 6000, fragLoadingTimeOut: 8000 } : {}),
+        // O servidor às vezes falha alguns segundos ao atualizar a lista do canal (levelLoadError):
+        // insiste um pouco antes de trocar de fonte, enquanto o colchão segura a imagem.
+        levelLoadingMaxRetry: isLive ? 3 : 2,
         levelLoadingRetryDelay: 1000,
-        fragLoadingMaxRetry: isLive ? 6 : 3,
+        fragLoadingMaxRetry: 3,
       });
       let mediaErrors = 0;
       let netRetries = 0;
@@ -322,11 +325,11 @@ function PlayerView({ item, rawQueue }) {
       });
       hls.on(Hls.Events.ERROR, (_, d) => {
         if (!d.fatal) return;
-        // Já estava tocando e a rede/servidor oscilou: recomeça a carregar em silêncio (até 4 vezes
-        // seguidas, com pausas crescentes) antes de trocar de fonte.
-        if (isLive && playedOk && d.type === Hls.ErrorTypes.NETWORK_ERROR && netRetries < 4) {
+        // Já estava tocando e a rede/servidor oscilou: recomeça a carregar em silêncio (até 2 vezes
+        // seguidas, com pausas curtas) antes de trocar de fonte.
+        if (isLive && playedOk && d.type === Hls.ErrorTypes.NETWORK_ERROR && netRetries < 2) {
           netRetries++;
-          setTimeout(() => hls && hls.startLoad(), 1500 * netRetries);
+          setTimeout(() => hls && hls.startLoad(), 1000 * netRetries);
           return;
         }
         // Formato que o aparelho não decodifica (comum em 4K/H.265): vai direto para outra versão.
@@ -369,14 +372,14 @@ function PlayerView({ item, rawQueue }) {
       let tsRetries = 0;
       ts.on(mpegts.Events.ERROR, (type, detail) => {
         // Já estava tocando e a conexão caiu: reconecta em silêncio (até 3 vezes) antes de trocar de fonte.
-        if (isLive && v.currentTime > 0 && type === mpegts.ErrorTypes.NETWORK_ERROR && tsRetries < 3) {
+        if (isLive && v.currentTime > 0 && type === mpegts.ErrorTypes.NETWORK_ERROR && tsRetries < 2) {
           tsRetries++;
           setTimeout(() => {
             if (!ts) return;
             ts.unload();
             ts.load();
             v.play().catch(() => {});
-          }, 1500 * tsRetries);
+          }, 1000 * tsRetries);
           return;
         }
         if (canRetry && type === mpegts.ErrorTypes.NETWORK_ERROR) return retryViaProxy();
@@ -400,16 +403,19 @@ function PlayerView({ item, rawQueue }) {
     // tocando 5% mais devagar (imperceptível) até chegar ao atraso configurado.
     const tsCushion = kind === 'mpegts' && isLive && delay > 0;
     let started = !tsCushion;
-    // Vigia: ao vivo parado (carregando) por mais de 20 s -> troca para outra versão do canal
-    // (ex.: 4K pesado demais para a internet no momento).
+    // Vigia: ao vivo que não começa em 8 s, ou que trava por mais de 10 s depois de começar ->
+    // troca para outra versão do canal (ex.: fonte fora do ar ou 4K pesado demais para a internet).
     let lastTime = -1;
     let stuckSince = Date.now();
+    let everPlayed = false;
     cushion = setInterval(() => {
-      if (isLive && !v.paused) {
+      // Enquanto o colchão do TS enche, o vídeo fica pausado de propósito: conta como "carregando".
+      if (isLive && (!v.paused || !started)) {
         if (v.currentTime !== lastTime) {
+          if (lastTime >= 0) everPlayed = true;
           lastTime = v.currentTime;
           stuckSince = Date.now();
-        } else if (Date.now() - stuckSince > 20000) {
+        } else if (Date.now() - stuckSince > (everPlayed ? 10000 : tsCushion ? 13000 : 8000)) {
           stuckSince = Infinity; // dispara uma vez só
           failRef.current('O canal parou de responder.', { onlyIfAlt: true });
         }

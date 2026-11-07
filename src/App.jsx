@@ -11,6 +11,7 @@ import Library from './pages/Library';
 import Details from './pages/Details';
 import Search from './pages/Search';
 import Favorites from './pages/Favorites';
+import Sports from './pages/Sports';
 import Settings from './pages/Settings';
 import Person from './pages/Person';
 import Title from './pages/Title';
@@ -169,6 +170,7 @@ export default function App() {
           <Route path="/person/:id" element={<Person />} />
           <Route path="/title/:type/:id" element={<Title />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/sports" element={<Sports />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>

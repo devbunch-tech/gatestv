@@ -10,6 +10,7 @@ import { isDemo } from '../lib/device';
 const NAV = [
   { to: '/', label: 'Início', icon: 'home', end: true },
   { to: '/live', label: 'TV ao Vivo', icon: 'tv' },
+  { to: '/sports', label: 'Esportes', icon: 'ball' },
   { to: '/movies', label: 'Filmes', icon: 'film' },
   { to: '/series', label: 'Séries', icon: 'series' },
   { to: '/favorites', label: 'Favoritos', icon: 'heart' },

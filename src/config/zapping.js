@@ -44,6 +44,7 @@ export const ZAP_RULES = [
   { section: 'Filmes e Séries', label: 'Sony', prefer: /\bchannel\b/, test: (n) => /\bsony\b/.test(n) },
   { section: 'Filmes e Séries', label: 'AMC', test: (n) => /\bamc\b/.test(n) },
   { section: 'Filmes e Séries', label: 'Cinemax', test: (n) => /\bcinemax\b/.test(n) },
+  { section: 'Filmes e Séries', label: 'Space', test: (n) => /\bspace\b/.test(n) },
   // Canais Universal (NBCUniversal) — exclui a Igreja Universal / TV Universal (religiosos).
   { section: 'Filmes e Séries', label: 'Universal', all: true, test: (n) => /\buniversal\b/.test(n) && !/\bigreja\b|^tv universal\b/.test(n) },
 

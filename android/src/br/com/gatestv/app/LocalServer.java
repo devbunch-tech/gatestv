@@ -3,6 +3,8 @@ package br.com.gatestv.app;
 import android.content.res.AssetManager;
 
 import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -39,6 +41,8 @@ final class LocalServer implements Runnable {
 
     private final AssetManager assets;
     private final ServerSocket server;
+    /** Pasta com a interface baixada pela atualização automática; null = a que veio no APK. */
+    static volatile File webDir;
     private final ExecutorService pool = Executors.newCachedThreadPool();
 
     private LocalServer(AssetManager assets, ServerSocket server) {
@@ -179,11 +183,22 @@ final class LocalServer implements Runnable {
         }
         String rel = path.equals("/") || path.isEmpty() ? "index.html" : path.substring(1);
         InputStream in;
-        try {
-            in = assets.open("web/" + rel);
-        } catch (FileNotFoundException e) {
-            rel = "index.html"; // rotas do app
-            in = assets.open("web/index.html");
+        File dir = webDir;
+        if (dir != null) {
+            // Interface atualizada pela internet (OtaUpdater).
+            File f = new File(dir, rel);
+            if (!f.isFile()) {
+                rel = "index.html"; // rotas do app
+                f = new File(dir, rel);
+            }
+            in = new FileInputStream(f);
+        } else {
+            try {
+                in = assets.open("web/" + rel);
+            } catch (FileNotFoundException e) {
+                rel = "index.html"; // rotas do app
+                in = assets.open("web/index.html");
+            }
         }
         String cache = rel.startsWith("assets/") ? "Cache-Control: public, max-age=31536000, immutable\r\n" : "Cache-Control: no-cache\r\n";
         writeHead(out, 200, "OK", mime(rel), -1, cache);

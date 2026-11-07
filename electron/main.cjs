@@ -25,8 +25,23 @@ let win;
 
 async function createWindow() {
   const { startServer } = await import(pathToFileURL(path.join(__dirname, '..', 'server', 'gates-server.mjs')).href);
+  // Atualização automática da interface (só nas versões com pkg.gatesOta): usa a versão já
+  // baixada e procura uma mais nova em segundo plano, para a próxima abertura.
+  const embeddedDir = path.join(app.getAppPath(), WEB);
+  let webRoot = embeddedDir;
+  if (pkg.gatesOta) {
+    try {
+      const ota = require('./ota.cjs');
+      const cfg = require('../ota.config.json');
+      const userData = app.getPath('userData');
+      webRoot = ota.activeRoot(userData, embeddedDir);
+      setTimeout(() => ota.check({ userData, embeddedDir, activeDir: webRoot, manifestUrl: cfg.manifestUrl, publicKey: cfg.publicKey }), 15000);
+    } catch {
+      webRoot = embeddedDir;
+    }
+  }
   try {
-    await startServer({ root: path.join(app.getAppPath(), WEB), port: PORT });
+    await startServer({ root: webRoot, port: PORT });
   } catch (err) {
     if (err.code !== 'EADDRINUSE') throw err; // já existe uma instância servindo
   }

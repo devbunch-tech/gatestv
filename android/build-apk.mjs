@@ -39,6 +39,7 @@ if (!jdk || !fs.existsSync(androidJar)) {
   process.exit(1);
 }
 const versionName = pkg.version;
+const ota = JSON.parse(fs.readFileSync(path.join(root, 'ota.config.json'), 'utf8'));
 const versionCode = String(versionName.split('.').reduce((n, x) => n * 100 + +x, 0));
 
 // Cada versão tem o próprio pacote (podem ficar instaladas juntas) e a própria porta local.
@@ -84,7 +85,9 @@ ${f.tv
         <meta-data android:name="gates.device" android:value="${f.device || name}" />${f.edition ? `
         <meta-data android:name="gates.edition" android:value="${f.edition}" />` : ''}
         <meta-data android:name="gates.port" android:value="${f.port}" />
-        <meta-data android:name="gates.lite" android:value="${f.lite ? 'true' : 'false'}" />
+        <meta-data android:name="gates.lite" android:value="${f.lite ? 'true' : 'false'}" />${f.web === 'dist-sub' ? `
+        <meta-data android:name="gates.ota" android:value="${ota.manifestUrl}" />
+        <meta-data android:name="gates.otaKey" android:value="${ota.publicKey}" />` : ''}
         <activity
             android:name="br.com.gatestv.app.MainActivity"
             android:exported="true"

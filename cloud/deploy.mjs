@@ -52,6 +52,38 @@ fs.cpSync(demoDir, path.join(pub, 'demo'), { recursive: true });
 // Versão web (navegador) desativada: o endereço antigo /app leva ao manual de instalação.
 fs.writeFileSync(path.join(pub, '_redirects'), ['/app /instalar 302', '/app/* /instalar 302', ''].join('\n'));
 console.log('✓ páginas copiadas para cloud/public (com a degustação em /demo)');
+
+// Atualização automática: a interface de assinantes (dist-sub) em /ota/sub/<build>/, com a lista
+// de arquivos (manifest.json) assinada pela chave cloud/.ota-private.pem. Os apps de assinantes
+// (Android e Windows) conferem a assinatura, baixam o que mudou e usam na próxima abertura.
+// --sem-ota: não publica uma interface nova (os apps continuam na versão que já têm).
+// --ota-min-native=N: a interface precisa de apps com NATIVE_API >= N (mudou algo no Java/Electron).
+const otaKeyFile = path.join(here, '.ota-private.pem');
+if (!args.has('--sem-ota')) {
+  if (!fs.existsSync(otaKeyFile)) {
+    console.error('✗ chave da atualização automática não encontrada: cloud/.ota-private.pem (use --sem-ota para publicar sem ela)');
+    process.exit(1);
+  }
+  const subDir = buildWeb('sub');
+  const { version, build } = JSON.parse(fs.readFileSync(path.join(subDir, 'ota.json'), 'utf8'));
+  const otaDir = path.join(pub, 'ota', 'sub');
+  fs.cpSync(subDir, path.join(otaDir, String(build)), { recursive: true });
+  const listAll = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? listAll(path.join(dir, e.name)) : [path.join(dir, e.name)]));
+  const files = {};
+  for (const f of listAll(subDir)) {
+    const rel = path.relative(subDir, f).split(path.sep).join('/');
+    if (rel === 'ota.json') continue;
+    const data = fs.readFileSync(f);
+    files[rel] = { sha256: crypto.createHash('sha256').update(data).digest('hex'), size: data.length };
+  }
+  const minArg = [...args].find((a) => a.startsWith('--ota-min-native='));
+  const manifestBytes = Buffer.from(JSON.stringify({ version, build, minNative: minArg ? +minArg.split('=')[1] : 1, files }));
+  const signature = crypto.sign('sha256', manifestBytes, crypto.createPrivateKey(fs.readFileSync(otaKeyFile)));
+  fs.writeFileSync(path.join(otaDir, 'manifest.json'), manifestBytes);
+  fs.writeFileSync(path.join(otaDir, 'manifest.sig'), signature.toString('base64'));
+  fs.appendFileSync(path.join(pub, '_headers'), ['/ota/*/manifest.*', '  Cache-Control: no-cache', ''].join('\n'));
+  console.log(`✓ atualização automática: interface ${version} (build ${build}, ${Object.keys(files).length} arquivos) em /ota/sub`);
+}
 if (args.has('--local')) process.exit(0);
 
 // 2) Projeto e tabelas (só cria se ainda não existir).

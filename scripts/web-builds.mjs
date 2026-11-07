@@ -76,6 +76,11 @@ export function buildWeb(kind) {
     console.error('Dados pessoais encontrados no app de assinantes:', leaks);
     process.exit(1);
   }
+  // Identificação da interface para a atualização automática (OtaUpdater / electron/ota.cjs).
+  const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
+  const d = new Date();
+  const build = Number([d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes()].map((n, i) => String(n).padStart(i ? 2 : 4, '0')).join(''));
+  fs.writeFileSync(path.join(outDir, 'ota.json'), JSON.stringify({ version, build }));
   console.log(`✓ ${outName}: sem dados pessoais`);
   done.add(kind);
   return outDir;
