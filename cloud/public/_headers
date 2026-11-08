@@ -6,3 +6,5 @@
   X-Robots-Tag: noindex
 /conta
   X-Robots-Tag: noindex
+/ota/*/manifest.*
+  Cache-Control: no-cache
