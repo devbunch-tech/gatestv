@@ -22,3 +22,4 @@ videos/
 # Atualização automática: chave que assina as versões publicadas (guarde uma cópia!)
 cloud/.ota-private.pem
 cloud/public/ota/
+.wrangler/
