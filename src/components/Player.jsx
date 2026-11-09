@@ -190,6 +190,12 @@ function PlayerView({ item, rawQueue }) {
   const now = useNow(15000);
   const progs = isLive ? programmesFor(item) : null;
   const guide = useMemo(() => nowNext(progs, now), [progs, now]);
+  const liveActions = isLive
+    ? [
+        { key: 'source', icon: 'refresh', label: 'Outra fonte', run: findOtherSource },
+        guide.now && { key: 'details', icon: 'info', label: 'Mais detalhes, elenco e trailer', run: () => openProgram({ item, prog: guide.now }) },
+      ].filter(Boolean)
+    : [];
   const meta = useItemMeta(isLive ? null : item);
   const age = ratingOf(item);
   const subtitle = item.series
@@ -475,6 +481,12 @@ function PlayerView({ item, rawQueue }) {
   const toggleMute = () => (v().muted = !v().muted);
   const goto = (it) => it && play(it, queue);
   const togglePanel = (p) => setPanel((cur) => (cur === p ? null : p));
+  // Ações do painel de informações ao vivo. No controle remoto: ◀ ▶ escolhe, OK confirma
+  // ("Outra fonte" vem primeiro, porque na TV não dá para chegar nos botões da barra).
+  const [act, setAct] = useState(0);
+  useEffect(() => {
+    if (panel === 'info') setAct(0);
+  }, [panel]);
 
   const poke = useCallback(() => {
     setUi(true);
@@ -625,17 +637,19 @@ function PlayerView({ item, rawQueue }) {
         goto(prev);
         break;
       case 'left':
-        if (isLive) {
+        if (isLive && panel === 'info' && act > 0) setAct(act - 1);
+        else if (isLive) {
           setSel(Math.max(0, idx));
           setPanel('list');
         } else seekBy(-10);
         break;
       case 'right':
-        isLive ? togglePanel('info') : seekBy(10);
+        if (isLive && panel === 'info' && act < liveActions.length - 1) setAct(act + 1);
+        else isLive ? togglePanel('info') : seekBy(10);
         break;
       case 'ok':
         if (!isLive) togglePlay();
-        else if (panel === 'info' && guide.now) openProgram({ item, prog: guide.now });
+        else if (panel === 'info') liveActions[act]?.run();
         // Na TV, OK abre a lista de canais (como nos apps de IPTV); a informação fica no ▶ / Info.
         else if (isTvMode()) {
           setSel(Math.max(0, idx));
@@ -844,7 +858,8 @@ function PlayerView({ item, rawQueue }) {
           now={now}
           age={age}
           expanded={panel === 'info'}
-          onDetails={() => guide.now && openProgram({ item, prog: guide.now })}
+          actions={liveActions}
+          act={act}
         />
       )}
 
@@ -999,7 +1014,7 @@ function Subtitles({ videoRef, itemId }) {
   );
 }
 
-function LiveBanner({ item, guide, now, age, expanded, onDetails }) {
+function LiveBanner({ item, guide, now, age, expanded, actions, act }) {
   const { now: cur, next, list } = guide;
   return (
     <div className={`live-banner ${expanded ? 'expanded' : ''}`}>
@@ -1039,7 +1054,7 @@ function LiveBanner({ item, guide, now, age, expanded, onDetails }) {
           <small>A SEGUIR</small> {fmtTime(next.start)} · {next.title}
         </div>
       )}
-      {!expanded && isTvMode() && <div className="lb-hint">OK lista de canais · ▶ informações · ▲▼ trocar de canal</div>}
+      {!expanded && isTvMode() && <div className="lb-hint">OK lista de canais · ▶ informações e outra fonte · ▲▼ trocar de canal</div>}
       {expanded && list.length > 2 && (
         <ul className="lb-list">
           {list.slice(2).map((p) => (
@@ -1051,12 +1066,12 @@ function LiveBanner({ item, guide, now, age, expanded, onDetails }) {
       )}
       {expanded && (
         <div className="lb-actions">
-          {cur && (
-            <button className="btn" tabIndex={-1} onClick={onDetails}>
-              <Icon name="info" size={18} /> Mais detalhes, elenco e trailer
+          {actions.map((a, i) => (
+            <button key={a.key} className={`btn ${isTvMode() && i === act ? 'lb-act-on' : ''}`} tabIndex={-1} onClick={a.run}>
+              <Icon name={a.icon} size={18} /> {a.label}
             </button>
-          )}
-          <span className="muted hint">OK detalhes · ◀ lista de canais · ▲▼ trocar canal · Voltar fecha</span>
+          ))}
+          <span className="muted hint">◀ ▶ escolher · OK confirmar · ▲▼ trocar canal · Voltar fecha</span>
         </div>
       )}
     </div>

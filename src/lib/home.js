@@ -68,8 +68,9 @@ export function upcomingGames(live, programmesFor, now = Date.now(), { limit = 1
 // "Brasileirão: Flamengo x Palmeiras" -> { competition: "Brasileirão", home: "Flamengo", away: "Palmeiras" }
 export function splitGame(title) {
   let competition = '';
-  let rest = title;
-  const c = /^([^:|]{2,50})[:|]\s*(.+)$/.exec(title);
+  // Avisos do guia antes do jogo ("Em breve · ", "Ao vivo - ") não fazem parte do nome do time.
+  let rest = title.replace(/^\s*(?:em breve|ao vivo|agora|live|hoje)\s*[·:|\-–]\s*/i, '');
+  const c = /^([^:|·]{2,50})\s*[:|·]\s*(.+)$/.exec(rest);
   if (c && MATCH.test(c[2])) {
     competition = c[1].trim();
     rest = c[2];
