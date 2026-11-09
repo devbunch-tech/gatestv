@@ -405,8 +405,9 @@ html.device-phone body .featured .row-nav { display: none !important; }
 .sg-card.is-live { background: linear-gradient(145deg, #3a1020, #1d1418); border-color: rgba(236, 11, 67, 0.4); }
 .sg-card:hover, .sg-card:focus-visible { outline-color: var(--brand); }
 .tv .sg-card:focus { outline-color: var(--brand); transform: scale(1.05); }
-.sg-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; }
-.sg-time { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sg-top { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 22px; }
+.sg-time { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sg-time small { font-size: 14px; font-weight: 500; color: var(--muted); }
 .sg-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .sg-teams { display: flex; align-items: flex-start; justify-content: center; gap: 6px; }
 .sg-team { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -417,7 +418,8 @@ html.device-phone body .featured .row-nav { display: none !important; }
 .sg-crest { width: 56px; height: 56px; }
 .sg-crest > span { font-size: 16px; }
 .sg-vs { align-self: center; margin-top: -22px; color: var(--muted); font-size: 13px; font-weight: 700; text-transform: uppercase; }
-.sg-comp { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: auto; }
+.sg-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; font-size: 12px; }
+.sg-comp { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .sg-progress { margin: 0; }
 
 .modal.sg-modal { width: min(820px, 100%); }

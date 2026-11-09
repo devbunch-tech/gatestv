@@ -35,8 +35,11 @@ function GameCard({ game, now, badges, onOpen }) {
   return (
     <button className={`sg-card ${live ? 'is-live' : ''}`} onClick={() => onOpen(game)} title={away ? `${home} x ${away}` : home}>
       <div className="sg-top">
-        {live ? <span className="badge-live static">AO VIVO</span> : <strong className="sg-time">{fmtTime(prog.start)}</strong>}
-        <span className="sg-count">{channels.length === 1 ? '1 canal' : `${channels.length} canais`}</span>
+        {live && <span className="badge-live static">AO VIVO</span>}
+        <strong className="sg-time">
+          {fmtTime(prog.start)}
+          {live && <small> – {fmtTime(prog.stop)}</small>}
+        </strong>
       </div>
       <div className="sg-teams">
         <div className="sg-team">
@@ -53,7 +56,10 @@ function GameCard({ game, now, badges, onOpen }) {
           </>
         )}
       </div>
-      <div className="sg-comp">{competition || prog.category?.split(',')[0] || 'Esporte'}</div>
+      <div className="sg-foot">
+        <span className="sg-comp">{competition || prog.category?.split(',')[0] || 'Esporte'}</span>
+        <span className="sg-count">{channels.length === 1 ? '1 canal' : `${channels.length} canais`}</span>
+      </div>
       {live && (
         <div className="lb-progress sg-progress">
           <span style={{ width: `${progressOf(prog, now) * 100}%` }} />

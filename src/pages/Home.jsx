@@ -6,7 +6,7 @@ import { providerItems, recentUnique, splitGame, upcomingGames } from '../lib/ho
 import { HOME_CACHE_DAYS, PROVIDER_ROW_LIMIT, PROVIDER_ROWS, PROVIDERS } from '../config/homeSections';
 import { PlatformTitle } from '../components/Platform';
 import { fmtTime, progressOf, useNow } from '../lib/epg';
-import { findChannels, pickFeatured, todaysEvents, useTeamBadges } from '../lib/sports';
+import { findChannels, pickFeatured, smallCrest, todaysEvents, useTeamBadges } from '../lib/sports';
 import { initials } from '../components/Media';
 import { PERF } from '../config/perf';
 
@@ -52,12 +52,12 @@ function FeaturedGame({ evt, now, channels }) {
       </div>
       <div className="fg-teams">
         <div className="fg-team">
-          <Crest src={evt.homeBadge} name={evt.home} size={72} />
+          <Crest src={smallCrest(evt.homeBadge)} name={evt.home} size={72} />
           <strong>{evt.home}</strong>
         </div>
         <div className="fg-center">{score ? <span className="fg-score">{score}</span> : <span className="fg-time">{fmtTime(evt.start)}</span>}</div>
         <div className="fg-team">
-          <Crest src={evt.awayBadge} name={evt.away} size={72} />
+          <Crest src={smallCrest(evt.awayBadge)} name={evt.away} size={72} />
           <strong>{evt.away}</strong>
         </div>
       </div>

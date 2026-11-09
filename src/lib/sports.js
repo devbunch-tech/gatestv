@@ -120,43 +120,154 @@ const queued = (url) => {
 };
 
 // ---------- Escudos ----------
-const badgeMem = new Map();
+// 1) Salvos no aparelho (a própria imagem, pequena): aparecem na hora, até sem internet.
+// 2) Os que a agenda da ESPN já trouxe.
+// 3) O restante vem do nosso servidor, que guarda os escudos para todos os aparelhos
+//    (cloud/src/crests.js). Se o servidor não responder, busca direto no TheSportsDB.
+// As imagens vêm reduzidas para 100 px pelo servidor (/api/v1/crest-img).
+const BASE = (import.meta.env.VITE_LICENSE_API || 'https://gatesapptv.pages.dev').replace(/\/$/, '');
+const CREST_TTL = 30 * 864e5;
+const CREST_MISS_TTL = 3 * 864e5;
+const badgeMem = new Map(); // nome -> endereço original (ESPN)
+const crestMem = new Map(); // nome -> imagem salva (data:) ou endereço; null = sem escudo
+
 export function rememberBadge(name, url) {
   if (name && url) badgeMem.set(canonicalTeam(name), url);
 }
 
-export async function teamBadge(name, sport) {
-  const key = canonicalTeam(name);
-  if (!key) return null;
-  if (badgeMem.has(key)) return badgeMem.get(key);
-  const url = await cached('team:' + key, 14 * 864e5, async () => {
+// Versão pequena (100 px) de um escudo do TheSportsDB/ESPN, servida pelo nosso servidor.
+export const smallCrest = (u) =>
+  u && /^https:\/\/(r2\.thesportsdb\.com|www\.thesportsdb\.com|a\.espncdn\.com)\//.test(u) ? `${BASE}/api/v1/crest-img?u=${encodeURIComponent(u)}` : u || null;
+
+async function directBadge(key) {
+  return cached('team:' + key, 14 * 864e5, async () => {
     const j = await queued(`${API}/searchteams.php?t=${encodeURIComponent(key)}`);
     const teams = j?.teams || [];
-    const t = teams.find((x) => (sport ? x.strSport === sport : x.strSport === 'Soccer')) || teams[0];
+    const t = teams.find((x) => x.strSport === 'Soccer') || teams[0];
     return t?.strBadge || t?.strTeamBadge || null;
-  }).catch(() => null);
-  badgeMem.set(key, url);
-  return url;
+  }).catch(() => undefined);
 }
 
-export function useTeamBadges(names, sport) {
+async function savedCrest(key) {
+  if (crestMem.has(key)) return { hit: true, v: crestMem.get(key) };
+  try {
+    const c = await get('crest:' + key);
+    if (c && Date.now() - c.at < (c.d ? CREST_TTL : CREST_MISS_TTL)) {
+      crestMem.set(key, c.d);
+      return { hit: true, v: c.d };
+    }
+  } catch {
+    /* sem cache */
+  }
+  return { hit: false };
+}
+
+const readAsDataUrl = (blob) =>
+  new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(blob);
+  });
+
+// Baixa a versão pequena e guarda no aparelho. Se não der para guardar, usa o endereço mesmo.
+async function storeCrest(key, original) {
+  if (!original) {
+    crestMem.set(key, null);
+    set('crest:' + key, { d: null, at: Date.now() }).catch(() => {});
+    return null;
+  }
+  const src = smallCrest(original);
+  let d = src;
+  try {
+    const r = await fetch(src);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    d = await readAsDataUrl(await r.blob());
+    set('crest:' + key, { d, at: Date.now() }).catch(() => {});
+  } catch {
+    /* fica só o endereço */
+  }
+  crestMem.set(key, d);
+  return d;
+}
+
+// Executa no máximo `n` tarefas ao mesmo tempo.
+async function pool(items, n, fn) {
+  const queue = [...items];
+  await Promise.all(Array.from({ length: Math.min(n, queue.length) }, async () => {
+    while (queue.length) await fn(queue.shift());
+  }));
+}
+
+const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+
+export function useTeamBadges(names) {
   const [map, setMap] = useState({});
   const sig = names.join('|');
   useEffect(() => {
     let alive = true;
+    const byKey = new Map(); // nome normalizado -> nomes como aparecem no guia
+    for (const n of names) {
+      const k = n && canonicalTeam(n);
+      if (!k) continue;
+      if (!byKey.has(k)) byKey.set(k, []);
+      byKey.get(k).push(n);
+    }
+    const show = (found) => {
+      if (!alive) return;
+      const add = {};
+      for (const [k, v] of Object.entries(found)) if (v) for (const n of byKey.get(k) || []) add[n] = v;
+      if (Object.keys(add).length) setMap((m) => ({ ...m, ...add }));
+    };
     (async () => {
-      for (const n of names) {
-        if (!n) continue;
-        const url = await teamBadge(n, sport);
-        if (!alive) return;
-        if (url) setMap((m) => (m[n] === url ? m : { ...m, [n]: url }));
+      // 1) Salvos no aparelho: todos de uma vez.
+      const saved = {};
+      let missing = [];
+      await Promise.all(
+        [...byKey.keys()].map(async (k) => {
+          const s = await savedCrest(k);
+          if (s.hit) saved[k] = s.v;
+          else missing.push(k);
+        })
+      );
+      show(saved);
+      // Mantém a ordem da tela (jogos ao vivo primeiro).
+      const order = [...byKey.keys()];
+      missing.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+      // 2) Já conhecidos pela agenda da ESPN.
+      const espn = missing.filter((k) => badgeMem.has(k));
+      missing = missing.filter((k) => !badgeMem.has(k));
+      await pool(espn, 4, async (k) => alive && show({ [k]: await storeCrest(k, badgeMem.get(k)) }));
+      // 3) Servidor (compartilhado por todos os aparelhos); pergunta de novo pelos que ficaram pendentes.
+      for (let round = 0; missing.length && alive && round < 10; round++) {
+        let res;
+        try {
+          const r = await fetch(`${BASE}/api/v1/crests?n=${encodeURIComponent(missing.slice(0, 80).join('|'))}`);
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          res = await r.json();
+        } catch {
+          res = null;
+        }
+        if (!res) {
+          // Servidor fora do ar: busca direto, um por vez.
+          for (const k of missing) {
+            if (!alive) return;
+            const u = await directBadge(k);
+            if (u !== undefined) show({ [k]: await storeCrest(k, u) });
+          }
+          return;
+        }
+        const got = Object.keys(res.crests || {});
+        await pool(got, 4, async (k) => alive && show({ [k]: await storeCrest(k, res.crests[k]) }));
+        missing = missing.filter((k) => !got.includes(k));
+        if (missing.length) await wait(missing.length > 80 ? 500 : 2500);
       }
     })();
     return () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sig, sport]);
+  }, [sig]);
   return map;
 }
 
