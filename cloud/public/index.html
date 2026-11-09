@@ -318,7 +318,7 @@
       if (!url) continue;
       const a = document.createElement('a'); a.href = url; a.textContent = '⬇  ' + names[k]; $('dl').append(a);
     }
-    if (j.company) $('co').textContent = ' · ' + [j.company, j.cnpj && 'CNPJ ' + j.cnpj, j.address].filter(Boolean).join(' · ');
+    if (j.company) $('co').textContent = ' · ' + j.company;
     if (j.support) { const s = $('support'); s.hidden = false; s.href = 'https://wa.me/' + String(j.support).replace(/\D/g, ''); s.target = '_blank'; s.rel = 'noopener'; }
   });
 </script>
