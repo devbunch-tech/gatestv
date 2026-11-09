@@ -4,7 +4,7 @@
   "description": "GATES! TV — IPTV com interface no estilo Plex",
   "author": "GATES! TV",
   "private": true,
-  "version": "1.0.7",
+  "version": "1.0.8",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {

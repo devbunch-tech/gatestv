@@ -263,6 +263,36 @@ public class MainActivity extends Activity {
         return castClient;
     }
 
+    // Smart TVs (DLNA). Os aparelhos DLNA têm id começando com "dlna:"; a transmissão ativa decide
+    // para quem vão pausar/avançar/parar.
+    private DlnaClient dlnaClient;
+    private volatile boolean usingDlna = false;
+
+    private synchronized DlnaClient dlna() {
+        if (dlnaClient == null) dlnaClient = new DlnaClient(getApplicationContext());
+        return dlnaClient;
+    }
+
+    // Abre o espelhamento de tela do Android (Smart View na Samsung; "Transmitir" nos demais).
+    private boolean openMirror() {
+        Intent smartView = getPackageManager().getLaunchIntentForPackage("com.samsung.android.smartmirroring");
+        Intent[] tries = {
+                smartView,
+                new Intent("android.settings.CAST_SETTINGS"),
+                new Intent("android.settings.WIFI_DISPLAY_SETTINGS"),
+        };
+        for (Intent i : tries) {
+            if (i == null) continue;
+            try {
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+                return true;
+            } catch (Exception ignored) {
+            }
+        }
+        return false;
+    }
+
     @Override
     protected void onDestroy() {
         if (castClient != null) castClient.stopDiscovery();
@@ -339,40 +369,66 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void castDiscover() {
             cast().startDiscovery();
+            dlna().startDiscovery();
         }
 
         @JavascriptInterface
         public String castDevices() {
-            return cast().devicesJson();
+            try {
+                org.json.JSONArray all = new org.json.JSONArray(cast().devicesJson());
+                org.json.JSONArray tvs = dlna().devices();
+                for (int i = 0; i < tvs.length(); i++) all.put(tvs.get(i));
+                return all.toString();
+            } catch (Exception e) {
+                return cast().devicesJson();
+            }
         }
 
         /** media (JSON): {url, contentType, title, image, live, start} */
         @JavascriptInterface
         public void castStart(String deviceId, String media) {
             try {
-                cast().cast(deviceId, new org.json.JSONObject(media));
+                org.json.JSONObject m = new org.json.JSONObject(media);
+                if (deviceId != null && deviceId.startsWith(DlnaClient.PREFIX)) {
+                    if (!usingDlna) cast().stop();
+                    usingDlna = true;
+                    dlna().cast(deviceId, m);
+                } else {
+                    if (usingDlna) dlna().stop();
+                    usingDlna = false;
+                    cast().cast(deviceId, m);
+                }
             } catch (Exception ignored) {
             }
         }
 
         @JavascriptInterface
         public String castStatus() {
-            return cast().statusJson();
+            return usingDlna ? dlna().statusJson() : cast().statusJson();
         }
 
         @JavascriptInterface
         public void castPause() {
-            cast().togglePause();
+            if (usingDlna) dlna().togglePause();
+            else cast().togglePause();
         }
 
         @JavascriptInterface
         public void castSeek(double to) {
-            cast().seek(to);
+            if (usingDlna) dlna().seek(to);
+            else cast().seek(to);
         }
 
         @JavascriptInterface
         public void castStop() {
-            cast().stop();
+            if (usingDlna) dlna().stop();
+            else cast().stop();
+        }
+
+        /** Espelhar a tela (Smart View / Transmitir do Android). false = o aparelho não tem atalho. */
+        @JavascriptInterface
+        public boolean mirrorScreen() {
+            return openMirror();
         }
 
         @JavascriptInterface

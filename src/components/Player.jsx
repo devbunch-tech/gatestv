@@ -9,7 +9,7 @@ import { WEB_BUILD, WEB_HINT, blockedByBrowser, detectKind, isExternal, isProxie
 import { isTvMode, rememberFocus, useKeyHandler } from '../lib/keys';
 import { baseName, channelKey, pickWorking, qualityRank, zapGroups } from '../lib/zapping';
 import { playableUrl } from '../lib/health';
-import { canCast, castDevices, castDiscover, castPause, castSession, castStart, castStatus, castStop } from '../lib/cast';
+import { canCast, canMirror, castDevices, castDiscover, castPause, castSession, castStart, castStatus, castStop, isDlna, mirrorScreen } from '../lib/cast';
 import { SMART_TV, hasNative, isTouch, native, vibrate } from '../lib/device';
 import { findNow, fmtTime, nowNext, progressOf, useNow } from '../lib/epg';
 
@@ -221,7 +221,12 @@ function PlayerView({ item, rawQueue }) {
   useEffect(() => {
     if (!castPick) return;
     castDiscover();
-    const tick = () => setCastList(castDevices());
+    let n = 0;
+    const tick = () => {
+      setCastList(castDevices());
+      // Smart TVs às vezes demoram a responder: procura de novo a cada 8 s enquanto a janela está aberta.
+      if (++n % 8 === 0) castDiscover();
+    };
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
@@ -262,6 +267,10 @@ function PlayerView({ item, rawQueue }) {
   const stopCast = () => {
     castStop();
     endCast();
+  };
+  const openMirror = () => {
+    setCastPick(false);
+    if (!mirrorScreen()) notify('Abra o painel rápido do celular (deslize de cima para baixo) e toque em "Smart View" ou "Transmitir tela".');
   };
 
   const nativeFirst = SMART_TV && mseFor !== playUrl;
@@ -747,22 +756,27 @@ function PlayerView({ item, rawQueue }) {
         <div className="cast-pick" onClick={() => setCastPick(false)}>
           <div className="cast-box" onClick={(e) => e.stopPropagation()}>
             <h3>Transmitir para</h3>
-            {castList.length ? (
-              castList.map((d) => (
-                <button key={d.id} className="cast-dev" onClick={() => pickCast(d)}>
-                  <Icon name="cast" size={22} />
-                  <span>
-                    <strong>{d.name}</strong>
-                    {d.model && <small className="muted">{d.model}</small>}
-                  </span>
+            {castList.map((d) => (
+              <button key={d.id} className="cast-dev" onClick={() => pickCast(d)}>
+                <Icon name="cast" size={22} />
+                <span>
+                  <strong>{d.name}</strong>
+                  <small className="muted">{[isDlna(d) ? 'Smart TV' : 'Chromecast', d.model].filter(Boolean).join(' · ')}</small>
+                </span>
+              </button>
+            ))}
+            <p className="muted">
+              <span className="spinner sm" /> {castList.length ? 'Procurando mais aparelhos…' : `Procurando ${canMirror ? 'Smart TVs, ' : ''}Chromecast e Google TV na sua rede…`}
+              <br />
+              <small>O celular e a TV precisam estar no mesmo Wi-Fi.</small>
+            </p>
+            {canMirror && (
+              <div className="cast-mirror">
+                <button className="btn full" onClick={openMirror}>
+                  <Icon name="tv" size={18} /> Espelhar a tela do celular
                 </button>
-              ))
-            ) : (
-              <p className="muted">
-                <span className="spinner sm" /> Procurando Chromecast e Google TV na sua rede…
-                <br />
-                <small>O celular e a TV precisam estar no mesmo Wi-Fi.</small>
-              </p>
+                <small className="muted">Para TVs que não aparecem acima (Smart View, Miracast). O celular fica com o app aberto enquanto transmite.</small>
+              </div>
             )}
             <button className="btn ghost full" onClick={() => setCastPick(false)}>
               Cancelar
@@ -954,7 +968,7 @@ function PlayerView({ item, rawQueue }) {
             <Icon name="more" />
           </button>
           {canCast && (
-            <button className={`icon-btn ${casting ? 'on' : ''}`} tabIndex={-1} onClick={() => (casting ? stopCast() : setCastPick(true))} title={casting ? 'Parar transmissão' : 'Transmitir para a TV (Chromecast)'}>
+            <button className={`icon-btn ${casting ? 'on' : ''}`} tabIndex={-1} onClick={() => (casting ? stopCast() : setCastPick(true))} title={casting ? 'Parar transmissão' : 'Transmitir para a TV (Smart TV, Chromecast ou espelhar tela)'}>
               <Icon name="cast" />
             </button>
           )}
