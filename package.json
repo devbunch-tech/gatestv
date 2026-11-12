@@ -16,7 +16,7 @@
     "build:win": "vite build && electron-builder --win nsis",
     "build:android": "vite build && node android/build-apk.mjs tv",
     "build:mobile": "vite build && node android/build-apk.mjs phone,tablet,phone-admin",
-    "build:admin": "vite build && node android/build-apk.mjs phone-admin",
+    "build:admin": "vite build && node android/build-apk.mjs phone-admin,tablet-admin",
     "build:assinantes": "node android/build-apk.mjs assinantes",
     "build:win:assinante": "node scripts/build-win-assinante.mjs",
     "build:teste": "node android/build-apk.mjs teste && node scripts/build-win-teste.mjs",

@@ -5,6 +5,7 @@
 //   phone  -> GatesTV-Celular-x.y.z.apk  (celular, toque, vertical)
 //   tablet -> GatesTV-Tablet-x.y.z.apk   (tablet, toque, gira livremente)
 //   phone-admin -> GatesTV-Celular-Admin-x.y.z.apk (celular, só o perfil Admin)
+//   tablet-admin -> GatesTV-Tablet-Admin-x.y.z.apk (tablet, só o perfil Admin)
 // Ferramentas esperadas em %LOCALAPPDATA%\GatesBuildTools (ou GATES_BUILD_TOOLS).
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -60,6 +61,8 @@ const FLAVORS = {
   'test-tv': { pkg: 'br.com.gatestv.teste.tv', label: 'GATES! TESTE', port: 47140, file: 'GatesTV-TESTE-TV', orientation: 'sensorLandscape', tv: true, device: 'tv', edition: 'subscriber', web: 'dist-test' },
   'test-phone': { pkg: 'br.com.gatestv.teste.phone', label: 'GATES! TESTE', port: 47141, file: 'GatesTV-TESTE-Celular', orientation: 'sensorPortrait', device: 'phone', edition: 'subscriber', web: 'dist-test' },
   'phone-admin': { pkg: 'br.com.gatestv.admin', label: 'GATES! ADM', port: 47126, file: 'GatesTV-Celular-Admin', orientation: 'sensorPortrait', device: 'phone', edition: 'admin' },
+  // Tablet, edição admin: igual à do celular, com a tela girando livremente.
+  'tablet-admin': { pkg: 'br.com.gatestv.admin.tablet', label: 'GATES! ADM', port: 47127, file: 'GatesTV-Tablet-Admin', orientation: 'fullUser', device: 'tablet', edition: 'admin' },
 };
 
 function manifest(name, f) {
