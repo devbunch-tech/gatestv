@@ -120,6 +120,10 @@ if (args.has('--segredos')) {
   put('LICENSE_PRIVATE_JWK', JSON.stringify({ kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y, d: jwk.d }));
   put('APP_TMDB_KEY', dotenv.APP_TMDB_KEY || /tmdbKey: '([^']+)'/.exec(defaults)?.[1]);
   put('APP_OMDB_KEY', dotenv.APP_OMDB_KEY || /omdbKey: '([^']+)'/.exec(defaults)?.[1]);
+  // Legendas (OpenSubtitles.com): chave da API + usuário e senha da conta (mais downloads por dia).
+  put('OPENSUBTITLES_API_KEY', dotenv.OPENSUBTITLES_API_KEY);
+  put('OPENSUBTITLES_USER', dotenv.OPENSUBTITLES_USER);
+  put('OPENSUBTITLES_PASS', dotenv.OPENSUBTITLES_PASS);
   console.log('✓ segredos gravados na Cloudflare (cópia local em cloud/.segredos.json)');
 }
 

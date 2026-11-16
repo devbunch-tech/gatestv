@@ -7,6 +7,7 @@ import { makeAsaas } from './asaas.js';
 import { evaluate, issueLicense, matchLogin, publicJwk, readToken, registerDevice, trialStarted } from './license.js';
 import { sportsResponse } from './sports.js';
 import { crestImage, crestsResponse } from './crests.js';
+import { subsResponse } from './subs.js';
 import { applyReferralSplit, ensureTvCode, makeSubscribers, newRefCode, recordCommission, normPhone, PHONE_ERROR, startCheckout, startTrial } from './subscribers.js';
 
 const json = (code, obj, headers = {}) =>
@@ -134,6 +135,10 @@ async function route(req, env, cfg) {
   if (p === '/api/v1/sports') return json(200, await sportsResponse(env), { 'Cache-Control': 'public, max-age=300' });
   if (p === '/api/v1/crests' && req.method === 'GET') return json(200, await crestsResponse(env, url));
   if (p === '/api/v1/crest-img' && req.method === 'GET') return crestImage(url);
+  if (p === '/api/v1/subs' && req.method === 'GET') {
+    if (await db.limited('subs:' + ip, 40, 3600e3)) return fail(429, 'rate_limited');
+    return subsResponse(env, url);
+  }
   if (p === '/api/v1/public-key') return json(200, { ok: true, jwk: await publicJwk(cfg) });
   if (p === '/api/v1/plans')
     return json(200, {

@@ -436,6 +436,10 @@ export function PlaybackSection() {
       <Toggle checked={settings.subtitles !== false} onChange={(v) => updateSettings({ subtitles: v })} title="Legendas em filmes e séries">
         Quando o filme ou episódio traz legenda junto com o vídeo, ela aparece em amarelo, centralizada e em letra arredondada.
       </Toggle>
+      <Toggle checked={settings.trailerBreaks !== false} onChange={(v) => updateSettings({ trailerBreaks: v })} title="Trailers de lançamentos durante filmes e séries">
+        A cada 30 minutos assistindo um filme ou série com mais de 30 minutos, mostra o trailer de um lançamento do mesmo tipo e
+        volta ao ponto em que parou. O botão "Pular" libera em 5 segundos.
+      </Toggle>
       {settings.curatedZap && <LiveHealthStatus />}
       <div className="field">
         <span>Modo TV (navegação por controle remoto)</span>

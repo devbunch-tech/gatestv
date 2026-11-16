@@ -76,6 +76,7 @@ public class MainActivity extends Activity {
             OtaUpdater.applyPending(this);
             LocalServer.webDir = OtaUpdater.activeDir(this, getAssets());
         }
+        LocalServer.imgDir = new java.io.File(getFilesDir(), "img");
         try {
             LocalServer.start(getAssets(), port);
         } catch (Exception e) {
@@ -423,6 +424,12 @@ public class MainActivity extends Activity {
         public void castStop() {
             if (usingDlna) dlna().stop();
             else cast().stop();
+        }
+
+        /** Este APK guarda imagens no aparelho (rota /img do servidor local). */
+        @JavascriptInterface
+        public boolean imageCache() {
+            return true;
         }
 
         /** Espelhar a tela (Smart View / Transmitir do Android). false = o aparelho não tem atalho. */

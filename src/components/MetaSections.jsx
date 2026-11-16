@@ -84,15 +84,9 @@ export function Scores({ data }) {
   return (
     <>
       {data.imdbRating && (
-        <a
-          className="score imdb"
-          href={`https://www.imdb.com/title/${data.imdbId}/`}
-          target="_blank"
-          rel="noreferrer"
-          title={`${data.imdbVotes || ''} votos no IMDb`}
-        >
+        <span className="score imdb" title={`${data.imdbVotes || ''} votos no IMDb`}>
           IMDb <strong>{data.imdbRating}</strong>
-        </a>
+        </span>
       )}
       {data.vote > 0 && (
         <span className="score tmdb" title={`${data.voteCount} votos no TMDB`}>
@@ -100,9 +94,7 @@ export function Scores({ data }) {
         </span>
       )}
       {!data.imdbRating && data.imdbId && (
-        <a className="score imdb ghost" href={`https://www.imdb.com/title/${data.imdbId}/`} target="_blank" rel="noreferrer">
-          IMDb
-        </a>
+        <span className="score imdb ghost">IMDb</span>
       )}
     </>
   );
@@ -172,7 +164,7 @@ export function Crew({ data }) {
       {data.directors.map((d, i) => (
         <span key={d.id}>
           {i > 0 && ', '}
-          <Link to={`/person/${d.id}`}>{d.name}</Link>
+          {d.name}
         </span>
       ))}
     </p>
@@ -245,10 +237,7 @@ export function WatchProviders({ data }) {
         </div>
       ))}
       <small className="muted providers-src">
-        Fonte:{' '}
-        <a href={p.link || 'https://www.justwatch.com/br'} target="_blank" rel="noreferrer">
-          JustWatch
-        </a>
+        Fonte: JustWatch
       </small>
     </div>
   );

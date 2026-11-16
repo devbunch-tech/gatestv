@@ -9,6 +9,8 @@ import { WEB_BUILD, WEB_HINT, blockedByBrowser, detectKind, isExternal, isProxie
 import { isTvMode, rememberFocus, useKeyHandler } from '../lib/keys';
 import { baseName, channelKey, pickWorking, qualityRank, zapGroups } from '../lib/zapping';
 import { playableUrl } from '../lib/health';
+import { cuesAt, fetchSubs, subsMessage, subsQuery, subsSession } from '../lib/subs';
+import { BREAK_EVERY, BREAK_MAX, BREAK_SKIP_AFTER, pickTrailer } from '../lib/breaks';
 import { canCast, canMirror, castDevices, castDiscover, castPause, castSession, castStart, castStatus, castStop, isDlna, mirrorScreen } from '../lib/cast';
 import { SMART_TV, hasNative, isTouch, native, vibrate } from '../lib/device';
 import { findNow, fmtTime, nowNext, progressOf, useNow } from '../lib/epg';
@@ -182,6 +184,12 @@ function PlayerView({ item, rawQueue }) {
   };
 
   const idx = queue.findIndex((q) => q.id === item.id);
+  // Série deste episódio: o "Continue assistindo" mostra a série, mesmo antes de carregar os episódios.
+  const seriesId = useMemo(
+    () => (item.series ? catalog.series.find((s) => s.episodes?.some((e) => e.id === item.id))?.id : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [item.id]
+  );
   const [sel, setSel] = useState(Math.max(0, idx));
   const prev = idx > 0 ? queue[idx - 1] : null;
   const next = idx >= 0 && idx < queue.length - 1 ? queue[idx + 1] : null;
@@ -198,6 +206,63 @@ function PlayerView({ item, rawQueue }) {
     : [];
   const meta = useItemMeta(isLive ? null : item);
   const age = ratingOf(item);
+
+  // ---------- Legenda em português (OpenSubtitles, pelo nosso servidor) ----------
+  // Ligada uma vez, continua ligada nos próximos filmes/episódios até desligar.
+  const [subsWanted, setSubsWanted] = useState(() => !isLive && subsSession.on);
+  const [ext, setExt] = useState(null); // { cues, offset } | { loading: true }
+  useEffect(() => {
+    if (!subsWanted || isLive) {
+      setExt(null);
+      return undefined;
+    }
+    if (meta.enabled && meta.loading) {
+      setExt({ loading: true });
+      return undefined;
+    }
+    const q = subsQuery(item, meta.data);
+    if (!q) {
+      setExt(null);
+      setSubsWanted(false);
+      notify(subsMessage('no_meta'));
+      return undefined;
+    }
+    let alive = true;
+    setExt({ loading: true });
+    fetchSubs(q)
+      .then((cues) => alive && setExt({ cues, offset: 0 }))
+      .catch((err) => {
+        if (!alive) return;
+        setExt(null);
+        setSubsWanted(false);
+        notify(subsMessage(err.message));
+      });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subsWanted, item.id, meta.loading, meta.data?.id]);
+  const toggleSubs = () => {
+    const on = !subsWanted;
+    subsSession.on = on;
+    setSubsWanted(on);
+    if (on) notify('Buscando legenda em português…');
+  };
+  const shiftSubs = (d) =>
+    setExt((x) => {
+      if (!x?.cues) return x;
+      const offset = Math.round((x.offset + d) * 10) / 10;
+      notify(`Legenda ${offset === 0 ? 'sincronizada com o original' : offset > 0 ? `atrasada ${offset.toLocaleString('pt-BR')} s` : `adiantada ${(-offset).toLocaleString('pt-BR')} s`}`);
+      return { ...x, offset };
+    });
+  const vodActions = isLive
+    ? []
+    : [
+        { key: 'subs', icon: 'cc', label: subsWanted ? 'Desligar legenda' : 'Legenda em português', run: toggleSubs },
+        ext?.cues && { key: 'earlier', icon: 'back', label: 'Adiantar legenda 0,5 s', run: () => shiftSubs(-0.5) },
+        ext?.cues && { key: 'later', icon: 'next', label: 'Atrasar legenda 0,5 s', run: () => shiftSubs(0.5) },
+      ].filter(Boolean);
+  const panelActions = isLive ? liveActions : vodActions;
   const subtitle = item.series
     ? `T${item.series.season} · E${item.series.episode}${item.series.title ? ' — ' + item.series.title : ''}`
     : isLive
@@ -268,6 +333,49 @@ function PlayerView({ item, rawQueue }) {
     castStop();
     endCast();
   };
+  // ---------- Pausa com trailer (filmes e séries com mais de 30 min) ----------
+  // A cada 30 min assistidos: pausa, mostra o trailer de um lançamento do mesmo tipo e volta daqui.
+  const { isRestricted } = useStore();
+  const [breakT, setBreakT] = useState(null); // { key, title, at }
+  const watched = useRef({ t: 0, last: null });
+  const nextTrailer = useRef(null);
+  const breaksOn = !isLive && settings.trailerBreaks !== false && (item.type === 'movie' || !!item.series);
+  useEffect(() => {
+    watched.current = { t: 0, last: null };
+    nextTrailer.current = null;
+  }, [item.id]);
+  const trackBreak = (el) => {
+    const w = watched.current;
+    if (!breaksOn || casting || breakT || el.paused || !(el.duration > BREAK_EVERY)) {
+      w.last = el.currentTime;
+      return;
+    }
+    const d = w.last == null ? 0 : el.currentTime - w.last;
+    w.last = el.currentTime;
+    if (d > 0 && d < 2) w.t += d; // pulos (avançar/voltar) não contam
+    // Escolhe o trailer um minuto antes, para ele já estar pronto.
+    if (w.t > BREAK_EVERY - 60 && !nextTrailer.current) {
+      nextTrailer.current = 'loading';
+      pickTrailer(catalog, item.series ? 'series' : 'movie', { exclude: seriesId || item.primaryId || item.id, isRestricted })
+        .then((t) => (nextTrailer.current = t || 'none'))
+        .catch(() => (nextTrailer.current = 'none'));
+    }
+    if (w.t >= BREAK_EVERY) {
+      w.t = 0;
+      const t = nextTrailer.current;
+      nextTrailer.current = null;
+      if (t && typeof t === 'object') {
+        el.pause();
+        setBreakT({ ...t, at: Date.now() });
+      }
+    }
+  };
+  const endBreak = () => {
+    setBreakT(null);
+    watched.current.last = null;
+    videoRef.current?.play().catch(() => {});
+  };
+
   const openMirror = () => {
     setCastPick(false);
     if (!mirrorScreen()) notify('Abra o painel rápido do celular (deslize de cima para baixo) e toque em "Smart View" ou "Transmitir tela".');
@@ -455,7 +563,7 @@ function PlayerView({ item, rawQueue }) {
       v.addEventListener('loadedmetadata', () => (v.currentTime = resume.position), { once: true });
     }
     if (started) v.play().catch(() => setSt((x) => ({ ...x, paused: true })));
-    saveProgress(item.id, { type: item.type });
+    saveProgress(item.id, seriesId ? { type: item.type, seriesId } : { type: item.type });
 
     return () => {
       clearInterval(cushion);
@@ -613,6 +721,11 @@ function PlayerView({ item, rawQueue }) {
   useKeyHandler((k, e) => {
     poke();
     if (!k) return true;
+    // Durante o trailer: OK ou Voltar pulam (depois de liberado); o resto do controle fica parado.
+    if (breakT) {
+      if ((k === 'ok' || k === 'back') && Date.now() - breakT.at > BREAK_SKIP_AFTER * 1000) endBreak();
+      return true;
+    }
     if (panel === 'list') {
       if (k === 'up') setSel((s) => Math.max(0, s - 1));
       else if (k === 'down') setSel((s) => Math.min(queue.length - 1, s + 1));
@@ -646,19 +759,19 @@ function PlayerView({ item, rawQueue }) {
         goto(prev);
         break;
       case 'left':
-        if (isLive && panel === 'info' && act > 0) setAct(act - 1);
+        if (panel === 'info' && act > 0) setAct(act - 1);
         else if (isLive) {
           setSel(Math.max(0, idx));
           setPanel('list');
         } else seekBy(-10);
         break;
       case 'right':
-        if (isLive && panel === 'info' && act < liveActions.length - 1) setAct(act + 1);
+        if (panel === 'info' && act < panelActions.length - 1) setAct(act + 1);
         else isLive ? togglePanel('info') : seekBy(10);
         break;
       case 'ok':
-        if (!isLive) togglePlay();
-        else if (panel === 'info') liveActions[act]?.run();
+        if (panel === 'info' && panelActions[act]) panelActions[act].run();
+        else if (!isLive) togglePlay();
         // Na TV, OK abre a lista de canais (como nos apps de IPTV); a informação fica no ▶ / Info.
         else if (isTvMode()) {
           setSel(Math.max(0, idx));
@@ -711,6 +824,7 @@ function PlayerView({ item, rawQueue }) {
     onTimeUpdate: (e) => {
       const el = e.target;
       setSt((s) => ({ ...s, time: el.currentTime }));
+      if (!isLive) trackBreak(el);
       if (!isLive && Date.now() - lastSave.current > 5000) {
         lastSave.current = Date.now();
         saveProgress(item.id, { position: el.currentTime, duration: el.duration });
@@ -733,7 +847,11 @@ function PlayerView({ item, rawQueue }) {
   return (
     <div ref={wrapRef} className={`player ${ui || panel ? '' : 'idle'}`} onMouseMove={isTouch ? undefined : poke} onTouchStart={isTouch ? undefined : poke} data-nav-root>
       <video ref={videoRef} playsInline onClick={isTouch ? undefined : togglePlay} onDoubleClick={isTouch ? undefined : toggleFs} {...ev} />
-      {!isLive && settings.subtitles !== false && <Subtitles videoRef={videoRef} itemId={item.id} />}
+      {!isLive && ext?.cues ? (
+        <ExternalSubs cues={ext.cues} t={st.time - ext.offset} />
+      ) : (
+        !isLive && settings.subtitles !== false && <Subtitles videoRef={videoRef} itemId={item.id} />
+      )}
       {casting && (
         <div className="cast-now">
           <Icon name="cast" size={40} />
@@ -752,6 +870,7 @@ function PlayerView({ item, rawQueue }) {
           <small className="muted">Pode trocar de canal ou episódio por aqui: a TV acompanha.</small>
         </div>
       )}
+      {breakT && <TrailerBreak trailer={breakT} onDone={endBreak} />}
       {castPick && (
         <div className="cast-pick" onClick={() => setCastPick(false)}>
           <div className="cast-box" onClick={(e) => e.stopPropagation()}>
@@ -877,7 +996,7 @@ function PlayerView({ item, rawQueue }) {
         />
       )}
 
-      {!isLive && panel === 'info' && <VodInfo item={item} meta={meta} age={age} />}
+      {!isLive && panel === 'info' && <VodInfo item={item} meta={meta} age={age} actions={vodActions} act={act} />}
 
       <div className="player-bottom" onTouchStart={isTouch ? poke : undefined}>
         {seekable ? (
@@ -946,6 +1065,11 @@ function PlayerView({ item, rawQueue }) {
                   A seguir: <strong>{next.name}</strong>
                 </span>
               )}
+          {!isLive && (
+            <button className={`icon-btn source-btn ${subsWanted ? 'on' : ''}`} tabIndex={-1} onClick={toggleSubs} title={subsWanted ? 'Desligar a legenda em português' : 'Buscar legenda em português'}>
+              {ext?.loading ? <span className="spinner sm" /> : <Icon name="cc" />} <span>{subsWanted ? 'Legenda ligada' : 'Legenda'}</span>
+            </button>
+          )}
           {langSwitch && (
             <button className="icon-btn source-btn" tabIndex={-1} onClick={switchVersion} disabled={!!altPending} title={langSwitch.toLeg ? 'Ver a versão legendada (continua deste ponto)' : 'Voltar para a versão dublada (continua deste ponto)'}>
               {altPending ? <span className="spinner sm" /> : <Icon name="cc" />} <span>{langSwitch.toLeg ? 'Legendado' : 'Dublado'}</span>
@@ -1028,6 +1152,58 @@ function Subtitles({ videoRef, itemId }) {
   );
 }
 
+// Trailer de um lançamento no meio do filme/série. "Pular" libera depois de alguns segundos;
+// ao terminar o trailer (aviso do YouTube) ou no tempo máximo, volta ao vídeo.
+function TrailerBreak({ trailer, onDone }) {
+  const [left, setLeft] = useState(BREAK_SKIP_AFTER);
+  const frame = useRef(null);
+  const done = useRef(onDone);
+  done.current = onDone;
+  useEffect(() => {
+    const t = setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
+    const max = setTimeout(() => done.current(), BREAK_MAX * 1000);
+    const onMsg = (e) => {
+      if (!/youtube/.test(e.origin || '')) return;
+      let m;
+      try {
+        m = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+      } catch {
+        return;
+      }
+      const state = m?.event === 'onStateChange' ? m.info : m?.info?.playerState;
+      if (state === 0) done.current(); // 0 = o trailer terminou
+    };
+    window.addEventListener('message', onMsg);
+    return () => {
+      clearInterval(t);
+      clearTimeout(max);
+      window.removeEventListener('message', onMsg);
+    };
+  }, []);
+  // Pede ao player do YouTube para avisar quando o trailer terminar.
+  const listen = () => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
+  const origin = encodeURIComponent(window.location.origin);
+  return (
+    <div className="trailer-break">
+      <iframe
+        ref={frame}
+        onLoad={listen}
+        src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${origin}`}
+        title={trailer.title}
+        allow="autoplay; encrypted-media"
+        tabIndex={-1}
+      />
+      <div className="tb-label">
+        <small>LANÇAMENTO</small>
+        <strong>{trailer.title}</strong>
+      </div>
+      <button className="btn tb-skip" tabIndex={-1} disabled={left > 0} onClick={() => done.current()}>
+        {left > 0 ? `Pular em ${left}` : isTvMode() ? 'OK para pular' : 'Pular trailer'}
+      </button>
+    </div>
+  );
+}
+
 function LiveBanner({ item, guide, now, age, expanded, actions, act }) {
   const { now: cur, next, list } = guide;
   return (
@@ -1092,7 +1268,26 @@ function LiveBanner({ item, guide, now, age, expanded, actions, act }) {
   );
 }
 
-function VodInfo({ item, meta, age }) {
+// Legenda buscada no servidor, desenhada igual à que vem no vídeo.
+function ExternalSubs({ cues, t }) {
+  const now = cuesAt(cues, t);
+  if (!now.length) return null;
+  const lines = now
+    .map((c) => c.text)
+    .join('\n')
+    .replace(/<[^>]+>|\{[^}]*\}/g, '')
+    .split('\n')
+    .filter((l) => l.trim());
+  return (
+    <div className="subtitles" aria-live="off">
+      {lines.map((l, i) => (
+        <span key={i}>{l}</span>
+      ))}
+    </div>
+  );
+}
+
+function VodInfo({ item, meta, age, actions, act }) {
   const d = meta.data;
   return (
     <div className="live-banner expanded vod-info">
@@ -1114,7 +1309,14 @@ function VodInfo({ item, meta, age }) {
           <strong>Elenco:</strong> {d.cast.slice(0, 6).map((c) => c.name).join(', ')}
         </p>
       )}
-      <span className="muted hint">◀ ▶ volta/avança 10s · OK pausa · Voltar fecha</span>
+      <div className="lb-actions">
+        {actions.map((a, i) => (
+          <button key={a.key} className={`btn ${isTvMode() && i === act ? 'lb-act-on' : ''}`} tabIndex={-1} onClick={a.run}>
+            <Icon name={a.icon} size={18} /> {a.label}
+          </button>
+        ))}
+        <span className="muted hint">◀ ▶ escolher · OK confirmar · Voltar fecha</span>
+      </div>
     </div>
   );
 }

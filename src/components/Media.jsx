@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { cachedImg } from '../lib/imgcache';
 import { Link, useNavigate } from 'react-router-dom';
 import Icon from './Icon';
 import { useStore } from '../store';
@@ -32,7 +33,7 @@ export function Thumb({ src, name, contain }) {
   return (
     <img
       className={contain && !src.startsWith('/logos/') ? 'contain' : ''}
-      src={src}
+      src={cachedImg(src)}
       alt=""
       loading="lazy"
       referrerPolicy="no-referrer"

@@ -3,6 +3,7 @@
 import { get, set } from 'idb-keyval';
 import { ratingToAge } from './parental';
 import { imgSize } from '../config/perf';
+import { cachedImg } from './imgcache';
 
 const API = 'https://api.themoviedb.org/3';
 const TTL = 7 * 24 * 3600e3;
@@ -14,7 +15,7 @@ export function configureMeta(next) {
 }
 export const hasMetaKey = () => !!cfg.tmdbKey?.trim();
 // LITE: troca por tamanhos menores (ver src/config/perf.js).
-export const img = (path, size = 'w500') => (path ? `https://image.tmdb.org/t/p/${imgSize(size)}${path}` : '');
+export const img = (path, size = 'w500') => (path ? cachedImg(`https://image.tmdb.org/t/p/${imgSize(size)}${path}`) : '');
 
 function cached(key, fn) {
   if (mem.has(key)) return mem.get(key);

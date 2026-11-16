@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { cachedImg } from '../lib/imgcache';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
 import { Card, Empty, Row, Thumb } from '../components/Media';
 import Icon from '../components/Icon';
@@ -40,7 +42,7 @@ function FeaturedGame({ evt, now, channels }) {
   const score = live && evt.homeScore != null && evt.awayScore != null ? `${evt.homeScore} – ${evt.awayScore}` : null;
   return (
     <button className={`featured-game ${live ? 'is-live' : ''}`} onClick={open} title={`${evt.home} x ${evt.away}`}>
-      <div className="fg-poster" style={evt.poster ? { backgroundImage: `url("${evt.poster}")` } : undefined} />
+      <div className="fg-poster" style={evt.poster ? { backgroundImage: `url("${cachedImg(evt.poster)}")` } : undefined} />
       <div className="fg-shade" />
       <div className="fg-top">
         {evt.leagueBadge && <img className="fg-league" src={evt.leagueBadge} alt="" />}
@@ -265,6 +267,50 @@ export function clearHomeCache() {
   }
 }
 
+// ---------- Continue assistindo (últimos 5 filmes/séries que ficaram pela metade) ----------
+const CONTINUE_LIMIT = 5;
+const left = (h) => {
+  const m = Math.max(1, Math.round((h.duration - h.position) / 60));
+  return m >= 60 ? `faltam ${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `faltam ${m} min`;
+};
+
+function ContinueRow() {
+  const { history, catalog, play } = useStore();
+  const navigate = useNavigate();
+  const entries = useMemo(() => {
+    const out = [];
+    const seen = new Set();
+    const list = Object.entries(history)
+      .filter(([, h]) => h.position > 30 && !h.watched && h.duration > 0 && h.position < h.duration * 0.95 && h.type !== 'live')
+      .sort((a, b) => b[1].at - a[1].at);
+    for (const [id, h] of list) {
+      const it = catalog.byId.get(id);
+      const series = h.seriesId ? catalog.byId.get(h.seriesId) : it?.series ? catalog.series.find((x) => x.episodes?.some((e) => e.id === id)) : null;
+      const shown = series || (it && it.type === 'movie' ? it : null);
+      if (!shown || seen.has(shown.id)) continue;
+      seen.add(shown.id);
+      out.push({ shown, ep: series ? it : null, h });
+      if (out.length >= CONTINUE_LIMIT) break;
+    }
+    return out;
+  }, [history, catalog]);
+  if (!entries.length) return null;
+  return (
+    <Row title="Continue assistindo">
+      {entries.map(({ shown, ep, h }) => (
+        <Card
+          key={shown.id}
+          item={shown}
+          progress={h.position / h.duration}
+          sub={ep?.series ? `T${ep.series.season} · E${ep.series.episode} · ${left(h)}` : left(h)}
+          // Filme e episódio já carregado: volta a tocar de onde parou. Série ainda sem episódios: abre a página dela (que retoma).
+          onClick={() => (ep ? play(ep, shown.episodes) : shown.type === 'movie' ? play(shown, [shown]) : navigate(`/item/${shown.id}`))}
+        />
+      ))}
+    </Row>
+  );
+}
+
 export default function Home() {
   const { catalog, loading, programmesFor, epgSources, epg } = useStore();
   const now = useNow(60000);
@@ -296,6 +342,7 @@ export default function Home() {
   return (
     <div className="home clean">
       <FeaturedGames now={now} />
+      <ContinueRow />
 
       {renderRow(recentMovies, 'Nenhum filme nas suas listas.')}
       {renderRow(recentSeries, 'Nenhuma série nas suas listas.')}

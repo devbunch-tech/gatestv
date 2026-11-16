@@ -22,7 +22,7 @@ const HOUR = 3600e3;
 const UNLOCK_MS = 10 * 60e3;
 const RECHECK_MS = 5 * 60e3; // intervalo mínimo entre verificações de novidades no Xtream
 
-const DEFAULT_SETTINGS = { proxyMode: 'auto', liveDelay: 35, curatedZap: true, uf: '', subtitles: true, tvMode: 'auto', tmdbKey: '', omdbKey: '', epgUrls: [] };
+const DEFAULT_SETTINGS = { proxyMode: 'auto', liveDelay: 35, curatedZap: true, uf: '', subtitles: true, trailerBreaks: true, tvMode: 'auto', tmdbKey: '', omdbKey: '', epgUrls: [] };
 const DEFAULT_PARENTAL = {
   enabled: false,
   pin: '',

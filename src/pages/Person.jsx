@@ -64,9 +64,7 @@ export default function Person() {
               <span key={l}>{l}</span>
             ))}
             {p.imdbId && (
-              <a className="score imdb ghost" href={`https://www.imdb.com/name/${p.imdbId}/`} target="_blank" rel="noreferrer">
-                IMDb
-              </a>
+              <span className="score imdb ghost">IMDb</span>
             )}
           </div>
           {p.bio && (

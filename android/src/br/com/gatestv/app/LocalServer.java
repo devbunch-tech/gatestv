@@ -117,6 +117,7 @@ final class LocalServer implements Runnable {
 
             if ("/proxy".equals(path)) proxy(query, headers, out);
             else if ("/probe".equals(path)) probe(query, out);
+            else if ("/img".equals(path)) image(query.get("u"), out);
             else serveAsset(URLDecoder.decode(path, "UTF-8"), out, head);
         } catch (Exception ignored) {
         } finally {
@@ -140,6 +141,131 @@ final class LocalServer implements Runnable {
             }
         }
         return m;
+    }
+
+    // ---------------------------------------------------------------- imagens salvas no aparelho
+    // /img?u=<endereço>: capas, fundos e logos ficam guardados na memória do aparelho (até ~200 MB;
+    // as menos usadas saem primeiro). Da segunda vez em diante a imagem abre sem internet.
+
+    /** Pasta das imagens salvas (definida pela MainActivity). */
+    static volatile File imgDir;
+    private static final long IMG_MAX = 200L * 1024 * 1024;
+    private static final long IMG_KEEP = 150L * 1024 * 1024;
+    private static int imgWrites = 0;
+
+    private static String sha1(String s) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-1").digest(s.getBytes(UTF8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : d) sb.append(String.format(Locale.ROOT, "%02x", b & 0xff));
+            return sb.toString();
+        } catch (Exception e) {
+            return Integer.toHexString(s.hashCode());
+        }
+    }
+
+    private static String imageType(byte[] b) {
+        if (b.length > 3 && (b[0] & 0xff) == 0xff && (b[1] & 0xff) == 0xd8) return "image/jpeg";
+        if (b.length > 8 && (b[0] & 0xff) == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G') return "image/png";
+        if (b.length > 12 && b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F' && b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P') return "image/webp";
+        if (b.length > 4 && b[0] == 'G' && b[1] == 'I' && b[2] == 'F') return "image/gif";
+        if (b.length > 5 && new String(b, 0, Math.min(b.length, 200), UTF8).contains("<svg")) return "image/svg+xml";
+        return null;
+    }
+
+    private static byte[] readAll(InputStream in, int max) throws IOException {
+        ByteArrayOutputStream o = new ByteArrayOutputStream();
+        byte[] buf = new byte[16384];
+        int n;
+        while ((n = in.read(buf)) > 0) {
+            o.write(buf, 0, n);
+            if (o.size() > max) throw new IOException("imagem grande demais");
+        }
+        return o.toByteArray();
+    }
+
+    private void image(String url, OutputStream out) throws IOException {
+        if (url == null || !(url.startsWith("http://") || url.startsWith("https://"))) {
+            writeText(out, 400, "text/plain", "bad url", null);
+            return;
+        }
+        File dir = imgDir;
+        File f = dir != null ? new File(dir, sha1(url)) : null;
+        byte[] data = null;
+        if (f != null && f.isFile()) {
+            try {
+                FileInputStream in = new FileInputStream(f);
+                data = readAll(in, 8 * 1024 * 1024);
+                in.close();
+                f.setLastModified(System.currentTimeMillis());
+            } catch (Exception e) {
+                data = null;
+            }
+        }
+        if (data == null) {
+            try {
+                HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                c.setConnectTimeout(8000);
+                c.setReadTimeout(15000);
+                c.setInstanceFollowRedirects(true);
+                c.setRequestProperty("User-Agent", UA);
+                if (c.getResponseCode() == 200) {
+                    InputStream in = c.getInputStream();
+                    data = readAll(in, 8 * 1024 * 1024);
+                    in.close();
+                }
+                c.disconnect();
+            } catch (Exception e) {
+                data = null;
+            }
+            String type = data != null ? imageType(data) : null;
+            if (type == null) {
+                // Não deu para baixar aqui: o WebView tenta direto no endereço original.
+                writeHead(out, 302, "Found", null, 0, "Location: " + url + "\r\nCache-Control: no-store\r\n");
+                return;
+            }
+            if (dir != null) saveImage(dir, f, data);
+        }
+        String type = imageType(data);
+        writeHead(out, 200, "OK", type != null ? type : "application/octet-stream", data.length, "Cache-Control: public, max-age=31536000, immutable\r\n");
+        out.write(data);
+        out.flush();
+    }
+
+    private static void saveImage(File dir, File f, byte[] data) {
+        try {
+            if (!dir.isDirectory()) dir.mkdirs();
+            File tmp = new File(dir, f.getName() + "." + Thread.currentThread().getId() + ".tmp");
+            java.io.FileOutputStream o = new java.io.FileOutputStream(tmp);
+            o.write(data);
+            o.close();
+            if (!tmp.renameTo(f)) tmp.delete();
+        } catch (Exception ignored) {
+        }
+        boolean trim;
+        synchronized (LocalServer.class) {
+            trim = ++imgWrites % 40 == 1;
+        }
+        if (trim) trimImages(dir);
+    }
+
+    // Passou de 200 MB: apaga as imagens usadas há mais tempo até ficar em 150 MB.
+    private static synchronized void trimImages(File dir) {
+        File[] files = dir.listFiles();
+        if (files == null) return;
+        long total = 0;
+        for (File x : files) total += x.length();
+        if (total <= IMG_MAX) return;
+        java.util.Arrays.sort(files, new java.util.Comparator<File>() {
+            public int compare(File a, File b) {
+                return Long.compare(a.lastModified(), b.lastModified());
+            }
+        });
+        for (File x : files) {
+            if (total <= IMG_KEEP) break;
+            total -= x.length();
+            x.delete();
+        }
     }
 
     private static void writeHead(OutputStream out, int code, String reason, String type, long length, String extra) throws IOException {
