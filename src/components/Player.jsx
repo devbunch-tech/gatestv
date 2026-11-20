@@ -10,8 +10,9 @@ import { isTvMode, rememberFocus, useKeyHandler } from '../lib/keys';
 import { baseName, channelKey, pickWorking, qualityRank, zapGroups } from '../lib/zapping';
 import { playableUrl } from '../lib/health';
 import { cuesAt, fetchSubs, subsMessage, subsQuery, subsSession } from '../lib/subs';
-import { BREAK_EVERY, BREAK_MAX, BREAK_SKIP_AFTER, pickTrailer } from '../lib/breaks';
+import { BREAK_COUNT, BREAK_EVERY, BREAK_MAX, BREAK_SKIP_AFTER, PREROLL_COUNT, PREROLL_WAIT, pickTrailers } from '../lib/breaks';
 import { canCast, canMirror, castDevices, castDiscover, castPause, castSession, castStart, castStatus, castStop, isDlna, mirrorScreen } from '../lib/cast';
+import { hasMetaKey } from '../lib/meta';
 import { SMART_TV, hasNative, isTouch, native, vibrate } from '../lib/device';
 import { findNow, fmtTime, nowNext, progressOf, useNow } from '../lib/epg';
 
@@ -26,6 +27,9 @@ const fmt = (s) => {
 
 // Fontes de cada canal já tentadas nos últimos minutos (o player é remontado a cada troca).
 const TRIED = new Map();
+// Trailers: título que está passando, minutos assistidos desde o último intervalo e última vez visto.
+const BREAKS = { key: null, t: 0, seen: 0 };
+const BREAK_FRESH = 30 * 60e3; // reabrindo o mesmo título depois disso, passa o trailer de abertura de novo
 
 export default function Player() {
   const { playing } = useStore();
@@ -333,47 +337,88 @@ function PlayerView({ item, rawQueue }) {
     castStop();
     endCast();
   };
-  // ---------- Pausa com trailer (filmes e séries com mais de 30 min) ----------
-  // A cada 30 min assistidos: pausa, mostra o trailer de um lançamento do mesmo tipo e volta daqui.
+  // ---------- Trailers de lançamentos (filmes e séries) ----------
+  // Antes de começar: 1 trailer. A cada 12 min assistidos: 2 trailers seguidos, e volta daqui.
+  // A contagem segue de um episódio para o outro da mesma série (BREAKS).
   const { isRestricted } = useStore();
-  const [breakT, setBreakT] = useState(null); // { key, title, at }
-  const watched = useRef({ t: 0, last: null });
-  const nextTrailer = useRef(null);
+  const [breakT, setBreakT] = useState(null); // { list: [{ key, title }], i, at } | { loading: true, at }
+  const breakRef = useRef(null);
+  const watched = useRef({ last: null });
+  const nextTrailers = useRef(null); // null | 'loading' | [{ key, title }]
   const breaksOn = !isLive && settings.trailerBreaks !== false && (item.type === 'movie' || !!item.series);
+  const titleKey = seriesId || item.primaryId || item.id;
+  const pickFor = (count) => pickTrailers(catalog, item.series ? 'series' : 'movie', { count, exclude: titleKey, isRestricted });
+  const showBreak = (b) => {
+    breakRef.current = b;
+    setBreakT(b);
+  };
+  const endBreak = () => {
+    showBreak(null);
+    watched.current.last = null;
+    if (!castSession.device) videoRef.current?.play().catch(() => {});
+  };
+  // Próximo trailer do intervalo; depois do último, volta ao vídeo.
+  const nextInBreak = () => {
+    const b = breakRef.current;
+    if (b?.list && b.i < b.list.length - 1) showBreak({ ...b, i: b.i + 1, at: Date.now() });
+    else endBreak();
+  };
+  // Trailer de abertura: só ao começar um título novo (no episódio seguinte da mesma série, ou
+  // reabrindo o mesmo título pouco depois, não repete). O vídeo vai carregando por baixo.
   useEffect(() => {
-    watched.current = { t: 0, last: null };
-    nextTrailer.current = null;
-  }, [item.id]);
+    const fresh = BREAKS.key !== titleKey || Date.now() - BREAKS.seen > BREAK_FRESH;
+    if (fresh) Object.assign(BREAKS, { key: titleKey, t: 0 });
+    BREAKS.seen = Date.now();
+    if (!breaksOn || !fresh || casting || !hasMetaKey()) return undefined;
+    let alive = true;
+    showBreak({ loading: true, at: Date.now() });
+    const giveUp = setTimeout(() => {
+      alive = false;
+      if (breakRef.current?.loading) endBreak();
+    }, PREROLL_WAIT * 1000);
+    pickFor(PREROLL_COUNT)
+      .catch(() => [])
+      .then((list) => {
+        if (!alive || !breakRef.current?.loading) return;
+        clearTimeout(giveUp);
+        if (list.length) {
+          videoRef.current?.pause();
+          showBreak({ list, i: 0, at: Date.now() });
+        } else endBreak();
+      });
+    return () => {
+      alive = false;
+      clearTimeout(giveUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const trackBreak = (el) => {
     const w = watched.current;
-    if (!breaksOn || casting || breakT || el.paused || !(el.duration > BREAK_EVERY)) {
+    if (!breaksOn || casting || breakRef.current || el.paused) {
       w.last = el.currentTime;
       return;
     }
     const d = w.last == null ? 0 : el.currentTime - w.last;
     w.last = el.currentTime;
-    if (d > 0 && d < 2) w.t += d; // pulos (avançar/voltar) não contam
-    // Escolhe o trailer um minuto antes, para ele já estar pronto.
-    if (w.t > BREAK_EVERY - 60 && !nextTrailer.current) {
-      nextTrailer.current = 'loading';
-      pickTrailer(catalog, item.series ? 'series' : 'movie', { exclude: seriesId || item.primaryId || item.id, isRestricted })
-        .then((t) => (nextTrailer.current = t || 'none'))
-        .catch(() => (nextTrailer.current = 'none'));
+    BREAKS.seen = Date.now();
+    if (d > 0 && d < 2) BREAKS.t += d; // pulos (avançar/voltar) não contam
+    // Escolhe os trailers um minuto antes, para já estarem prontos.
+    if (BREAKS.t > BREAK_EVERY - 60 && !nextTrailers.current) {
+      nextTrailers.current = 'loading';
+      pickFor(BREAK_COUNT)
+        .catch(() => [])
+        .then((list) => (nextTrailers.current = list));
     }
-    if (w.t >= BREAK_EVERY) {
-      w.t = 0;
-      const t = nextTrailer.current;
-      nextTrailer.current = null;
-      if (t && typeof t === 'object') {
+    // Não interrompe nos 2 últimos minutos: fica para o começo do próximo episódio.
+    if (BREAKS.t >= BREAK_EVERY && Array.isArray(nextTrailers.current) && !(el.duration - el.currentTime < 120)) {
+      BREAKS.t = 0;
+      const list = nextTrailers.current;
+      nextTrailers.current = null;
+      if (list.length) {
         el.pause();
-        setBreakT({ ...t, at: Date.now() });
+        showBreak({ list, i: 0, at: Date.now() });
       }
     }
-  };
-  const endBreak = () => {
-    setBreakT(null);
-    watched.current.last = null;
-    videoRef.current?.play().catch(() => {});
   };
 
   const openMirror = () => {
@@ -721,9 +766,12 @@ function PlayerView({ item, rawQueue }) {
   useKeyHandler((k, e) => {
     poke();
     if (!k) return true;
-    // Durante o trailer: OK ou Voltar pulam (depois de liberado); o resto do controle fica parado.
+    // Durante o trailer: OK ou Voltar pulam para o próximo (depois de liberado); o resto do controle fica parado.
     if (breakT) {
-      if ((k === 'ok' || k === 'back') && Date.now() - breakT.at > BREAK_SKIP_AFTER * 1000) endBreak();
+      if ((k === 'ok' || k === 'back') && (breakT.loading || Date.now() - breakT.at > BREAK_SKIP_AFTER * 1000)) {
+        if (breakT.loading) endBreak();
+        else nextInBreak();
+      }
       return true;
     }
     if (panel === 'list') {
@@ -814,7 +862,11 @@ function PlayerView({ item, rawQueue }) {
   });
 
   const ev = {
-    onPlay: () => setSt((s) => ({ ...s, paused: false })),
+    onPlay: (e) => {
+      // Com trailer na tela, o filme espera (vai carregando por baixo).
+      if (breakRef.current) return e.target.pause();
+      setSt((s) => ({ ...s, paused: false }));
+    },
     onPause: () => (setSt((s) => ({ ...s, paused: true })), setUi(true)),
     onWaiting: () => setSt((s) => ({ ...s, buffering: true })),
     onPlaying: () => setSt((s) => ({ ...s, buffering: false, paused: false })),
@@ -870,7 +922,14 @@ function PlayerView({ item, rawQueue }) {
           <small className="muted">Pode trocar de canal ou episódio por aqui: a TV acompanha.</small>
         </div>
       )}
-      {breakT && <TrailerBreak trailer={breakT} onDone={endBreak} />}
+      {breakT?.loading && (
+        <div className="trailer-break tb-loading">
+          <span className="spinner" />
+        </div>
+      )}
+      {breakT?.list && (
+        <TrailerBreak key={breakT.i} trailer={breakT.list[breakT.i]} pos={breakT.i + 1} total={breakT.list.length} onDone={nextInBreak} />
+      )}
       {castPick && (
         <div className="cast-pick" onClick={() => setCastPick(false)}>
           <div className="cast-box" onClick={(e) => e.stopPropagation()}>
@@ -1152,9 +1211,9 @@ function Subtitles({ videoRef, itemId }) {
   );
 }
 
-// Trailer de um lançamento no meio do filme/série. "Pular" libera depois de alguns segundos;
-// ao terminar o trailer (aviso do YouTube) ou no tempo máximo, volta ao vídeo.
-function TrailerBreak({ trailer, onDone }) {
+// Trailer de um lançamento antes ou no meio do filme/série. "Pular" libera depois de alguns segundos;
+// ao terminar o trailer (aviso do YouTube) ou no tempo máximo, passa ao próximo ou volta ao vídeo.
+function TrailerBreak({ trailer, pos, total, onDone }) {
   const [left, setLeft] = useState(BREAK_SKIP_AFTER);
   const frame = useRef(null);
   const done = useRef(onDone);
@@ -1188,17 +1247,17 @@ function TrailerBreak({ trailer, onDone }) {
       <iframe
         ref={frame}
         onLoad={listen}
-        src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${origin}`}
+        src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&hl=pt-BR&cc_lang_pref=pt&origin=${origin}`}
         title={trailer.title}
         allow="autoplay; encrypted-media"
         tabIndex={-1}
       />
       <div className="tb-label">
-        <small>LANÇAMENTO</small>
+        <small>LANÇAMENTO{total > 1 ? ` · ${pos} de ${total}` : ''}</small>
         <strong>{trailer.title}</strong>
       </div>
       <button className="btn tb-skip" tabIndex={-1} disabled={left > 0} onClick={() => done.current()}>
-        {left > 0 ? `Pular em ${left}` : isTvMode() ? 'OK para pular' : 'Pular trailer'}
+        {left > 0 ? `Pular em ${left}` : isTvMode() ? 'OK para pular' : pos < total ? 'Próximo trailer' : 'Pular trailer'}
       </button>
     </div>
   );

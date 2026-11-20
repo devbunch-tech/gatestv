@@ -437,8 +437,9 @@ export function PlaybackSection() {
         Quando o filme ou episódio traz legenda junto com o vídeo, ela aparece em amarelo, centralizada e em letra arredondada.
       </Toggle>
       <Toggle checked={settings.trailerBreaks !== false} onChange={(v) => updateSettings({ trailerBreaks: v })} title="Trailers de lançamentos durante filmes e séries">
-        A cada 30 minutos assistindo um filme ou série com mais de 30 minutos, mostra o trailer de um lançamento do mesmo tipo e
-        volta ao ponto em que parou. O botão "Pular" libera em 5 segundos.
+        Antes de começar um filme ou série, passa o trailer de um lançamento do mesmo tipo; a cada 12 minutos assistidos, passa
+        mais 2 e volta ao ponto em que parou. Só entram títulos adicionados recentemente, com trailer dublado ou legendado em
+        português. O botão "Pular" libera em 5 segundos.
       </Toggle>
       {settings.curatedZap && <LiveHealthStatus />}
       <div className="field">

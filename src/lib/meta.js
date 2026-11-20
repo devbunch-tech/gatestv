@@ -135,12 +135,12 @@ function certification(d, type) {
 }
 
 export function getDetails(type, id) {
-  return cached(`d3:${type}:${id}`, async () => {
+  return cached(`d4:${type}:${id}`, async () => {
     const append =
       type === 'movie'
         ? 'credits,videos,release_dates,external_ids,recommendations,watch/providers'
         : 'aggregate_credits,credits,videos,content_ratings,external_ids,recommendations,watch/providers';
-    const d = await tmdb(`/${type}/${id}`, { append_to_response: append, include_video_language: 'pt,en,null' });
+    const d = await tmdb(`/${type}/${id}`, { append_to_response: append, include_video_language: 'pt-BR,pt,en,null' });
 
     const cast =
       type === 'tv' && d.aggregate_credits?.cast?.length
@@ -150,14 +150,15 @@ export function getDetails(type, id) {
       type === 'movie'
         ? (d.credits?.crew || []).filter((c) => c.job === 'Director').map((c) => ({ id: c.id, name: c.name }))
         : (d.created_by || []).map((c) => ({ id: c.id, name: c.name }));
-    // Trailer em português do Brasil primeiro (BR > pt > títulos em português > inglês).
+    // Trailer em português do Brasil primeiro (BR > pt > títulos em português > inglês). O TMDB só manda os
+    // vídeos pt-BR quando pedido "pt-BR" (com "pt" vêm só os de Portugal).
     const ptName = (v) => /dublad|legendad|trailer oficial|em portugu|pt-?br/i.test(v.name || '');
     const rank = (v) =>
       (v.iso_639_1 === 'pt' ? (v.iso_3166_1 === 'BR' ? 0 : 0.6) : ptName(v) ? 1 : 3) + (v.type === 'Trailer' ? 0 : 1) + (v.official ? 0 : 0.5);
     const trailers = (d.videos?.results || [])
       .filter((v) => v.site === 'YouTube' && ['Trailer', 'Teaser'].includes(v.type))
       .sort((a, b) => rank(a) - rank(b))
-      .map((v) => ({ key: v.key, name: v.name, lang: v.iso_639_1 }));
+      .map((v) => ({ key: v.key, name: v.name, lang: v.iso_639_1, region: v.iso_3166_1 }));
     const certLabel = certification(d, type);
     const br = d['watch/providers']?.results?.BR;
     const prov = (list) => (list || []).sort((a, b) => a.display_priority - b.display_priority).map((x) => ({ id: x.provider_id, name: x.provider_name, logo: x.logo_path }));
