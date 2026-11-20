@@ -13,6 +13,8 @@ import Library from './pages/Library';
 import Details from './pages/Details';
 import Search from './pages/Search';
 import Favorites from './pages/Favorites';
+import Clark from './pages/Clark';
+import { HAS_CLARK } from './lib/clark';
 import Sports from './pages/Sports';
 import Settings from './pages/Settings';
 import Person from './pages/Person';
@@ -174,6 +176,7 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/sports" element={<Sports />} />
           <Route path="/favorites" element={<Favorites />} />
+          {HAS_CLARK && <Route path="/clark" element={<Clark />} />}
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

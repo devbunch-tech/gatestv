@@ -1,3 +1,4 @@
+import { HAS_CLARK } from '../lib/clark';
 import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import Icon from './Icon';
@@ -11,6 +12,7 @@ const TABS = [
   { to: '/movies', label: 'Filmes', icon: 'film' },
   { to: '/series', label: 'Séries', icon: 'series' },
   { to: '/favorites', label: 'Favoritos', icon: 'heart' },
+  ...(HAS_CLARK ? [{ to: '/clark', label: 'CLARK', icon: 'star' }] : []),
 ];
 
 // Celular e tablet: navegação principal em abas na parte de baixo (alcance do polegar).

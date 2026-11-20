@@ -6,6 +6,7 @@ import { Avatar, ProfileMenu } from './Profiles';
 import { isPhone, isTouch } from '../lib/device';
 import { IS_TEST } from '../config/license';
 import { isDemo } from '../lib/device';
+import { HAS_CLARK } from '../lib/clark';
 
 const NAV = [
   { to: '/', label: 'Início', icon: 'home', end: true },
@@ -14,6 +15,8 @@ const NAV = [
   { to: '/movies', label: 'Filmes', icon: 'film' },
   { to: '/series', label: 'Séries', icon: 'series' },
   { to: '/favorites', label: 'Favoritos', icon: 'heart' },
+  // Canais do YouTube para as crianças (só edições da família e admin).
+  ...(HAS_CLARK ? [{ to: '/clark', label: 'CLARK', icon: 'star' }] : []),
 ];
 
 export function TopBar({ onMenu }) {
