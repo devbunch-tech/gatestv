@@ -407,3 +407,34 @@ export function gamePriority(title, category = '') {
   if (/\btenis\b|tennis|\batp\b|\bwta\b/.test(t)) return 1.3;
   return 0;
 }
+
+// Jogo da agenda que um programa do guia está transmitindo (os dois times no título, no horário).
+export function eventForProgram(prog, events) {
+  if (!prog?.title || !events?.length) return null;
+  const t = normTitle(strip(`${prog.title} ${prog.subtitle || ''}`));
+  for (const e of events) {
+    if (e.individual || e.fight) continue;
+    if (prog.stop < e.start - 1800e3 || prog.start > e.start + 3 * 3600e3) continue;
+    const hk = e.homeShort && e.homeShort !== e.home ? [...teamKeys(e.home), ...teamKeys(e.homeShort)] : teamKeys(e.home);
+    const ak = e.awayShort && e.awayShort !== e.away ? [...teamKeys(e.away), ...teamKeys(e.awayShort)] : teamKeys(e.away);
+    if (has(t, hk) && has(t, ak)) return e;
+  }
+  return null;
+}
+
+// Agenda de hoje (para achar o jogo de um programa); recarrega a cada 10 min.
+export function useTodaysEvents(enabled = true) {
+  const [events, setEvents] = useState([]);
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let alive = true;
+    const load = () => todaysEvents().then((l) => alive && setEvents(l)).catch(() => {});
+    load();
+    const t = setInterval(load, 10 * 60e3);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [enabled]);
+  return events;
+}

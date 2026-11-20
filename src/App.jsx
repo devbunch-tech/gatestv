@@ -6,6 +6,7 @@ import { Sidebar, TopBar } from './components/Layout';
 import Player from './components/Player';
 import { ItemMenu, PinDialog, ProgramModal, TrailerModal } from './components/Overlays';
 import ShowAlarms from './components/ShowAlarms';
+import { MatchModal } from './components/MatchStats';
 import Home from './pages/Home';
 import LiveTV from './pages/LiveTV';
 import Library from './pages/Library';
@@ -180,6 +181,7 @@ export default function App() {
       <Player />
       <ProgramModal />
       <ShowAlarms />
+      <MatchModal />
       <ItemMenu />
       <TrailerModal />
       <PinDialog />

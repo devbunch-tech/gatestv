@@ -1,5 +1,8 @@
 // Esportes: todos os jogos e lutas da lista (pelo guia de programação), os que estão passando agora
 // e os próximos. Cada jogo é um cartão com os escudos; ao abrir, mostra todos os canais que transmitem.
+import { MatchStats } from '../components/MatchStats';
+import { STATS_LEAGUES } from '../lib/match';
+import { eventForProgram, useTodaysEvents } from '../lib/sports';
 import { useMemo, useState } from 'react';
 import { useStore } from '../store';
 import { Empty, PageHeader, Thumb, initials } from '../components/Media';
@@ -73,6 +76,9 @@ function GameCard({ game, now, badges, onOpen }) {
 function GameChannels({ game, now, badges, onClose }) {
   const { play, openProgram, catalog } = useStore();
   const { prog, channels } = game;
+  // Jogo da agenda (ESPN) correspondente: mostra as estatísticas abaixo dos canais.
+  const events = useTodaysEvents();
+  const evt = eventForProgram(prog, events);
   const live = prog.start <= now && now < prog.stop;
   const { competition, home, away } = splitGame(prog.title);
   const open = (ch) => {
@@ -120,6 +126,7 @@ function GameChannels({ game, now, badges, onClose }) {
           </button>
         ))}
       </div>
+      {evt && STATS_LEAGUES.has(evt.league) && <MatchStats evt={evt} />}
     </Modal>
   );
 }

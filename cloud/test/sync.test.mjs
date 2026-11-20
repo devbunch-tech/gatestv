@@ -90,3 +90,8 @@ test('excluir o assinante apaga também os dados sincronizados e o histórico', 
   assert.equal(DB.raw.prepare('SELECT COUNT(*) AS c FROM userdata').get().c, 0);
   assert.equal(DB.raw.prepare('SELECT COUNT(*) AS c FROM watchlog').get().c, 0);
 });
+
+test('estatísticas do jogo: recusa ID inválido', async () => {
+  assert.equal((await call('/api/v1/match?id=../x')).http, 400);
+  assert.equal((await call('/api/v1/match?id=nba-123456')).http, 400);
+});

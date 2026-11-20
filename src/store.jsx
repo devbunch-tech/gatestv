@@ -261,6 +261,7 @@ export function StoreProvider({ account, children }) {
   const [pinReq, setPinReq] = useState(null);
   const [menuItem, setMenuItem] = useState(null);
   const [program, setProgram] = useState(null);
+  const [matchEvt, setMatchEvt] = useState(null); // jogo com o painel de estatísticas aberto
   const [trailer, setTrailer] = useState(null);
   const [toasts, setToasts] = useState([]);
   // Logos de canais embutidos no app (scripts/fetch-channel-logos.mjs): stream_id -> arquivo.
@@ -983,6 +984,9 @@ export function StoreProvider({ account, children }) {
     program,
     openProgram: setProgram,
     closeProgram: () => setProgram(null),
+    matchEvt,
+    openMatch: setMatchEvt,
+    closeMatch: () => setMatchEvt(null),
     trailer,
     openTrailer: setTrailer,
     closeTrailer: () => setTrailer(null),

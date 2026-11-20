@@ -8,6 +8,8 @@ import { img } from '../lib/meta';
 import Icon from './Icon';
 import { RatingBadge, Thumb, useOpenItem } from './Media';
 import { CastRow, Crew, MetaFacts, MetaHint, TrailerButton, useTmdbFind } from './MetaSections';
+import { eventForProgram, useTodaysEvents } from '../lib/sports';
+import { STATS_LEAGUES } from '../lib/match';
 
 export function Modal({ onClose, title, children, className = '' }) {
   const ref = useRef(null);
@@ -277,7 +279,8 @@ export function ProgramModal() {
 }
 
 function ProgramBody({ item, prog, onClose }) {
-  const { play, catalog, playing, isShowFav, toggleShow, notify } = useStore();
+  const { play, catalog, playing, isShowFav, toggleShow, notify, openMatch } = useStore();
+  const game = eventForProgram(prog, useTodaysEvents());
   const navigate = useNavigate();
   const showFav = isShowFav(prog, item);
   const type = /filme|movie|cinema/i.test(prog.category) ? 'movie' : /s[ée]rie|series/i.test(prog.category) ? 'tv' : 'multi';
@@ -351,6 +354,17 @@ function ProgramBody({ item, prog, onClose }) {
         >
           <Icon name={showFav ? 'star' : 'guide'} size={18} /> {showFav ? 'Lembrete ligado' : 'Avisar quando passar'}
         </button>
+        {game && STATS_LEAGUES.has(game.league) && (
+          <button
+            className="btn ghost"
+            onClick={() => {
+              onClose();
+              openMatch(game);
+            }}
+          >
+            <Icon name="ball" size={18} /> Estatísticas do jogo
+          </button>
+        )}
         <TrailerButton data={d} />
         {d && (
           <button

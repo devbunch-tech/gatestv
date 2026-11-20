@@ -474,3 +474,38 @@ html.device-phone body .featured .row-nav { display: none !important; }
 .fav-show .fs-info:disabled { cursor: default; }
 .fav-show .fs-info strong { font-size: 15px; }
 .fav-show .fs-info .muted { font-size: 13px; }
+
+/* Estatísticas do jogo (MatchStats) */
+.ms { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.ms-loading { flex-direction: row; align-items: center; gap: 10px; color: var(--muted); }
+.ms-sec { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.07); border-radius: 12px; padding: 14px 16px; outline: none; }
+.ms-sec:focus-visible, body.tv .ms-sec:focus { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand); }
+.ms-sec h3 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.ms-sec p { margin: 6px 0; font-size: 14px; }
+.ms-crest { width: 22px; height: 22px; object-fit: contain; vertical-align: middle; }
+.ms-crest-empty { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #333; font-size: 11px; }
+.ms-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: #222; }
+.ms-bar-h { background: var(--brand); }
+.ms-bar-d { background: #8a8a94; }
+.ms-bar-a { background: #0ea5e9; }
+.ms-bar-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0 4px; font-size: 14px; }
+.ms-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; }
+.ms-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ms-table th, .ms-table td { padding: 6px 8px; text-align: center; border-bottom: 1px solid rgba(255, 255, 255, 0.06); }
+.ms-table th:first-child, .ms-table td:first-child { text-align: left; }
+.ms-table td.hi { color: #2ecc71; font-weight: 700; }
+.ms-list { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.ms-list li { display: flex; gap: 10px; align-items: baseline; }
+.ms-list li > .muted:first-child { flex: none; min-width: 78px; font-size: 13px; }
+.ms-h2h b { padding: 0 2px; }
+.ms-two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.ms-team h3 { margin-bottom: 4px; }
+.ms-form { display: inline-flex; gap: 4px; vertical-align: middle; }
+.ms-r { width: 20px; height: 20px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; }
+.ms-V { background: #22a35a; }
+.ms-E { background: #77777f; }
+.ms-D { background: #d6334a; }
+.ms-next { margin-top: 6px; font-size: 14px; }
+.ms-src { text-align: right; }
+.match-modal { max-width: 860px; }
+@media (max-width: 700px) { .ms-two { grid-template-columns: 1fr; } }

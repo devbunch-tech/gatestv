@@ -8,6 +8,7 @@ import { evaluate, issueLicense, matchLogin, publicJwk, readToken, registerDevic
 import { sportsResponse } from './sports.js';
 import { crestImage, crestsResponse } from './crests.js';
 import { subsResponse } from './subs.js';
+import { matchResponse } from './match.js';
 import { applyReferralSplit, ensureTvCode, makeSubscribers, newRefCode, recordCommission, normPhone, PHONE_ERROR, startCheckout, startTrial } from './subscribers.js';
 
 const json = (code, obj, headers = {}) =>
@@ -137,6 +138,12 @@ async function route(req, env, cfg) {
   // Agenda esportiva (NFL, NBA, UFC, Premier League, Brasileirão) para todos os aparelhos.
   if (p === '/api/v1/sports') return json(200, await sportsResponse(env), { 'Cache-Control': 'public, max-age=300' });
   if (p === '/api/v1/crests' && req.method === 'GET') return json(200, await crestsResponse(env, url));
+  // Estatísticas de um jogo de futebol (confrontos, próximos jogos, artilheiros, chances).
+  if (p === '/api/v1/match' && req.method === 'GET') {
+    if (await db.limited('match:' + ip, 120, 3600e3)) return fail(429, 'rate_limited');
+    const r = await matchResponse(url).catch(() => ({ ok: false, error: 'unavailable', message: 'Estatísticas indisponíveis agora.' }));
+    return json(r.ok ? 200 : r.error === 'bad_request' ? 400 : 503, r, r.ok ? { 'Cache-Control': 'public, max-age=300' } : {});
+  }
   if (p === '/api/v1/crest-img' && req.method === 'GET') return crestImage(url);
   if (p === '/api/v1/subs' && req.method === 'GET') {
     if (await db.limited('subs:' + ip, 40, 3600e3)) return fail(429, 'rate_limited');

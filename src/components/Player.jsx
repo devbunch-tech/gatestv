@@ -14,6 +14,8 @@ import { BREAK_COUNT, BREAK_EVERY, BREAK_MAX, BREAK_SKIP_AFTER, PREROLL_WAIT, pi
 import { canCast, canMirror, castDevices, castDiscover, castPause, castSession, castStart, castStatus, castStop, isDlna, mirrorScreen } from '../lib/cast';
 import { SMART_TV, hasNative, isSubscriber, isTouch, native, vibrate } from '../lib/device';
 import { reportWatch } from '../lib/cloudsync';
+import { eventForProgram, useTodaysEvents } from '../lib/sports';
+import { STATS_LEAGUES } from '../lib/match';
 import { findNow, fmtTime, nowNext, progressOf, useNow } from '../lib/epg';
 
 const fmt = (s) => {
@@ -38,7 +40,7 @@ export default function Player() {
 }
 
 function PlayerView({ item, rawQueue }) {
-  const { stop, play, saveProgress, history, settings, programmesFor, ratingOf, openMenu, openProgram, catalog, liveHealth, markLiveHealth, notify, loadEpisodes } =
+  const { stop, play, saveProgress, history, settings, programmesFor, ratingOf, openMenu, openProgram, openMatch, catalog, liveHealth, markLiveHealth, notify, loadEpisodes } =
     useStore();
   const videoRef = useRef(null);
   const wrapRef = useRef(null);
@@ -202,9 +204,12 @@ function PlayerView({ item, rawQueue }) {
   const now = useNow(15000);
   const progs = isLive ? programmesFor(item) : null;
   const guide = useMemo(() => nowNext(progs, now), [progs, now]);
+  const todays = useTodaysEvents(isLive);
+  const game = isLive && guide.now ? eventForProgram(guide.now, todays) : null;
   const liveActions = isLive
     ? [
         { key: 'source', icon: 'refresh', label: 'Outra fonte', run: findOtherSource },
+        game && STATS_LEAGUES.has(game.league) && { key: 'stats', icon: 'ball', label: 'Estatísticas do jogo', run: () => openMatch(game) },
         guide.now && { key: 'details', icon: 'info', label: 'Mais detalhes, elenco e trailer', run: () => openProgram({ item, prog: guide.now }) },
       ].filter(Boolean)
     : [];
