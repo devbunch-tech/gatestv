@@ -14,6 +14,8 @@ import { ADULT_GROUP, REMOVE_ADULT } from './config/content';
 import { DEFAULT_APP_SETTINGS, DEFAULT_SOURCES } from './config/defaults';
 import { licenseConfig } from './lib/license';
 import { isSubscriber } from './lib/device';
+import { localizeStored, syncAvailable, syncNow } from './lib/cloudsync';
+import { makeShow, showIdOf } from './lib/shows';
 
 const Ctx = createContext(null);
 export const useStore = () => useContext(Ctx);
@@ -101,7 +103,7 @@ export const newProfile = (patch = {}) => ({
   ...patch,
 });
 
-const PROFILE_KEYS = ['favorites', 'history', 'hidden', 'deleted'];
+const PROFILE_KEYS = ['favorites', 'history', 'hidden', 'deleted', 'shows'];
 
 // Primeiro acesso da conta: cria os perfis configurados e traz os dados da versão anterior
 // (perfil "Principal" e itens excluídos globalmente) para o perfil master.
@@ -231,6 +233,8 @@ export function StoreProvider({ account, children }) {
   const [history, setHistory] = useScopedPersisted(scope + 'history', {});
   const [hiddenList, setHiddenList] = useScopedPersisted(scope + 'hidden', []);
   const [deletedList, setDeletedList] = useScopedPersisted(scope + 'deleted', []);
+  // Programas de TV favoritos (lembretes): [{ id, title, norm, channel, channelName, at }]
+  const [shows, setShows] = useScopedPersisted(scope + 'shows', []);
   // Listas do master: lidas do armazenamento a cada troca de perfil (só o master as altera).
   const masterHidden = useMemo(
     () => (isMaster ? hiddenList : LS.load(mScope + 'hidden', [])),
@@ -671,6 +675,55 @@ export function StoreProvider({ account, children }) {
     return { byId, byName };
   }, [epg, epgSources]);
 
+  // ---------- Dados iguais em todos os aparelhos (assinantes) ----------
+  // Perfis, favoritos, histórico, ocultos e lembretes vão e voltam do servidor (lib/cloudsync.js).
+  const reloadFromStorage = () => {
+    const ps = LS.load(`acct:${account.id}:profiles`, profiles);
+    setProfiles(ps);
+    if (activeId && !ps.some((p) => p.id === activeId)) setActiveId(null);
+    setFavorites(LS.load(scope + 'favorites', []));
+    setHistory(LS.load(scope + 'history', {}));
+    setHiddenList(LS.load(scope + 'hidden', []));
+    setDeletedList(LS.load(scope + 'deleted', []));
+    setShows(LS.load(scope + 'shows', []));
+  };
+  const syncRef = useRef({ busy: false });
+  syncRef.current.run = async () => {
+    if (!isSubscriber || loading || syncRef.current.busy || !syncAvailable()) return;
+    syncRef.current.busy = true;
+    try {
+      if (await syncNow({ accountId: account.id, playlists, catalog })) reloadFromStorage();
+    } catch {
+      /* sem internet: tenta na próxima */
+    } finally {
+      syncRef.current.busy = false;
+    }
+  };
+  // IDs que esperavam esta lista ser cadastrada no aparelho.
+  useEffect(() => {
+    if (isSubscriber && !loading && localizeStored({ accountId: account.id, playlists, catalog })) reloadFromStorage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, playlists, itemsByPl]);
+  useEffect(() => {
+    if (!isSubscriber || loading) return undefined;
+    syncRef.current.run();
+    const t = setInterval(() => syncRef.current.run(), 2 * 60e3);
+    const onVis = () => syncRef.current.run();
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, account.id]);
+  // Mudança feita aqui (favorito, perfil, lembrete…): envia logo, sem esperar a rodada.
+  useEffect(() => {
+    if (!isSubscriber || loading) return undefined;
+    const t = setTimeout(() => syncRef.current.run(), 8000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [favorites, hiddenList, deletedList, shows, profiles]);
+
   const programmesFor = useCallback(
     (item) =>
       item?.type === 'live'
@@ -868,6 +921,14 @@ export function StoreProvider({ account, children }) {
     favorites,
     isFavorite: (id) => favorites.includes(id),
     toggleFavorite: toggleIn(setFavorites),
+    shows,
+    isShowFav: (prog, item) => !!prog && !!item && shows.some((x) => x.id === showIdOf(prog, item)),
+    toggleShow: (prog, item) => {
+      const id = showIdOf(prog, item);
+      setShows((l) => (l.some((x) => x.id === id) ? l.filter((x) => x.id !== id) : [...l, makeShow(prog, item)]));
+      return !shows.some((x) => x.id === id);
+    },
+    removeShow: (id) => setShows((l) => l.filter((x) => x.id !== id)),
     history,
     saveProgress: useCallback(
       (id, data) => setHistory((h) => ({ ...h, [id]: { ...h[id], ...data, at: Date.now() } })),

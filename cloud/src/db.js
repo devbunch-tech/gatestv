@@ -123,5 +123,49 @@ export function makeDb(D1) {
         if (Math.random() < 0.05) await D1.prepare('DELETE FROM pairs WHERE expires_at < ?').bind(now() - 25 * 3600e3).run(); // o teste grátis usa uma janela de 24h
       },
     },
+    // Perfis, favoritos, histórico e lembretes do assinante, iguais em todos os aparelhos.
+    // Cada chave guarda o horário (do aparelho) da última mudança: vale a mais nova.
+    userdata: {
+      async all(email) {
+        const r = await D1.prepare('SELECT k, v, at FROM userdata WHERE email = ?').bind(normEmail(email)).all();
+        return Object.fromEntries((r.results || []).map((x) => [x.k, { v: JSON.parse(x.v), at: x.at }]));
+      },
+      async put(email, entries) {
+        const key = normEmail(email);
+        const stmts = entries.map(([k, v, at]) =>
+          D1.prepare('INSERT INTO userdata (email, k, v, at) VALUES (?, ?, ?, ?) ON CONFLICT(email, k) DO UPDATE SET v = excluded.v, at = excluded.at WHERE excluded.at > userdata.at').bind(key, k, JSON.stringify(v), at)
+        );
+        if (stmts.length) await D1.batch(stmts);
+      },
+      async remove(email) {
+        await D1.prepare('DELETE FROM userdata WHERE email = ?').bind(normEmail(email)).run();
+      },
+    },
+    // O que cada perfil assistiu (uma linha por sessão de reprodução), guardado por WATCH_DAYS.
+    watch: {
+      async put(email, s) {
+        const t = now();
+        await D1.prepare(
+          'INSERT INTO watchlog (email, sid, profile, data, started_at, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(email, sid) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at'
+        )
+          .bind(normEmail(email), s.sid, s.profileId || '', JSON.stringify(s), t, t)
+          .run();
+        if (Math.random() < 0.02) await D1.prepare('DELETE FROM watchlog WHERE updated_at < ?').bind(t - WATCH_DAYS * 864e5).run();
+      },
+      async list(email, limit = 300) {
+        const r = await D1.prepare('SELECT data, started_at, updated_at FROM watchlog WHERE email = ? ORDER BY updated_at DESC LIMIT ?').bind(normEmail(email), limit).all();
+        return (r.results || []).map((x) => ({ ...JSON.parse(x.data), startedAt: x.started_at, updatedAt: x.updated_at }));
+      },
+      // Quem está assistindo agora (sessão atualizada nos últimos minutos), por e-mail.
+      async live(sinceMs = 3 * 60e3) {
+        const r = await D1.prepare('SELECT email, data, updated_at FROM watchlog WHERE updated_at > ? ORDER BY updated_at DESC LIMIT 500').bind(now() - sinceMs).all();
+        return (r.results || []).map((x) => ({ email: x.email, ...JSON.parse(x.data), updatedAt: x.updated_at }));
+      },
+      async remove(email) {
+        await D1.prepare('DELETE FROM watchlog WHERE email = ?').bind(normEmail(email)).run();
+      },
+    },
   };
 }
+
+export const WATCH_DAYS = 90; // dias que o histórico de reprodução fica guardado no servidor

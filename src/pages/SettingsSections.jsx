@@ -437,10 +437,10 @@ export function PlaybackSection() {
         Quando o filme ou episódio traz legenda junto com o vídeo, ela aparece em amarelo, centralizada e em letra arredondada.
       </Toggle>
       <Toggle checked={settings.trailerBreaks !== false} onChange={(v) => updateSettings({ trailerBreaks: v })} title="Trailers de lançamentos durante filmes e séries">
-        Antes de começar um filme ou série, passa o trailer de um lançamento do mesmo tipo, o de um filme estreando nos cinemas
-        do Brasil e uma crítica de filme ou série do canal Ei Nerd; a cada 12 minutos assistidos, passa mais 2 trailers de
-        lançamentos e volta ao ponto em que parou. Trailers só dublados ou legendados em português. O botão "Pular" libera em
-        5 segundos.
+        Antes de começar um filme ou série, passa o trailer de um lançamento do mesmo tipo e o de um filme estreando nos cinemas
+        do Brasil; se houver, também uma entrevista oficial de até 8 minutos e a crítica do canal Ei Nerd sobre o que você vai
+        assistir. A cada 12 minutos assistidos, passa mais 2 trailers de lançamentos e volta ao ponto em que parou. Trailers só
+        dublados ou legendados em português. O botão "Pular" libera em 5 segundos.
       </Toggle>
       {settings.curatedZap && <LiveHealthStatus />}
       <div className="field">

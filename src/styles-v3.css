@@ -458,3 +458,19 @@ html.device-phone body .featured .row-nav { display: none !important; }
 .tb-label strong { font-size: 18px; }
 .tb-skip { position: absolute; right: 24px; bottom: 28px; min-width: 150px; justify-content: center; background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255, 255, 255, 0.4); color: #fff; }
 .tb-skip:not(:disabled) { background: var(--brand); border-color: var(--brand); }
+
+/* Lembrete de programa favorito (aviso 5 min antes) */
+.show-alert { position: fixed; right: 20px; bottom: 20px; z-index: 450; display: flex; align-items: center; gap: 14px; max-width: min(520px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 12px; background: #24242a; border-left: 4px solid var(--brand); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6); animation: rise 0.2s ease-out; }
+.show-alert .sa-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.show-alert .sa-text small { color: var(--brand); font-weight: 800; letter-spacing: 0.06em; font-size: 11px; }
+.show-alert .sa-text strong { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) { .show-alert { left: 16px; right: 16px; bottom: 76px; } }
+
+/* Favoritos: programas de TV com lembrete */
+.fav-show-list { display: flex; flex-direction: column; gap: 8px; max-width: 760px; }
+.fav-show { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.05); }
+.fav-show .lb-logo { width: 56px; height: 40px; flex: none; }
+.fav-show .fs-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; background: none; border: 0; color: inherit; padding: 0; cursor: pointer; }
+.fav-show .fs-info:disabled { cursor: default; }
+.fav-show .fs-info strong { font-size: 15px; }
+.fav-show .fs-info .muted { font-size: 13px; }

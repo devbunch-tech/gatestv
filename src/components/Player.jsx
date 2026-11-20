@@ -10,9 +10,10 @@ import { isTvMode, rememberFocus, useKeyHandler } from '../lib/keys';
 import { baseName, channelKey, pickWorking, qualityRank, zapGroups } from '../lib/zapping';
 import { playableUrl } from '../lib/health';
 import { cuesAt, fetchSubs, subsMessage, subsQuery, subsSession } from '../lib/subs';
-import { BREAK_COUNT, BREAK_EVERY, BREAK_MAX, BREAK_SKIP_AFTER, PREROLL_WAIT, pickPreroll, pickTrailers } from '../lib/breaks';
+import { BREAK_COUNT, BREAK_EVERY, BREAK_MAX, BREAK_SKIP_AFTER, PREROLL_WAIT, pickTrailers, prerollSources } from '../lib/breaks';
 import { canCast, canMirror, castDevices, castDiscover, castPause, castSession, castStart, castStatus, castStop, isDlna, mirrorScreen } from '../lib/cast';
-import { SMART_TV, hasNative, isTouch, native, vibrate } from '../lib/device';
+import { SMART_TV, hasNative, isSubscriber, isTouch, native, vibrate } from '../lib/device';
+import { reportWatch } from '../lib/cloudsync';
 import { findNow, fmtTime, nowNext, progressOf, useNow } from '../lib/epg';
 
 const fmt = (s) => {
@@ -272,6 +273,34 @@ function PlayerView({ item, rawQueue }) {
       ? guide.now?.title || item.group
       : item.group;
 
+  // ---------- O que está sendo assistido (assinantes, para o painel) ----------
+  // Uma sessão por vídeo aberto: o servidor recebe a cada minuto o título, o perfil e até onde foi.
+  const { profile } = useStore();
+  const watchInfo = useRef(null);
+  watchInfo.current = {
+    profileId: profile?.id,
+    profileName: profile?.name,
+    type: isLive ? 'live' : item.series ? 'episode' : item.type,
+    title: item.series ? catalog.series.find((s) => s.id === seriesId)?.name || item.name : item.name,
+    sub: item.series ? subtitle : isLive ? guide.now?.title || '' : '',
+  };
+  useEffect(() => {
+    if (!isSubscriber) return undefined;
+    const sid = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const send = () => {
+      const v = videoRef.current;
+      if (!v || (v.paused && !castSession.device)) return;
+      reportWatch({ sid, ...watchInfo.current, position: isLive ? 0 : v.currentTime || 0, duration: isLive ? 0 : v.duration || 0 });
+    };
+    const first = setTimeout(send, 20000); // zapear rápido entre canais não conta
+    const t = setInterval(send, 60000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+
   // Carrega a fonte de acordo com o tipo do stream. Tenta direto no servidor (menor atraso);
   // se o servidor bloquear (CORS), refaz pelo proxy e memoriza o servidor.
   const [viaProxy, setViaProxy] = useState(false);
@@ -377,16 +406,29 @@ function PlayerView({ item, rawQueue }) {
       alive = false;
       if (breakRef.current?.loading) endBreak();
     }, (PREROLL_WAIT + 2) * 1000);
-    pickPreroll(catalog, trailerType, { exclude: titleKey, isRestricted })
-      .catch(() => [])
-      .then((list) => {
-        if (!alive || !breakRef.current?.loading) return;
-        clearTimeout(giveUp);
-        if (list.length) {
+    // Cada fonte entra na fila quando fica pronta (na ordem): o primeiro vídeo já começa e as
+    // buscas mais lentas (entrevista, crítica) terminam enquanto ele passa.
+    const content = { name: item.series ? catalog.series.find((s) => s.id === seriesId)?.name || item.name : item.name, type: trailerType };
+    (async () => {
+      const seen = new Set();
+      for (const p of prerollSources(catalog, trailerType, { exclude: titleKey, isRestricted }, content)) {
+        const t = await p;
+        if (!alive) return;
+        const b = breakRef.current;
+        if (!b) return; // a abertura já terminou (pulou tudo): não volta a interromper
+        if (!t || seen.has(t.key)) continue;
+        seen.add(t.key);
+        if (b.loading) {
+          clearTimeout(giveUp);
           videoRef.current?.pause();
-          showBreak({ list, i: 0, at: Date.now() });
-        } else endBreak();
-      });
+          showBreak({ list: [t], i: 0, at: Date.now(), pre: true });
+        } else if (b.pre) showBreak({ ...b, list: [...b.list, t] });
+      }
+      if (alive && breakRef.current?.loading) {
+        clearTimeout(giveUp);
+        endBreak();
+      }
+    })();
     return () => {
       alive = false;
       clearTimeout(giveUp);
@@ -1232,6 +1274,7 @@ function TrailerBreak({ trailer, pos, total, onDone }) {
       }
       const state = m?.event === 'onStateChange' ? m.info : m?.info?.playerState;
       if (state === 0) done.current(); // 0 = o trailer terminou
+      if (m?.event === 'onError') done.current(); // vídeo indisponível ou sem permissão para tocar aqui
     };
     window.addEventListener('message', onMsg);
     return () => {
@@ -1248,7 +1291,7 @@ function TrailerBreak({ trailer, pos, total, onDone }) {
       <iframe
         ref={frame}
         onLoad={listen}
-        src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&hl=pt-BR&cc_lang_pref=pt&origin=${origin}`}
+        src={`https://www.youtube-nocookie.com/embed/${trailer.key}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&hl=pt-BR&cc_lang_pref=pt${trailer.cc ? '&cc_load_policy=1' : ''}&origin=${origin}`}
         title={trailer.title}
         allow="autoplay; encrypted-media"
         tabIndex={-1}

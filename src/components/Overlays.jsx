@@ -277,8 +277,9 @@ export function ProgramModal() {
 }
 
 function ProgramBody({ item, prog, onClose }) {
-  const { play, catalog, playing } = useStore();
+  const { play, catalog, playing, isShowFav, toggleShow, notify } = useStore();
   const navigate = useNavigate();
+  const showFav = isShowFav(prog, item);
   const type = /filme|movie|cinema/i.test(prog.category) ? 'movie' : /s[ée]rie|series/i.test(prog.category) ? 'tv' : 'multi';
   const meta = useTmdbFind({ title: prog.title, year: prog.year, type });
   const d = meta.data;
@@ -340,6 +341,16 @@ function ProgramBody({ item, prog, onClose }) {
             <Icon name="play" size={18} /> Assistir canal
           </button>
         )}
+        {/* Programa favorito: avisa 5 min antes de cada exibição neste canal. */}
+        <button
+          className={`btn ghost ${showFav ? 'on' : ''}`}
+          onClick={() => {
+            const on = toggleShow(prog, item);
+            notify(on ? `Lembrete ligado: avisamos 5 minutos antes de “${prog.title}” no ${item.name}.` : `Lembrete de “${prog.title}” desligado.`);
+          }}
+        >
+          <Icon name={showFav ? 'star' : 'guide'} size={18} /> {showFav ? 'Lembrete ligado' : 'Avisar quando passar'}
+        </button>
         <TrailerButton data={d} />
         {d && (
           <button

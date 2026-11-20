@@ -8,3 +8,8 @@ CREATE INDEX IF NOT EXISTS hits_k ON hits (k, at);
 CREATE TABLE IF NOT EXISTS downloads (code TEXT PRIMARY KEY, file TEXT NOT NULL, email TEXT NOT NULL, expires_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL, updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS crests (k TEXT PRIMARY KEY, url TEXT, at INTEGER NOT NULL);
+-- Dados de cada assinante sincronizados entre aparelhos (perfis, favoritos, histórico, lembretes).
+CREATE TABLE IF NOT EXISTS userdata (email TEXT NOT NULL, k TEXT NOT NULL, v TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (email, k));
+-- O que cada perfil assistiu (uma linha por sessão; guardado por 90 dias).
+CREATE TABLE IF NOT EXISTS watchlog (email TEXT NOT NULL, sid TEXT NOT NULL, profile TEXT, data TEXT NOT NULL, started_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, PRIMARY KEY (email, sid));
+CREATE INDEX IF NOT EXISTS watchlog_recent ON watchlog (email, updated_at);

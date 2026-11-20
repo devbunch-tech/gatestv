@@ -5,6 +5,7 @@ import { Route, Routes, useLocation, useNavigate, useNavigationType } from 'reac
 import { Sidebar, TopBar } from './components/Layout';
 import Player from './components/Player';
 import { ItemMenu, PinDialog, ProgramModal, TrailerModal } from './components/Overlays';
+import ShowAlarms from './components/ShowAlarms';
 import Home from './pages/Home';
 import LiveTV from './pages/LiveTV';
 import Library from './pages/Library';
@@ -178,6 +179,7 @@ export default function App() {
       {isTouch && <BottomTabs />}
       <Player />
       <ProgramModal />
+      <ShowAlarms />
       <ItemMenu />
       <TrailerModal />
       <PinDialog />

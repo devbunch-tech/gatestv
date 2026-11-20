@@ -6,7 +6,7 @@
 // "Filmes/Séries adicionados recentemente" no Início) e só se o trailer for dublado ou
 // legendado em português do Brasil (vídeo marcado pt-BR no TMDB; os de Portugal ficam de fora).
 import { recentUnique } from './home';
-import { cinemaBR, cleanTitle, findTitle, getDetails, hasMetaKey, movieTrailersBR } from './meta';
+import { cinemaBR, cleanTitle, findTitle, getDetails, hasMetaKey, movieTrailersBR, normTitle } from './meta';
 import { NO_LOCAL_PROXY, fetchText } from './net';
 
 export const BREAK_EVERY = 12 * 60; // segundos assistidos entre um intervalo e outro
@@ -122,20 +122,153 @@ async function eiNerdReviews() {
   return list;
 }
 
-// Uma crítica do Ei Nerd (das mais recentes, sem repetir na sessão enquanto houver outras).
-export async function pickEiNerdReview() {
-  const list = (await eiNerdReviews()).slice(0, 10);
-  return takeNew(shuffle(list), 1)[0] || null;
+// ---------- Sobre o que vai passar: crítica do Ei Nerd e entrevista oficial ----------
+
+// Título do conteúdo em português e o original (pelo TMDB), já normalizados para comparar.
+async function contentInfo(content) {
+  if (!content?.name) return null;
+  const { title, year } = cleanTitle(content.name);
+  const titles = new Set([normTitle(title)]);
+  let display = title;
+  let original = '';
+  if (hasMetaKey()) {
+    const found = await findTitle({ title, year, type: content.type === 'series' ? 'tv' : 'movie' }).catch(() => null);
+    const d = found && (await getDetails(found.type, found.id).catch(() => null));
+    if (d?.title) {
+      display = d.title;
+      titles.add(normTitle(d.title));
+    }
+    if (d?.originalTitle) {
+      original = d.originalTitle;
+      titles.add(normTitle(d.originalTitle));
+    }
+  }
+  return { display, original, titles: [...titles].filter((t) => t.length >= 3) };
+}
+// O nome do vídeo cita o conteúdo (título inteiro, como palavras).
+const aboutContent = (videoTitle, info) => {
+  const v = ` ${normTitle(videoTitle)} `;
+  return info.titles.some((t) => v.includes(` ${t} `));
+};
+
+const secsOf = (txt) => String(txt || '').split(':').reduce((s, x) => s * 60 + (+x || 0), 0);
+
+// Vídeos de uma página do YouTube (busca geral ou busca dentro de um canal).
+function ytVideos(html) {
+  const m = /var ytInitialData = (\{.*?\});<\/script>/s.exec(html);
+  if (!m) return [];
+  let data;
+  try {
+    data = JSON.parse(m[1]);
+  } catch {
+    return [];
+  }
+  const out = [];
+  const walk = (o) => {
+    if (!o || typeof o !== 'object') return;
+    const v = o.videoRenderer;
+    if (v?.videoId) {
+      const owner = v.ownerText?.runs?.[0] || v.longBylineText?.runs?.[0];
+      out.push({
+        key: v.videoId,
+        title: v.title?.runs?.map((r) => r.text).join('') || v.title?.simpleText || '',
+        secs: secsOf(v.lengthText?.simpleText),
+        channel: owner?.text || '',
+        channelId: owner?.navigationEndpoint?.browseEndpoint?.browseId || '',
+        verified: (v.ownerBadges || []).some((b) => /VERIFIED|ARTIST/.test(b.metadataBadgeRenderer?.style || '')),
+      });
+      return;
+    }
+    for (const k in o) walk(o[k]);
+  };
+  walk(data);
+  return out;
 }
 
-// Abertura completa, nesta ordem: lançamento da plataforma, lançamento nos cinemas e crítica do Ei Nerd.
-// Cada fonte tem até PREROLL_WAIT segundos; a que não responder fica de fora.
-export async function pickPreroll(catalog, type, opts = {}) {
-  const within = (p) => Promise.race([p.catch(() => null), new Promise((r) => setTimeout(() => r(null), PREROLL_WAIT * 1000))]);
-  const list = await Promise.all([
-    within(pickTrailers(catalog, type, { ...opts, count: PREROLL_COUNT }).then((l) => l[0] || null)),
-    within(pickCinemaTrailer()),
-    within(pickEiNerdReview()),
-  ]);
-  return [...new Map(list.filter(Boolean).map((t) => [t.key, t])).values()];
+const YT_CACHE = 'gates:yt:'; // resultados de busca guardados por 3 dias
+async function ytSearch(url) {
+  try {
+    const c = JSON.parse(localStorage.getItem(YT_CACHE + hashKey(url)) || 'null');
+    if (c && Date.now() - c.at < 3 * 864e5) return c.list;
+  } catch {
+    /* sem cache */
+  }
+  const list = await fetchText(url, !NO_LOCAL_PROXY)
+    .then(ytVideos)
+    .catch(() => null);
+  if (!list) return [];
+  try {
+    localStorage.setItem(YT_CACHE + hashKey(url), JSON.stringify({ at: Date.now(), list: list.slice(0, 30) }));
+  } catch {
+    /* armazenamento cheio */
+  }
+  return list;
+}
+const hashKey = (s) => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(36);
+};
+
+// O dono do vídeo deixa tocar fora do YouTube? (oEmbed responde erro quando não deixa.)
+const embedOk = (key) =>
+  fetchText(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent('https://www.youtube.com/watch?v=' + key)}`, !NO_LOCAL_PROXY)
+    .then((t) => /"html"/.test(t))
+    .catch(() => false);
+async function firstEmbeddable(list) {
+  for (const v of list.slice(0, 4)) if (await embedOk(v.key)) return v;
+  return null;
+}
+
+// Crítica do Ei Nerd SOBRE este filme/série (das playlists de críticas, dos envios recentes ou da
+// busca dentro do canal). Sem uma crítica do próprio conteúdo, não passa nenhuma.
+const REVIEW_ANY = /opini[aã]o sincera|\breview\b|cr[ií]tica|an[aá]lise|vale a pena|assisti\b|[ée] bom\?|decepcion|obra[- ]prima/i;
+const NOT_REVIEW = /trailer|teaser|vem a[ií]|vazou|vazamento|rumor|teoria|easter egg|curiosidade|bastidores|data de estreia/i;
+export async function pickEiNerdReview(content) {
+  const info = await contentInfo(content);
+  if (!info?.titles.length) return null;
+  const ok = (v) => aboutContent(v.title, info) && REVIEW_ANY.test(v.title) && !NOT_REVIEW.test(v.title);
+  let list = (await eiNerdReviews()).filter(ok);
+  if (!list.length) {
+    const found = await ytSearch(`https://www.youtube.com/@einerdtv/search?query=${encodeURIComponent(info.display)}&hl=pt-BR&gl=BR`);
+    list = found
+      .filter((v) => (!v.channelId || v.channelId === EI_NERD) && v.secs >= 120 && ok(v))
+      .map((v) => ({ key: v.key, title: v.title, label: 'CRÍTICA · EI NERD', max: REVIEW_MAX }));
+  }
+  const v = await firstEmbeddable(takeNew(list, 4));
+  return v ? { ...v, label: 'CRÍTICA · EI NERD', max: REVIEW_MAX } : null;
+}
+
+// Entrevista oficial (elenco, direção, dubladores) sobre este filme/série: até 8 min, de canal
+// verificado (distribuidoras, streamings e produtores de conteúdo), português primeiro.
+export const INTERVIEW_MAX = 8 * 60;
+const INTERVIEW = /entrevista|interview|elenco|\bcast\b|dublador|bate[- ]papo|conversa|fala(m)? sobre|press junket|junket|bastidores|behind the scenes|making of/i;
+const NOT_INTERVIEW = /trailer|teaser|cr[ií]tica|review|react|rea[cç][aã]o|an[aá]lise|teoria|explicad|resumo|opini[aã]o|vale a pena|\bshorts?\b|#shorts/i;
+const OFFICIAL = /pictures|studios?\b|filmes|films?\b|netflix|prime video|amazon mgm|hbo|\bmax\b|disney|pixar|marvel|paramount|universal|warner|sony|lionsgate|a24|apple tv|globoplay|star\+|diamond|paris filmes|imagem filmes|california filmes/i;
+const PT = /entrevista|elenco|dublador|bate[- ]papo|conversa|fala(m)? sobre|bastidores|[ãõçáéíóú]/i;
+export async function pickInterview(content) {
+  const info = await contentInfo(content);
+  if (!info?.titles.length) return null;
+  const ok = (v) => v.verified && v.secs >= 45 && v.secs <= INTERVIEW_MAX && aboutContent(v.title, info) && INTERVIEW.test(v.title) && !NOT_INTERVIEW.test(v.title);
+  const search = (q) => ytSearch(`https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&hl=pt-BR&gl=BR`).then((l) => l.filter(ok));
+  let list = await search(`${info.display} entrevista elenco`);
+  if (!list.length && info.original && normTitle(info.original) !== normTitle(info.display)) list = await search(`${info.original} cast interview`);
+  const rank = (v) => (PT.test(v.title) ? 0 : 2) + (OFFICIAL.test(v.channel) ? 0 : 1);
+  list = [...new Map(list.map((v) => [v.key, v])).values()].sort((a, b) => rank(a) - rank(b));
+  const v = await firstEmbeddable(takeNew(list, 4));
+  return v ? { key: v.key, title: v.title, label: `ENTREVISTA · ${v.channel.toUpperCase()}`, max: INTERVIEW_MAX + 30, cc: !PT.test(v.title) } : null;
+}
+
+// Abertura, nesta ordem: lançamento da plataforma, lançamento nos cinemas, entrevista sobre o
+// conteúdo e crítica do Ei Nerd sobre ele. Devolve uma promessa por fonte (null = ficou de fora),
+// para o player começar pelo primeiro pronto e ir juntando os outros na fila.
+export const PREROLL_SLOW = 15; // segundos para a entrevista e a crítica (buscas no YouTube)
+export function prerollSources(catalog, type, opts = {}, content = null) {
+  const within = (p, secs) => Promise.race([p.catch(() => null), new Promise((r) => setTimeout(() => r(null), secs * 1000))]);
+  return [
+    within(pickTrailers(catalog, type, { ...opts, count: PREROLL_COUNT }).then((l) => l[0] || null), PREROLL_WAIT),
+    within(pickCinemaTrailer(), PREROLL_WAIT),
+    within(pickInterview(content), PREROLL_SLOW),
+    within(pickEiNerdReview(content), PREROLL_SLOW),
+  ];
 }

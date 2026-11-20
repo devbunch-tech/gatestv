@@ -74,6 +74,7 @@ function manifest(name, f) {
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 ${f.tv
     ? `    <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />`
@@ -105,6 +106,7 @@ ${f.tv
                 <category android:name="android.intent.category.LAUNCHER" />${f.tv ? '\n                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />' : ''}
             </intent-filter>
         </activity>
+        <receiver android:name="br.com.gatestv.app.ReminderReceiver" android:exported="false" />
     </application>
 </manifest>
 `;

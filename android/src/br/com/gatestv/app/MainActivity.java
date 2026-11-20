@@ -38,6 +38,8 @@ public class MainActivity extends Activity {
     private boolean playerMode = false;
     private boolean landscapeLocked = true;
     private String installToken; // chave de ativação gravada no APK pelo link de download
+    private String pendingReminder; // canal do lembrete tocado na notificação (a página abre ele)
+    private boolean askedNotify = false;
 
     private WebView web;
 
@@ -65,6 +67,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         readFlavor();
+        pendingReminder = getIntent() == null ? null : getIntent().getStringExtra(ReminderReceiver.EXTRA_CHANNEL);
         if (isTv()) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         else if (Build.VERSION.SDK_INT >= 21) {
             getWindow().setStatusBarColor(Color.parseColor("#121214"));
@@ -218,6 +221,14 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         if (web != null) web.onPause();
+    }
+
+    // App já aberto e o usuário tocou no aviso de um programa: a página abre o canal.
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        String ch = intent == null ? null : intent.getStringExtra(ReminderReceiver.EXTRA_CHANNEL);
+        if (ch != null) pendingReminder = ch;
     }
 
     @Override
@@ -436,6 +447,37 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public boolean mirrorScreen() {
             return openMirror();
+        }
+
+        // ---------- Lembretes de programas favoritos (ReminderReceiver) ----------
+        @JavascriptInterface
+        public void scheduleReminder(String key, double at, String title, String text, String channel) {
+            if (key == null || at < System.currentTimeMillis()) return;
+            ReminderReceiver.schedule(MainActivity.this, key, (long) at, title, text, channel);
+            // Android 13+: pede a permissão de notificação (uma vez por abertura do app).
+            if (Build.VERSION.SDK_INT >= 33 && !askedNotify
+                    && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                askedNotify = true;
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        requestPermissions(new String[] { "android.permission.POST_NOTIFICATIONS" }, 71);
+                    }
+                });
+            }
+        }
+
+        @JavascriptInterface
+        public void cancelReminder(String key) {
+            if (key != null) ReminderReceiver.cancel(MainActivity.this, key);
+        }
+
+        // Canal do aviso que abriu o app (uma vez só; vazio se não veio de um aviso).
+        @JavascriptInterface
+        public String takeReminder() {
+            String ch = pendingReminder;
+            pendingReminder = null;
+            return ch == null ? "" : ch;
         }
 
         @JavascriptInterface

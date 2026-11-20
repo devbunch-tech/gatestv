@@ -2,7 +2,7 @@
 // As páginas (site, /assinar, /conta, /admin, /ativar) são arquivos estáticos em cloud/public;
 // aqui ficam só as rotas /api, /admin/api, /webhooks e /health.
 import { makeConfig } from './config.js';
-import { makeDb, normEmail } from './db.js';
+import { WATCH_DAYS, makeDb, normEmail } from './db.js';
 import { makeAsaas } from './asaas.js';
 import { evaluate, issueLicense, matchLogin, publicJwk, readToken, registerDevice, trialStarted } from './license.js';
 import { sportsResponse } from './sports.js';
@@ -90,6 +90,9 @@ const cleanConfirmation = (b) => ({
   whatsapp: clean(b.whatsapp, 120),
 });
 
+// Chaves aceitas na sincronização: perfis da conta e, por perfil, favoritos/histórico/ocultos/excluídos/lembretes.
+const SYNC_KEY = /^(profiles|p:[\w-]{1,60}:(favorites|history|hidden|deleted|shows))$/;
+const SYNC_MAX = 300 * 1024; // tamanho máximo de cada chave (JSON)
 const device = (b) => ({ id: String(b.deviceId || '').slice(0, 80), name: String(b.deviceName || '').slice(0, 80), platform: String(b.platform || '').slice(0, 20) });
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const pairCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => CODE_CHARS[x % CODE_CHARS.length]).join('');
@@ -224,6 +227,44 @@ async function route(req, env, cfg) {
     if (!c?.devices?.[t.did]) return fail(401, 'invalid_token');
     const upd = await db.update(t.email, (x) => ((x.devices[t.did].lastSeen = Date.now()), x));
     return json(200, { ok: true, ...(await issueLicense(upd, t.did, cfg)) });
+  }
+  // ---------- App: dados do assinante iguais em todos os aparelhos ----------
+  // Perfis, favoritos, histórico e lembretes (pull/push por chave; vale a mudança mais nova) e o
+  // registro do que cada perfil assiste (watch). Só aparelhos ativados na conta.
+  if (p.startsWith('/api/v1/sync/') && req.method === 'POST') {
+    const t = await readToken(b.token, cfg);
+    if (!t || (b.deviceId && b.deviceId !== t.did)) return fail(401, 'invalid_token');
+    if (await db.limited('sync:' + t.did, 240, 3600e3)) return fail(429, 'rate_limited');
+    const c = await db.get(t.email);
+    if (!c?.devices?.[t.did]) return fail(401, 'invalid_token');
+    if (p === '/api/v1/sync/pull') return json(200, { ok: true, data: await db.userdata.all(t.email), now: Date.now() });
+    if (p === '/api/v1/sync/push') {
+      const entries = Object.entries(b.data || {})
+        .filter(([k, e]) => SYNC_KEY.test(k) && e && Number.isFinite(e.at) && e.v !== undefined && JSON.stringify(e.v).length <= SYNC_MAX)
+        .slice(0, 80)
+        .map(([k, e]) => [k, e.v, Math.min(e.at, Date.now() + 60e3)]);
+      await db.userdata.put(t.email, entries);
+      return json(200, { ok: true, saved: entries.length });
+    }
+    if (p === '/api/v1/sync/watch') {
+      const s = b.session || {};
+      if (!/^[\w-]{6,40}$/.test(String(s.sid || ''))) return fail(400, 'bad_request');
+      const str = (v, n = 160) => String(v ?? '').slice(0, n);
+      await db.watch.put(t.email, {
+        sid: s.sid,
+        profileId: str(s.profileId, 60),
+        profileName: str(s.profileName, 60),
+        type: str(s.type, 10),
+        title: str(s.title),
+        sub: str(s.sub),
+        position: Math.max(0, Math.round(+s.position || 0)),
+        duration: Math.max(0, Math.round(+s.duration || 0)),
+        device: str(c.devices[t.did]?.name || c.devices[t.did]?.platform, 60),
+        city: str(city, 60),
+      });
+      return json(200, { ok: true });
+    }
+    return fail(404, 'Rota inexistente.');
   }
   if (p === '/api/v1/logout' && req.method === 'POST') {
     const t = await readToken(b.token, cfg);
@@ -553,6 +594,8 @@ async function admin(req, url, b, { db, asaas, subs, cfg, fail }) {
       people: people.sort((a, b) => (a.kind === b.kind ? (a.name || a.email).localeCompare(b.name || b.email, 'pt-BR') : a.kind === 'paid' ? -1 : 1)),
     });
   }
+  // Assistindo agora: sessões atualizadas nos últimos 3 minutos, de todos os assinantes.
+  if (parts[0] === 'watching') return json(200, { ok: true, sessions: await db.watch.live() });
   if (parts[0] === 'summary') {
     const all = (await db.list()).map(view);
     const count = (st) => all.filter((c) => c.state.status === st && c.state.reason !== 'trial_ready').length;
@@ -598,6 +641,11 @@ async function admin(req, url, b, { db, asaas, subs, cfg, fail }) {
     return json(200, { ok: true, customers: list.filter((c) => !q || c.email.includes(q)).map(view) });
   }
   if (parts[2] === 'sync' && req.method === 'POST') return json(200, { ok: true, customer: view(await subs.sync(email)) });
+  // O que cada perfil assistiu (últimos 90 dias) e os perfis guardados na nuvem.
+  if (parts[2] === 'watch' && req.method === 'GET') {
+    const data = await db.userdata.all(email);
+    return json(200, { ok: true, sessions: await db.watch.list(email), profiles: data.profiles?.v || [], days: WATCH_DAYS });
+  }
   if (parts[2] === 'cancel' && req.method === 'POST') {
     const c = await db.get(email);
     for (const id of Object.keys(c?.gateway?.subscriptions || {})) await asaas.cancelSubscription(id).catch((e) => console.warn('[cancelar]', e.message));
@@ -636,6 +684,8 @@ async function admin(req, url, b, { db, asaas, subs, cfg, fail }) {
         }
       }
     await db.remove(email);
+    await db.userdata.remove(email);
+    await db.watch.remove(email);
     return json(200, { ok: true, cancelled });
   }
   return json(200, { ok: true, customer: view(await db.get(email)) });

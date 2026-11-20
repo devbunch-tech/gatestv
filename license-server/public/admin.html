@@ -81,6 +81,19 @@
   .dev button { height: 22px; padding: 0 6px; font-size: 11px; margin-left: 4px; }
   dialog { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 14px; padding: 20px; max-width: 420px; width: 92vw; }
   dialog::backdrop { background: rgba(0,0,0,.6); }
+  #w-dlg { max-width: 860px; }
+  .w-list { max-height: 62vh; overflow: auto; margin-top: 10px; }
+  .w-day { margin: 14px 0 6px; font-size: 13px; color: var(--muted); font-weight: 700; text-transform: capitalize; }
+  .w-row { display: flex; gap: 12px; align-items: baseline; padding: 8px 10px; border-radius: 8px; background: #141418; margin-bottom: 6px; }
+  .w-row .w-time { flex: none; width: 92px; font-size: 13px; color: var(--muted); }
+  .w-row .w-what { flex: 1; min-width: 0; }
+  .w-row .w-what small { display: block; color: var(--muted); }
+  .w-row .w-prof { flex: none; font-size: 13px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+  .w-live { color: #2ecc71; font-weight: 700; }
+  .w-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .w-filter button.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+  #now-box { margin: 0 0 14px; }
+  #now-box .w-row { background: var(--card); border: 1px solid var(--line); }
   dialog label { display: block; font-size: 13px; color: var(--muted); margin: 10px 0 4px; }
   dialog input { width: 100%; }
   .login { max-width: 360px; margin: 12vh auto; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px; }
@@ -200,6 +213,7 @@
     <button class="pri" id="new">+ Assinante manual</button>
     <button id="out">Sair</button>
   </div>
+  <div id="now-box" hidden><h3 style="margin:0 0 8px">Assistindo agora</h3><div id="now-list"></div></div>
   <table>
     <thead><tr><th>Assinante</th><th>WhatsApp</th><th>Cidade</th><th>Último pagamento</th><th>Renovação</th><th>ID de liberação / aparelhos</th><th>Situação</th><th>Ações</th></tr></thead>
     <tbody id="rows"></tbody>
@@ -231,6 +245,13 @@
   </div>
   <p class="muted" style="font-size:13px;margin-top:12px">Dica: deixe a janela do WhatsApp Web conectada numa aba para enviar mais rápido.</p>
 </dialog>
+<dialog id="w-dlg">
+  <h2 id="w-t">O que foi assistido</h2>
+  <p class="muted" id="w-sub" style="margin:0"></p>
+  <div class="w-filter" id="w-filter"></div>
+  <div class="w-list" id="w-list"></div>
+  <div class="actions" style="margin-top:14px"><button id="w-close">Fechar</button></div>
+</dialog>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -254,6 +275,7 @@
   const sub = (parent, text, cls = 'muted') => { const d = document.createElement('div'); d.className = cls; d.textContent = text; parent.append(d); return d; };
   async function load() {
     const s = await api('summary');
+    loadNow();
     for (const k of ['total', 'active', 'grace', 'suspended']) $('s-' + k).textContent = s[k];
     $('store').textContent = 'Pagamentos: ' + s.store + (s.connected ? '' : ' (ainda não configurado)');
     const { customers } = await api('customers?q=' + encodeURIComponent($('q').value.trim().toLowerCase()));
@@ -339,6 +361,7 @@
       btn('Liberar até…', () => openDlg(c));
       if (c.override === 'active') btn('Tirar liberação', () => act(path, 'POST', { override: null, overrideUntil: '' }, 'Volta a seguir os pagamentos.'));
       btn('Atualizar', () => act(path + '/sync', 'POST', {}, 'Pagamentos atualizados.'));
+      btn('Assistido', () => openWatch(c));
       if (c.gateway && c.gateway.subscriptions && !c.cancelledAt) btn('Cancelar cobranças', () => confirm('Cancelar as cobranças futuras de ' + c.email + '?') && act(path + '/cancel', 'POST', {}, 'Assinatura cancelada no Asaas.'));
       btn('Excluir', () => {
         const charges = c.gateway && c.gateway.subscriptions && Object.keys(c.gateway.subscriptions).length && !c.cancelledAt;
@@ -367,6 +390,62 @@
   }
 
   let editing = null;
+  // ---------- O que cada perfil assistiu ----------
+  const TYPE = { live: 'Canal', movie: 'Filme', episode: 'Série', series: 'Série' };
+  const hm = (t) => new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const dur = (s) => { s = Math.round(s || 0); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? h + ' h ' + String(m).padStart(2, '0') + ' min' : m + ' min'; };
+  const isNow = (x) => Date.now() - x.updatedAt < 3 * 60e3;
+  function watchRow(x, who) {
+    const r = document.createElement('div'); r.className = 'w-row';
+    const t = document.createElement('div'); t.className = 'w-time'; t.textContent = hm(x.startedAt || x.updatedAt) + (isNow(x) ? '' : ' – ' + hm(x.updatedAt));
+    const w = document.createElement('div'); w.className = 'w-what';
+    const b = document.createElement('b'); b.textContent = (TYPE[x.type] ? TYPE[x.type] + ': ' : '') + (x.title || '—'); w.append(b);
+    const info = [x.sub, x.duration ? 'parou em ' + dur(x.position) + ' de ' + dur(x.duration) : x.type === 'live' && x.startedAt ? 'assistiu ' + dur((x.updatedAt - x.startedAt) / 1000) : '', x.device, x.city].filter(Boolean).join(' · ');
+    if (info) sub(w, info);
+    if (isNow(x)) { const n = document.createElement('span'); n.className = 'w-live'; n.textContent = ' ● assistindo agora'; b.append(n); }
+    const p = document.createElement('span'); p.className = 'w-prof'; p.textContent = (who ? who + ' · ' : '') + (x.profileName || 'perfil');
+    r.append(t, w, p);
+    return r;
+  }
+  let wData = null, wProf = '';
+  function renderWatch() {
+    const list = $('w-list'); list.innerHTML = '';
+    const rows = wData.sessions.filter((x) => !wProf || x.profileId === wProf);
+    if (!rows.length) { sub(list, wData.sessions.length ? 'Nada deste perfil.' : 'Nada registrado ainda. O registro começa quando o assinante usa o app na versão 1.0.12 ou mais nova.'); return; }
+    let day = '';
+    for (const x of rows) {
+      const d = new Date(x.startedAt || x.updatedAt).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      if (d !== day) { day = d; const h = document.createElement('div'); h.className = 'w-day'; h.textContent = d; list.append(h); }
+      list.append(watchRow(x));
+    }
+  }
+  async function openWatch(c) {
+    $('w-t').textContent = 'O que foi assistido — ' + (c.name || c.email);
+    $('w-sub').textContent = 'Carregando…'; $('w-list').innerHTML = ''; $('w-filter').innerHTML = '';
+    $('w-dlg').showModal();
+    try { wData = await api('customers/' + encodeURIComponent(c.email) + '/watch'); } catch (e) { $('w-sub').textContent = e.message; return; }
+    $('w-sub').textContent = 'Últimos ' + wData.days + ' dias · ' + wData.sessions.length + ' sessões · perfis: ' + (wData.profiles.map((p) => p.name).join(', ') || '—');
+    // Filtro por perfil (inclui perfis que só aparecem no histórico).
+    const profs = new Map(wData.profiles.map((p) => [p.id, p.name]));
+    for (const x of wData.sessions) if (x.profileId && !profs.has(x.profileId)) profs.set(x.profileId, x.profileName || 'perfil');
+    wProf = '';
+    const mk = (id, name) => { const b = document.createElement('button'); b.className = 'sm' + (id === wProf ? ' on' : ''); b.textContent = name; b.onclick = () => { wProf = id; [...$('w-filter').children].forEach((x) => x.classList.toggle('on', x === b)); renderWatch(); }; $('w-filter').append(b); };
+    mk('', 'Todos os perfis');
+    for (const [id, name] of profs) mk(id, name);
+    renderWatch();
+  }
+  $('w-close').onclick = () => $('w-dlg').close();
+  async function loadNow() {
+    try {
+      const { sessions } = await api('watching');
+      const latest = new Map();
+      for (const x of sessions) if (!latest.has(x.email + x.profileId)) latest.set(x.email + x.profileId, x);
+      $('now-box').hidden = !latest.size;
+      const l = $('now-list'); l.innerHTML = '';
+      for (const x of latest.values()) l.append(watchRow({ ...x, startedAt: 0 }, x.email));
+    } catch { /* painel antigo do servidor local */ }
+  }
+  setInterval(() => !$('app').hidden && loadNow(), 60000);
   function openDlg(c) {
     editing = c;
     $('dlg-t').textContent = c ? 'Liberar acesso' : 'Novo assinante manual';
