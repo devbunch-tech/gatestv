@@ -10,9 +10,8 @@ import { isTvMode, rememberFocus, useKeyHandler } from '../lib/keys';
 import { baseName, channelKey, pickWorking, qualityRank, zapGroups } from '../lib/zapping';
 import { playableUrl } from '../lib/health';
 import { cuesAt, fetchSubs, subsMessage, subsQuery, subsSession } from '../lib/subs';
-import { BREAK_COUNT, BREAK_EVERY, BREAK_MAX, BREAK_SKIP_AFTER, PREROLL_COUNT, PREROLL_WAIT, pickTrailers } from '../lib/breaks';
+import { BREAK_COUNT, BREAK_EVERY, BREAK_MAX, BREAK_SKIP_AFTER, PREROLL_WAIT, pickPreroll, pickTrailers } from '../lib/breaks';
 import { canCast, canMirror, castDevices, castDiscover, castPause, castSession, castStart, castStatus, castStop, isDlna, mirrorScreen } from '../lib/cast';
-import { hasMetaKey } from '../lib/meta';
 import { SMART_TV, hasNative, isTouch, native, vibrate } from '../lib/device';
 import { findNow, fmtTime, nowNext, progressOf, useNow } from '../lib/epg';
 
@@ -338,7 +337,8 @@ function PlayerView({ item, rawQueue }) {
     endCast();
   };
   // ---------- Trailers de lançamentos (filmes e séries) ----------
-  // Antes de começar: 1 trailer. A cada 12 min assistidos: 2 trailers seguidos, e volta daqui.
+  // Antes de começar: lançamento da plataforma, lançamento nos cinemas e crítica do Ei Nerd.
+  // A cada 12 min assistidos: 2 trailers de lançamentos da plataforma, e volta daqui.
   // A contagem segue de um episódio para o outro da mesma série (BREAKS).
   const { isRestricted } = useStore();
   const [breakT, setBreakT] = useState(null); // { list: [{ key, title }], i, at } | { loading: true, at }
@@ -347,7 +347,8 @@ function PlayerView({ item, rawQueue }) {
   const nextTrailers = useRef(null); // null | 'loading' | [{ key, title }]
   const breaksOn = !isLive && settings.trailerBreaks !== false && (item.type === 'movie' || !!item.series);
   const titleKey = seriesId || item.primaryId || item.id;
-  const pickFor = (count) => pickTrailers(catalog, item.series ? 'series' : 'movie', { count, exclude: titleKey, isRestricted });
+  const trailerType = item.series ? 'series' : 'movie';
+  const pickFor = (count) => pickTrailers(catalog, trailerType, { count, exclude: titleKey, isRestricted });
   const showBreak = (b) => {
     breakRef.current = b;
     setBreakT(b);
@@ -363,20 +364,20 @@ function PlayerView({ item, rawQueue }) {
     if (b?.list && b.i < b.list.length - 1) showBreak({ ...b, i: b.i + 1, at: Date.now() });
     else endBreak();
   };
-  // Trailer de abertura: só ao começar um título novo (no episódio seguinte da mesma série, ou
+  // Abertura: só ao começar um título novo (no episódio seguinte da mesma série, ou
   // reabrindo o mesmo título pouco depois, não repete). O vídeo vai carregando por baixo.
   useEffect(() => {
     const fresh = BREAKS.key !== titleKey || Date.now() - BREAKS.seen > BREAK_FRESH;
     if (fresh) Object.assign(BREAKS, { key: titleKey, t: 0 });
     BREAKS.seen = Date.now();
-    if (!breaksOn || !fresh || casting || !hasMetaKey()) return undefined;
+    if (!breaksOn || !fresh || casting) return undefined;
     let alive = true;
     showBreak({ loading: true, at: Date.now() });
     const giveUp = setTimeout(() => {
       alive = false;
       if (breakRef.current?.loading) endBreak();
-    }, PREROLL_WAIT * 1000);
-    pickFor(PREROLL_COUNT)
+    }, (PREROLL_WAIT + 2) * 1000);
+    pickPreroll(catalog, trailerType, { exclude: titleKey, isRestricted })
       .catch(() => [])
       .then((list) => {
         if (!alive || !breakRef.current?.loading) return;
@@ -1220,7 +1221,7 @@ function TrailerBreak({ trailer, pos, total, onDone }) {
   done.current = onDone;
   useEffect(() => {
     const t = setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
-    const max = setTimeout(() => done.current(), BREAK_MAX * 1000);
+    const max = setTimeout(() => done.current(), (trailer.max || BREAK_MAX) * 1000);
     const onMsg = (e) => {
       if (!/youtube/.test(e.origin || '')) return;
       let m;
@@ -1253,11 +1254,11 @@ function TrailerBreak({ trailer, pos, total, onDone }) {
         tabIndex={-1}
       />
       <div className="tb-label">
-        <small>LANÇAMENTO{total > 1 ? ` · ${pos} de ${total}` : ''}</small>
+        <small>{trailer.label || 'LANÇAMENTO'}{total > 1 ? ` · ${pos} de ${total}` : ''}</small>
         <strong>{trailer.title}</strong>
       </div>
       <button className="btn tb-skip" tabIndex={-1} disabled={left > 0} onClick={() => done.current()}>
-        {left > 0 ? `Pular em ${left}` : isTvMode() ? 'OK para pular' : pos < total ? 'Próximo trailer' : 'Pular trailer'}
+        {left > 0 ? `Pular em ${left}` : isTvMode() ? 'OK para pular' : pos < total ? 'Próximo' : 'Pular'}
       </button>
     </div>
   );

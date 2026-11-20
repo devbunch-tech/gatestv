@@ -152,7 +152,7 @@ export function getDetails(type, id) {
         : (d.created_by || []).map((c) => ({ id: c.id, name: c.name }));
     // Trailer em português do Brasil primeiro (BR > pt > títulos em português > inglês). O TMDB só manda os
     // vídeos pt-BR quando pedido "pt-BR" (com "pt" vêm só os de Portugal).
-    const ptName = (v) => /dublad|legendad|trailer oficial|em portugu|pt-?br/i.test(v.name || '');
+    const ptName = (v) => /dublad|legendad|trailer oficial|em portugu|\bpt-?br\b/i.test(v.name || '');
     const rank = (v) =>
       (v.iso_639_1 === 'pt' ? (v.iso_3166_1 === 'BR' ? 0 : 0.6) : ptName(v) ? 1 : 3) + (v.type === 'Trailer' ? 0 : 1) + (v.official ? 0 : 0.5);
     const trailers = (d.videos?.results || [])
@@ -206,6 +206,38 @@ export function getDetails(type, id) {
       }
     }
     return out;
+  });
+}
+
+// Filmes em cartaz e estreando nos cinemas do Brasil (lista do dia). [{ id, title, adult }]
+export function cinemaBR() {
+  return cached(`cine:BR:${new Date().toISOString().slice(0, 10)}`, async () => {
+    const pages = await Promise.all([
+      tmdb('/movie/now_playing', { region: 'BR' }).catch(() => ({ results: [] })),
+      tmdb('/movie/upcoming', { region: 'BR' }).catch(() => ({ results: [] })),
+    ]);
+    // Estreia no Brasil de 60 dias atrás até 45 dias à frente (a lista "upcoming" traz filmes antigos às vezes).
+    const day = 86400e3;
+    const fresh = (r) => {
+      const t = Date.parse(r.release_date || '');
+      return t > Date.now() - 60 * day && t < Date.now() + 45 * day;
+    };
+    const seen = new Set();
+    return pages
+      .flatMap((p) => p.results || [])
+      .filter((r) => !r.adult && fresh(r) && !seen.has(r.id) && seen.add(r.id))
+      .map((r) => ({ id: r.id, title: r.title || r.original_title, date: r.release_date }));
+  });
+}
+
+// Trailers do filme só em pt-BR (dublados ou legendados). [{ key, name, lang, region }]
+export function movieTrailersBR(id) {
+  return cached(`vid:BR:movie:${id}`, async () => {
+    const d = await tmdb(`/movie/${id}/videos`, { include_video_language: 'pt-BR' });
+    return (d.results || [])
+      .filter((v) => v.site === 'YouTube' && ['Trailer', 'Teaser'].includes(v.type))
+      .sort((a, b) => (a.type === 'Trailer' ? 0 : 1) - (b.type === 'Trailer' ? 0 : 1))
+      .map((v) => ({ key: v.key, name: v.name, lang: v.iso_639_1, region: v.iso_3166_1 }));
   });
 }
 
