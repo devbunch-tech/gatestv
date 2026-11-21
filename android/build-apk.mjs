@@ -63,6 +63,9 @@ const FLAVORS = {
   'phone-admin': { pkg: 'br.com.gatestv.admin', label: 'GATES! ADM', port: 47126, file: 'GatesTV-Celular-Admin', orientation: 'sensorPortrait', device: 'phone', edition: 'admin' },
   // Tablet, edição admin: igual à do celular, com a tela girando livremente.
   'tablet-admin': { pkg: 'br.com.gatestv.admin.tablet', label: 'GATES! ADM', port: 47127, file: 'GatesTV-Tablet-Admin', orientation: 'fullUser', device: 'tablet', edition: 'admin' },
+  // Admin Crianças (igual ao instalador Gates-TV-Admin-Criancas): só Leticia e Melissa, abre na Melissa.
+  'kids-tv': { pkg: 'br.com.gatestv.criancas.tv', label: 'GATES! Crianças', port: 47146, file: 'Gates-TV-Admin-Criancas-TV', orientation: 'sensorLandscape', tv: true, device: 'tv', edition: 'kids' },
+  'kids-tablet': { pkg: 'br.com.gatestv.criancas.tablet', label: 'GATES! Crianças', port: 47147, file: 'Gates-TV-Admin-Criancas-Tablet', orientation: 'fullUser', device: 'tablet', edition: 'kids' },
 };
 
 function manifest(name, f) {

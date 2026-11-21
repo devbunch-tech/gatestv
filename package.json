@@ -17,6 +17,7 @@
     "build:android": "vite build && node android/build-apk.mjs tv",
     "build:mobile": "vite build && node android/build-apk.mjs phone,tablet,phone-admin",
     "build:admin": "vite build && node android/build-apk.mjs phone-admin,tablet-admin",
+    "build:criancas": "vite build && node android/build-apk.mjs kids-tv,kids-tablet",
     "build:assinantes": "node android/build-apk.mjs assinantes",
     "build:win:assinante": "node scripts/build-win-assinante.mjs",
     "build:win:criancas": "node scripts/build-win-criancas.mjs",
