@@ -29,7 +29,21 @@ const FAMILY_ACCOUNTS = import.meta.env.VITE_SUBSCRIBER === '1' || import.meta.e
 // Edição admin: conta local sem e-mail e sem senha — instalou, já está usando.
 const ADMIN_ACCOUNT = { id: 'admin', name: 'Admin', noLogin: true, profilesVersion: 1, profiles: ADMIN_PROFILES };
 
+// Edição crianças (instalador Gates-TV-Admin-Criancas): só Leticia e Melissa, sem login; abre na Melissa.
+// Leticia é o perfil master (o que ela oculta vale para as duas). Conteúdo acima da idade fica escondido.
+const KIDS_ACCOUNT = {
+  id: 'kids',
+  name: 'Crianças',
+  noLogin: true,
+  profilesVersion: 1,
+  defaultProfile: 'kids-melissa',
+  profiles: [
+    { id: 'kids-leticia', name: 'Leticia', emoji: '🦄', color: '#a855f7', photo: '/avatars/leticia.jpg', photoPos: '50% 18%', master: true, maxAge: 16, hideRestricted: true },
+    { id: 'kids-melissa', name: 'Melissa', emoji: '🐱', color: '#ec4899', photo: '/avatars/melissa.jpg', photoPos: '50% 22%', kids: true, maxAge: 12, hideRestricted: true },
+  ],
+};
+
 // Degustação: visitante sem login.
 const DEMO_ACCOUNT = { id: 'demo', name: 'Visitante', noLogin: true, profilesVersion: 1, profiles: [{ id: 'demo-visitante', name: 'Visitante', emoji: '👀', color: '#ec0b43', master: true }] };
 
-export const ACCOUNTS = EDITION === 'demo' ? [DEMO_ACCOUNT] : EDITION === 'admin' ? [ADMIN_ACCOUNT] : FAMILY_ACCOUNTS;
+export const ACCOUNTS = EDITION === 'demo' ? [DEMO_ACCOUNT] : EDITION === 'admin' ? [ADMIN_ACCOUNT] : EDITION === 'kids' ? [KIDS_ACCOUNT] : FAMILY_ACCOUNTS;

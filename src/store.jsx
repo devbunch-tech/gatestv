@@ -165,7 +165,7 @@ function migrateSettings() {
 }
 
 const SESSION_KEY = 'gates:activeProfile';
-const loadActive = (profiles) => {
+const loadActive = (profiles, defaultId) => {
   let id = null;
   try {
     id = sessionStorage.getItem(SESSION_KEY);
@@ -173,6 +173,8 @@ const loadActive = (profiles) => {
     /* sem sessionStorage */
   }
   if (profiles.some((p) => p.id === id)) return id;
+  const def = defaultId && profiles.find((p) => p.id === defaultId && !p.pin);
+  if (def) return def.id;
   return profiles.length === 1 && !profiles[0].pin ? profiles[0].id : null;
 };
 
@@ -223,7 +225,7 @@ export function StoreProvider({ account, children }) {
   const [seeded] = useState(() => seedAccount(account));
   const [playlists, setPlaylists] = usePersisted('playlists', []);
   const [profiles, setProfiles] = usePersisted(`acct:${account.id}:profiles`, seeded);
-  const [activeId, setActiveId] = useState(() => loadActive(seeded));
+  const [activeId, setActiveId] = useState(() => loadActive(seeded, account.defaultProfile));
   const profile = profiles.find((p) => p.id === activeId) || null;
   const master = profiles.find((p) => p.master) || profiles[0];
   const isMaster = !!profile && profile.id === master?.id;

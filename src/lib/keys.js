@@ -62,6 +62,11 @@ function onKeyDown(e) {
   }
   if (t?.tagName === 'SELECT' && (k === 'up' || k === 'down')) return;
   if (t?.type === 'range' && (k === 'left' || k === 'right')) return;
+  // OK do controle marca/desmarca caixas e interruptores (o Enter não faz isso sozinho).
+  if (k === 'ok' && (t?.type === 'checkbox' || t?.type === 'radio')) {
+    t.click();
+    return e.preventDefault();
+  }
 
   // Handlers retornam: true (tratado), 'nav' (bloqueia camadas abaixo, mas permite navegação) ou false.
   for (let i = stack.length - 1; i >= 0; i--) {

@@ -1,10 +1,10 @@
 // Menu CLARK (só nas edições da família e admin, nunca para assinantes nem na degustação):
 // canais do YouTube escolhidos para as crianças, com os vídeos mais recentes de cada um,
 // vídeos avulsos (ex.: "Para dormir") e sugestões de canais parecidos para adicionar depois.
-import { isDemo, isSubscriber } from './device';
+import { EDITION, isDemo, isSubscriber } from './device';
 import { NO_LOCAL_PROXY, fetchText } from './net';
 
-export const HAS_CLARK = !isSubscriber && !isDemo;
+export const HAS_CLARK = !isSubscriber && !isDemo && EDITION !== 'kids';
 
 // Canais fixos do menu (ID do canal no YouTube).
 export const CLARK_CHANNELS = [

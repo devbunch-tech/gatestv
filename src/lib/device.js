@@ -21,10 +21,11 @@ function detect() {
 
 export const DEVICE = detect();
 // Edição do app: 'admin' = só o perfil administrador, sem fotos (APK "Celular Admin").
-// Edição do app: 'family' (perfis da família), 'admin' (só o perfil administrador, sem login) ou
+// Edição do app: 'family' (perfis da família), 'admin' (só o perfil administrador, sem login), 'kids'
+// (instalador Gates-TV-Admin-Criancas: só Leticia e Melissa, sem login) ou
 // 'subscriber' (assinantes: login com a compra na Nuvemshop e licença validada no servidor).
 export const EDITION =
-  import.meta.env.VITE_DEMO === '1' ? 'demo' : import.meta.env.VITE_SUBSCRIBER === '1' ? 'subscriber' : (query.match(/[?&]edition=(admin|subscriber)(?![a-z])/) || [])[1] || 'family';
+  import.meta.env.VITE_DEMO === '1' ? 'demo' : import.meta.env.VITE_SUBSCRIBER === '1' ? 'subscriber' : (query.match(/[?&]edition=(admin|kids|subscriber)(?![a-z])/) || [])[1] || 'family';
 export const isSubscriber = EDITION === 'subscriber';
 // Degustação: app aberto no site, só com canais de sinal aberto oficial.
 export const isDemo = EDITION === 'demo';

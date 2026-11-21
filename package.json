@@ -4,7 +4,7 @@
   "description": "GATES! TV — IPTV com interface no estilo Plex",
   "author": "GATES! TV",
   "private": true,
-  "version": "1.0.14",
+  "version": "1.0.15",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -19,6 +19,7 @@
     "build:admin": "vite build && node android/build-apk.mjs phone-admin,tablet-admin",
     "build:assinantes": "node android/build-apk.mjs assinantes",
     "build:win:assinante": "node scripts/build-win-assinante.mjs",
+    "build:win:criancas": "node scripts/build-win-criancas.mjs",
     "build:teste": "node android/build-apk.mjs teste && node scripts/build-win-teste.mjs",
     "teste:servidor": "node license-server/demo.mjs",
     "license-server": "node license-server/server.mjs",

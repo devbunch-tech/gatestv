@@ -11,7 +11,7 @@ import { NO_LOCAL_PROXY, fetchText } from './net';
 
 export const BREAK_EVERY = 12 * 60; // segundos assistidos entre um intervalo e outro
 export const BREAK_COUNT = 2; // trailers em cada intervalo
-export const PREROLL_COUNT = 1; // trailers antes de começar
+export const PREROLL_COUNT = 2; // trailers da plataforma antes de começar (mais 1 do cinema = 3)
 export const PREROLL_WAIT = 6; // segundos esperando o trailer de abertura antes de desistir
 export const BREAK_SKIP_AFTER = 5; // segundos até liberar o "Pular"
 export const BREAK_MAX = 180; // segundos: se o trailer não avisar que acabou, segue em frente
@@ -315,15 +315,18 @@ export async function pickInterview(content) {
   return v ? { key: v.key, title: v.title, label: `ENTREVISTA · ${v.channel.toUpperCase()}`, max: INTERVIEW_MAX + 30, cc: !PT.test(v.title) } : null;
 }
 
-// Abertura, nesta ordem: lançamento da plataforma, lançamento nos cinemas, entrevista sobre o
+// Abertura, nesta ordem: 2 lançamentos da plataforma e 1 dos cinemas, entrevista sobre o
 // conteúdo e crítica do Ei Nerd sobre ele. Devolve uma promessa por fonte (null = ficou de fora),
 // para o player começar pelo primeiro pronto e ir juntando os outros na fila.
 export const PREROLL_SLOW = 15; // segundos para a entrevista e a crítica (buscas no YouTube)
 export function prerollSources(catalog, type, opts = {}, content = null) {
   const within = (p, secs) => Promise.race([p.catch(() => null), new Promise((r) => setTimeout(() => r(null), secs * 1000))]);
+  // 3 trailers: plataforma, cinema e plataforma de novo (os dois primeiros são obrigatórios).
+  const platform = pickTrailers(catalog, type, { ...opts, count: PREROLL_COUNT });
   return [
-    within(pickTrailers(catalog, type, { ...opts, count: PREROLL_COUNT }).then((l) => (l[0] ? { ...l[0], mandatory: true } : null)), PREROLL_WAIT),
+    within(platform.then((l) => (l[0] ? { ...l[0], mandatory: true } : null)), PREROLL_WAIT),
     within(pickCinemaTrailer(catalog).then((t) => (t ? { ...t, mandatory: true } : null)), PREROLL_WAIT),
+    within(platform.then((l) => l[1] || null), PREROLL_WAIT),
     within(pickInterview(content), PREROLL_SLOW),
     within(pickEiNerdReview(content), PREROLL_SLOW),
   ];

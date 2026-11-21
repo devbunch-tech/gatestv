@@ -70,7 +70,7 @@ async function createWindow() {
     shell.openExternal(url);
     return { action: 'deny' };
   });
-  await win.loadURL(`http://127.0.0.1:${PORT}/`);
+  await win.loadURL(`http://127.0.0.1:${PORT}/${pkg.gatesQuery || ''}`);
 }
 
 // Configurações → "Desligar o computador": fecha o app e desliga o Windows em 3 segundos.

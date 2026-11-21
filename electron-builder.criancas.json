@@ -1,0 +1,50 @@
+{
+  "appId": "br.com.gatestv.criancas",
+  "productName": "GATES TV Criancas",
+  "copyright": "GATES! TV",
+  "directories": {
+    "output": "release/criancas-win",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist/**/*",
+    "server/**/*",
+    "electron/**/*",
+    "build/icon.png",
+    "package.json"
+  ],
+  "extraMetadata": {
+    "name": "gates-tv-criancas",
+    "productName": "GATES TV Criancas",
+    "gatesWeb": "dist",
+    "gatesPort": 47145,
+    "gatesTitle": "GATES! TV Crianças",
+    "gatesUserData": "GATES TV Criancas",
+    "gatesQuery": "?edition=kids"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "icon": "build/icon.png",
+    "artifactName": "Gates-TV-Admin-Criancas-${version}.exe"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "GATES! TV Crianças",
+    "uninstallDisplayName": "GATES! TV Crianças",
+    "installerLanguages": [
+      "pt_BR"
+    ],
+    "language": "1046"
+  }
+}
