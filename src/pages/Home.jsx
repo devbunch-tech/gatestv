@@ -1,3 +1,4 @@
+import { EDITION } from '../lib/device';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { cachedImg } from '../lib/imgcache';
 import { useNavigate } from 'react-router-dom';
@@ -341,12 +342,13 @@ export default function Home() {
 
   return (
     <div className="home clean">
-      <FeaturedGames now={now} />
+      {EDITION !== 'kids' && <FeaturedGames now={now} />}
       <ContinueRow />
 
       {renderRow(recentMovies, 'Nenhum filme nas suas listas.')}
       {renderRow(recentSeries, 'Nenhuma série nas suas listas.')}
 
+      {EDITION !== 'kids' && (
       <Row title="Jogos ao vivo e próximos" to="/live">
         {games.length ? (
           games.map((g) => <GameCard key={g.key} game={g} now={now} badges={badges} />)
@@ -360,6 +362,7 @@ export default function Home() {
           </p>
         )}
       </Row>
+      )}
 
       {/* Plataformas: só aparecem se a fonte tiver a categoria correspondente. */}
       {providerRows.map((r) => renderRow(r))}

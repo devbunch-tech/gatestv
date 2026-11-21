@@ -455,20 +455,27 @@ export function StoreProvider({ account, children }) {
       for (const p of saved) map[p.id] = (await get('items:' + p.id)) || [];
       if (!alive) return;
       setItemsByPl(map);
-      // Primeira abertura (instaladores): carrega as fontes de src/config/defaults.js.
-      if (!saved.length && DEFAULT_SOURCES.length && !LS.load('defaultsSeeded', false)) {
-        LS.save('defaultsSeeded', true);
-        for (const d of DEFAULT_SOURCES) {
-          try {
-            if (d.type === 'xtream') {
-              const xtream = { server: d.server.replace(/\/+$/, ''), username: d.username, password: d.password, output: d.output || 'ts' };
-              const url = `${xtream.server}/get.php?username=${encodeURIComponent(d.username)}&password=${encodeURIComponent(d.password)}`;
-              await importPlaylist({ name: d.name, url, source: 'xtream', xtream });
-            } else await importPlaylist({ name: d.name, url: d.url, source: 'url' });
-          } catch (e) {
-            notify(`Não foi possível carregar a fonte “${d.name}”: ${e.message}`, 'err');
+      // Primeira abertura (instaladores): carrega as fontes de src/config/defaults.js. A marca
+      // "defaultsLoaded" (antes "defaultsSeeded", gravada mesmo quando falhava) só vale depois de dar certo.
+      if (!saved.length && DEFAULT_SOURCES.length && !LS.load('defaultsLoaded', false)) {
+        const seed = async (retry) => {
+          let ok = 0;
+          for (const d of DEFAULT_SOURCES) {
+            try {
+              if (d.type === 'xtream') {
+                const xtream = { server: d.server.replace(/\/+$/, ''), username: d.username, password: d.password, output: d.output || 'ts' };
+                const url = `${xtream.server}/get.php?username=${encodeURIComponent(d.username)}&password=${encodeURIComponent(d.password)}`;
+                await importPlaylist({ name: d.name, url, source: 'xtream', xtream });
+              } else await importPlaylist({ name: d.name, url: d.url, source: 'url' });
+              ok++;
+            } catch (e) {
+              notify(`Não foi possível carregar a fonte “${d.name}”: ${e.message}${retry ? ' Tentando de novo em 30 segundos…' : ''}`, 'err');
+            }
           }
-        }
+          if (ok) LS.save('defaultsLoaded', true);
+          return ok;
+        };
+        if (!(await seed(true)) && alive) setTimeout(() => !LS.load('defaultsLoaded', false) && seed(false), 30000);
       }
       if (!alive) return;
       setLoading(false);
