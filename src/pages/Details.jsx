@@ -1,3 +1,4 @@
+import StarRating from '../components/StarRating';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useStore } from '../store';
@@ -143,6 +144,7 @@ export default function Details() {
               <Icon name="more" size={18} />
             </button>
           </div>
+          <StarRating id={item.id} />
           {resuming && h.duration > 0 && (
             <div className="details-progress">
               <div className="card-progress static">

@@ -95,3 +95,14 @@ test('estatísticas do jogo: recusa ID inválido', async () => {
   assert.equal((await call('/api/v1/match?id=../x')).http, 400);
   assert.equal((await call('/api/v1/match?id=nba-123456')).http, 400);
 });
+
+test('sincroniza "Assistir depois" e avaliações', async () => {
+  DB.raw
+    .prepare('INSERT OR REPLACE INTO customers (email, data, updated_at) VALUES (?, ?, ?)')
+    .run('notas@teste.com', JSON.stringify({ email: 'notas@teste.com', orders: {}, override: 'active', devices: { d1: { name: 'TV' } } }), Date.now());
+  const tk = await signToken({ email: 'notas@teste.com', did: 'd1', exp: Date.now() + 864e5 }, cfg);
+  const r = await call('/api/v1/sync/push', { token: tk, deviceId: 'd1', data: { 'p:u1:later': { v: ['~p~k~m1'], at: 10 }, 'p:u1:ratings': { v: { '~p~k~m1': { stars: 5, at: 9 } }, at: 10 } } });
+  assert.equal(r.saved, 2);
+  const p = await call('/api/v1/sync/pull', { token: tk, deviceId: 'd1' });
+  assert.equal(p.data['p:u1:ratings'].v['~p~k~m1'].stars, 5);
+});

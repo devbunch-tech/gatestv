@@ -57,3 +57,63 @@ export async function channelVideos(id) {
   }
   return list;
 }
+
+// Busca de canais pelo nome (resultados do YouTube só do tipo "Canal"). O YouTube alterna entre
+// dois formatos de página (channelRenderer e o novo lockupViewModel): lê os dois e, se vier vazio,
+// tenta mais uma vez.
+const deepStrings = (o, out = []) => {
+  if (typeof o === 'string') out.push(o);
+  else if (o && typeof o === 'object') for (const k in o) deepStrings(o[k], out);
+  return out;
+};
+function parseChannels(html) {
+  const m = /var ytInitialData = (\{.*?\});<\/script>/s.exec(html);
+  if (!m) return [];
+  let data;
+  try {
+    data = JSON.parse(m[1]);
+  } catch {
+    return [];
+  }
+  const out = [];
+  const walk = (o) => {
+    if (!o || typeof o !== 'object') return;
+    const c = o.channelRenderer;
+    if (c?.channelId) {
+      out.push({
+        id: c.channelId,
+        name: c.title?.simpleText || '',
+        about: [c.videoCountText?.simpleText, c.subscriberCountText?.simpleText].find((x) => /inscrit/i.test(x || '')) || '',
+        verified: (c.ownerBadges || []).length > 0,
+        photo: c.thumbnail?.thumbnails?.slice(-1)[0]?.url?.replace(/^\/\//, 'https://') || '',
+      });
+      return;
+    }
+    const l = o.lockupViewModel;
+    if (l && /^UC[\w-]{22}$/.test(l.contentId || '')) {
+      const strs = deepStrings(l);
+      const json = JSON.stringify(l);
+      out.push({
+        id: l.contentId,
+        name: l.metadata?.lockupMetadataViewModel?.title?.content || '',
+        about: strs.find((x) => /inscrit/i.test(x)) || '',
+        verified: /CHECK_CIRCLE|VERIFIED/.test(json),
+        photo: (strs.find((x) => /^(https:)?\/\/yt\d?\.(ggpht|googleusercontent)\.com\//.test(x)) || '').replace(/^\/\//, 'https://'),
+      });
+      return;
+    }
+    for (const k in o) walk(o[k]);
+  };
+  walk(data);
+  // Tira os canais automáticos "- Tema" do YouTube e repetidos.
+  return [...new Map(out.filter((c) => c.name && !/ - Tema$/.test(c.name)).map((c) => [c.id, c])).values()].slice(0, 6);
+}
+
+export async function searchChannels(q) {
+  const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=EgIQAg%253D%253D&hl=pt-BR&gl=BR`;
+  for (let i = 0; i < 2; i++) {
+    const list = parseChannels(await fetchText(i ? url + '&r=' + Date.now() : url, !NO_LOCAL_PROXY));
+    if (list.length) return list;
+  }
+  return [];
+}

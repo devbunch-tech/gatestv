@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { PageHeader, Row } from '../components/Media';
 import Icon from '../components/Icon';
-import { CLARK_CHANNELS, CLARK_SUGGESTIONS, CLARK_VIDEOS, channelVideos, thumb } from '../lib/clark';
+import { CLARK_CHANNELS, CLARK_SUGGESTIONS, CLARK_VIDEOS, channelVideos, searchChannels, thumb } from '../lib/clark';
 import { useKeyHandler } from '../lib/keys';
 import { native } from '../lib/device';
 
@@ -140,6 +140,61 @@ function YtPlayer({ list, start, onClose }) {
   );
 }
 
+// Adicionar um canal pelo nome: busca no YouTube e mostra os canais encontrados para escolher.
+function AddChannel({ added, onAdd }) {
+  const [q, setQ] = useState('');
+  const [state, setState] = useState(null); // { loading } | { list } | { error }
+  const fixed = new Set([...CLARK_CHANNELS, ...added].map((c) => c.id));
+  const search = async (e) => {
+    e?.preventDefault();
+    const name = q.trim();
+    if (name.length < 2) return;
+    setState({ loading: true });
+    try {
+      setState({ list: await searchChannels(name) });
+    } catch {
+      setState({ error: 'Não foi possível buscar agora. Verifique a internet e tente de novo.' });
+    }
+  };
+  return (
+    <section className="row ck-add">
+      <div className="row-head">
+        <h2>Adicionar canal pelo nome</h2>
+      </div>
+      <form className="ck-add-form" onSubmit={search}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome do canal no YouTube (ex.: Turma da Mônica)" enterKeyHint="search" />
+        <button className="btn" type="submit" disabled={q.trim().length < 2 || state?.loading}>
+          {state?.loading ? <span className="spinner sm" /> : <Icon name="search" size={16} />} Buscar
+        </button>
+      </form>
+      {state?.error && <p className="muted">{state.error}</p>}
+      {state?.list && !state.list.length && <p className="muted">Nenhum canal encontrado com esse nome.</p>}
+      {state?.list?.length > 0 && (
+        <div className="ck-sug-list">
+          {state.list.map((c) => (
+            <div key={c.id} className="ck-sug">
+              {c.photo && <img className="ck-avatar" src={c.photo} alt="" loading="lazy" />}
+              <div>
+                <strong>
+                  {c.name} {c.verified && <Icon name="shield" size={13} />}
+                </strong>
+                <span className="muted">{c.about || 'Canal do YouTube'}</span>
+              </div>
+              {fixed.has(c.id) ? (
+                <span className="muted">no menu</span>
+              ) : (
+                <button className="btn small" onClick={() => onAdd({ id: c.id, name: c.name, about: c.about })}>
+                  <Icon name="plus" size={14} /> Adicionar
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function Clark() {
   const [added, setAdded] = useState(loadAdded);
   const [playing, setPlaying] = useState(null); // { list, start }
@@ -190,6 +245,7 @@ export default function Clark() {
           </div>
         </section>
       )}
+      <AddChannel added={added} onAdd={(c) => save([...added.filter((x) => x.id !== c.id), c])} />
       {playing && <YtPlayer list={playing.list} start={playing.start} onClose={() => setPlaying(null)} />}
     </div>
   );

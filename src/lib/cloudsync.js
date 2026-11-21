@@ -14,7 +14,7 @@ import { deviceId, loadSaved } from './license';
 import { hash } from './m3u';
 import { normName } from './epg';
 
-export const SYNC_PROFILE_KEYS = ['favorites', 'history', 'hidden', 'deleted', 'shows'];
+export const SYNC_PROFILE_KEYS = ['favorites', 'history', 'hidden', 'deleted', 'shows', 'later', 'ratings'];
 // Por conta: { at: { chave: horário }, snap: { chave: resumo }, dirty: { chave: 1 }, done: já sincronizou }
 const META = (accountId) => `gates:sync:meta:${accountId}`;
 
@@ -103,7 +103,8 @@ export function makeIdMapper(playlists, catalog) {
 // Converte o valor de uma chave (lista de IDs, histórico {id: {...}}, perfis, lembretes).
 function convert(kind, value, fn) {
   if (value == null) return value;
-  if (kind === 'favorites' || kind === 'hidden' || kind === 'deleted') return Array.isArray(value) ? [...new Set(value.map(fn))] : value;
+  if (kind === 'favorites' || kind === 'hidden' || kind === 'deleted' || kind === 'later') return Array.isArray(value) ? [...new Set(value.map(fn))] : value;
+  if (kind === 'ratings') return Object.fromEntries(Object.entries(value || {}).map(([id, r]) => [fn(id), r]));
   if (kind === 'history')
     return Object.fromEntries(Object.entries(value || {}).map(([id, h]) => [fn(id), h?.seriesId ? { ...h, seriesId: fn(h.seriesId) } : h]));
   return value; // perfis e lembretes não têm IDs de itens
@@ -117,7 +118,7 @@ function merge(kind, local, remote) {
     const ids = new Set(remote.map((p) => p.id));
     return [...remote, ...local.filter((p) => !ids.has(p.id))];
   }
-  if (kind === 'history') {
+  if (kind === 'history' || kind === 'ratings') {
     const out = { ...local };
     for (const [id, h] of Object.entries(remote)) if (!out[id] || (h?.at || 0) > (out[id]?.at || 0)) out[id] = h;
     return out;

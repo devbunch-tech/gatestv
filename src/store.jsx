@@ -103,7 +103,7 @@ export const newProfile = (patch = {}) => ({
   ...patch,
 });
 
-const PROFILE_KEYS = ['favorites', 'history', 'hidden', 'deleted', 'shows'];
+const PROFILE_KEYS = ['favorites', 'history', 'hidden', 'deleted', 'shows', 'later', 'ratings'];
 
 // Primeiro acesso da conta: cria os perfis configurados e traz os dados da versão anterior
 // (perfil "Principal" e itens excluídos globalmente) para o perfil master.
@@ -235,6 +235,9 @@ export function StoreProvider({ account, children }) {
   const [deletedList, setDeletedList] = useScopedPersisted(scope + 'deleted', []);
   // Programas de TV favoritos (lembretes): [{ id, title, norm, channel, channelName, at }]
   const [shows, setShows] = useScopedPersisted(scope + 'shows', []);
+  // "Assistir depois" (IDs do catálogo, marcados nos trailers) e avaliações { id: { stars: 1..5, at } }.
+  const [later, setLater] = useScopedPersisted(scope + 'later', []);
+  const [ratings, setRatings] = useScopedPersisted(scope + 'ratings', {});
   // Listas do master: lidas do armazenamento a cada troca de perfil (só o master as altera).
   const masterHidden = useMemo(
     () => (isMaster ? hiddenList : LS.load(mScope + 'hidden', [])),
@@ -687,6 +690,8 @@ export function StoreProvider({ account, children }) {
     setHiddenList(LS.load(scope + 'hidden', []));
     setDeletedList(LS.load(scope + 'deleted', []));
     setShows(LS.load(scope + 'shows', []));
+    setLater(LS.load(scope + 'later', []));
+    setRatings(LS.load(scope + 'ratings', {}));
   };
   const syncRef = useRef({ busy: false });
   syncRef.current.run = async () => {
@@ -723,7 +728,7 @@ export function StoreProvider({ account, children }) {
     const t = setTimeout(() => syncRef.current.run(), 8000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [favorites, hiddenList, deletedList, shows, profiles]);
+  }, [favorites, hiddenList, deletedList, shows, later, ratings, profiles]);
 
   const programmesFor = useCallback(
     (item) =>
@@ -930,6 +935,21 @@ export function StoreProvider({ account, children }) {
       return !shows.some((x) => x.id === id);
     },
     removeShow: (id) => setShows((l) => l.filter((x) => x.id !== id)),
+    later,
+    isLater: (id) => later.includes(id),
+    toggleLater: (id) => {
+      const on = !later.includes(id);
+      setLater((l) => (l.includes(id) ? l.filter((x) => x !== id) : [id, ...l]));
+      return on;
+    },
+    ratings,
+    rate: (id, stars) =>
+      setRatings((r) => {
+        const next = { ...r };
+        if (!stars || r[id]?.stars === stars) delete next[id]; // tocar na mesma estrela tira a nota
+        else next[id] = { stars, at: Date.now() };
+        return next;
+      }),
     history,
     saveProgress: useCallback(
       (id, data) => setHistory((h) => ({ ...h, [id]: { ...h[id], ...data, at: Date.now() } })),

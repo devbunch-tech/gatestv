@@ -16,8 +16,9 @@ export const PREROLL_WAIT = 6; // segundos esperando o trailer de abertura antes
 export const BREAK_SKIP_AFTER = 5; // segundos até liberar o "Pular"
 export const BREAK_MAX = 180; // segundos: se o trailer não avisar que acabou, segue em frente
 export const REVIEW_MAX = 30 * 60; // a crítica do Ei Nerd é mais longa (dá para pular depois de 5 s)
-const RECENT = 30; // lançamentos considerados (os mais recentes adicionados, sem repetir título)
-const TRIES = 12; // títulos consultados no TMDB por escolha
+const RECENT = 80; // lançamentos considerados (os mais recentes adicionados, sem repetir título)
+const TRIES = 16; // títulos consultados no TMDB por escolha
+export const MAX_AGE = 16; // trailers só de títulos com classificação abaixo de 16 anos
 
 const ADULT = /adult|\+18|xxx|er[oó]tic/i;
 // Trailer dublado ou legendado em PT-BR (as distribuidoras publicam as duas versões marcadas pt-BR).
@@ -26,8 +27,34 @@ export const isPtBrTrailer = (v) => v.lang === 'pt' && v.region === 'BR';
 const DUB = /dublad|\bdub\b/i;
 const dubFirst = (a, b) => DUB.test(b.name || '') - DUB.test(a.name || '');
 
-// Trailers já mostrados nesta sessão: evita repetir enquanto houver outros.
-const shown = new Set();
+// Vídeos que já passaram (mesmo pulados) não passam de novo por SEEN_DAYS: ficam guardados no
+// aparelho. "reserved" evita escolher o mesmo vídeo duas vezes antes de ele aparecer na tela.
+const SEEN = 'gates:trailers:seen';
+const SEEN_DAYS = 30;
+const reserved = new Set();
+function seenMap() {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN) || '{}');
+  } catch {
+    return {};
+  }
+}
+const wasSeen = (key) => reserved.has(key) || key in seenMap();
+// Chamado quando o vídeo aparece na tela.
+export function markSeen(key) {
+  const m = seenMap();
+  const old = Date.now() - SEEN_DAYS * 864e5;
+  for (const k of Object.keys(m)) if (m[k] < old) delete m[k];
+  m[key] = Date.now();
+  try {
+    localStorage.setItem(SEEN, JSON.stringify(m));
+  } catch {
+    /* armazenamento cheio */
+  }
+}
+// Classificação conhecida e abaixo de 16 anos (sem classificação também fica de fora).
+const ageOk = (cert) => cert != null && cert < MAX_AGE;
+const KIND = { movie: 'FILME', series: 'SÉRIE' };
 
 function shuffle(list) {
   const a = list.slice();
@@ -44,8 +71,11 @@ async function trailerOf(it, type) {
   const found = await findTitle({ title, year, type: type === 'series' ? 'tv' : 'movie' }).catch(() => null);
   if (!found) return null;
   const d = await getDetails(found.type, found.id).catch(() => null);
-  const t = (d?.trailers || []).filter(isPtBrTrailer).sort(dubFirst)[0];
-  return t?.key ? { key: t.key, title: d.title || title } : null;
+  if (!ageOk(d?.cert)) return null;
+  const t = (d?.trailers || []).filter((v) => isPtBrTrailer(v) && !wasSeen(v.key)).sort(dubFirst)[0];
+  return t?.key
+    ? { key: t.key, title: d.title || title, kind: 'trailer', label: `NO CATÁLOGO · ${KIND[type]}`, where: 'catalog', catalogId: it.id, cert: d.cert }
+    : null;
 }
 
 // Até `count` trailers diferentes de lançamentos do tipo pedido: [{ key (YouTube), title }].
@@ -60,24 +90,48 @@ export async function pickTrailers(catalog, type, { count = 1, exclude, isRestri
   return takeNew(unique, count);
 }
 
-// Primeiro os que ainda não passaram nesta sessão.
+// Só vídeos que ainda não passaram (sem repetir: se acabarem, não passa nenhum).
 function takeNew(list, count) {
-  const out = [...list.filter((t) => !shown.has(t.key)), ...list.filter((t) => shown.has(t.key))].slice(0, count);
-  out.forEach((t) => shown.add(t.key));
+  const out = list.filter((t) => !wasSeen(t.key)).slice(0, count);
+  out.forEach((t) => reserved.add(t.key));
   return out;
 }
 
 // ---------- Abertura: também um lançamento dos cinemas e uma crítica do Ei Nerd ----------
 
 // Trailer de um filme em cartaz ou estreando nos cinemas do Brasil, só dublado ou legendado em PT-BR.
-export async function pickCinemaTrailer() {
+// Filme do catálogo com o mesmo título (para "também no catálogo" e "Assistir depois").
+const titleIndex = new WeakMap();
+function catalogMovieByTitle(catalog, ...titles) {
+  if (!catalog?.movies) return null;
+  let idx = titleIndex.get(catalog);
+  if (!idx) {
+    idx = new Map();
+    for (const it of catalog.movies) {
+      const k = normTitle(cleanTitle(it.displayName || it.name).title);
+      if (k && !idx.has(k)) idx.set(k, it.id);
+    }
+    titleIndex.set(catalog, idx);
+  }
+  for (const t of titles) {
+    const id = t && idx.get(normTitle(t));
+    if (id) return id;
+  }
+  return null;
+}
+
+export async function pickCinemaTrailer(catalog) {
   if (!hasMetaKey()) return null;
   const list = shuffle(await cinemaBR().catch(() => [])).slice(0, TRIES);
   const found = (
     await Promise.all(
       list.map(async (m) => {
-        const t = (await movieTrailersBR(m.id).catch(() => [])).filter(isPtBrTrailer).sort(dubFirst)[0];
-        return t?.key ? { key: t.key, title: m.title, label: 'NOS CINEMAS' } : null;
+        const d = await getDetails('movie', m.id).catch(() => null);
+        if (!ageOk(d?.cert)) return null;
+        const t = (await movieTrailersBR(m.id).catch(() => [])).filter((v) => isPtBrTrailer(v) && !wasSeen(v.key)).sort(dubFirst)[0];
+        if (!t?.key) return null;
+        const catalogId = catalogMovieByTitle(catalog, m.title, d?.originalTitle);
+        return { key: t.key, title: m.title, kind: 'trailer', label: catalogId ? 'NOS CINEMAS · TAMBÉM NO CATÁLOGO' : 'NOS CINEMAS · FILME', where: 'cinema', catalogId, cert: d.cert };
       })
     )
   ).filter(Boolean);
@@ -235,7 +289,8 @@ export async function pickEiNerdReview(content) {
       .filter((v) => (!v.channelId || v.channelId === EI_NERD) && v.secs >= 120 && ok(v))
       .map((v) => ({ key: v.key, title: v.title, label: 'CRÍTICA · EI NERD', max: REVIEW_MAX }));
   }
-  const v = await firstEmbeddable(takeNew(list, 4));
+  const v = await firstEmbeddable(list.filter((x) => !wasSeen(x.key)));
+  if (v) reserved.add(v.key);
   return v ? { ...v, label: 'CRÍTICA · EI NERD', max: REVIEW_MAX } : null;
 }
 
@@ -255,7 +310,8 @@ export async function pickInterview(content) {
   if (!list.length && info.original && normTitle(info.original) !== normTitle(info.display)) list = await search(`${info.original} cast interview`);
   const rank = (v) => (PT.test(v.title) ? 0 : 2) + (OFFICIAL.test(v.channel) ? 0 : 1);
   list = [...new Map(list.map((v) => [v.key, v])).values()].sort((a, b) => rank(a) - rank(b));
-  const v = await firstEmbeddable(takeNew(list, 4));
+  const v = await firstEmbeddable(list.filter((x) => !wasSeen(x.key)));
+  if (v) reserved.add(v.key);
   return v ? { key: v.key, title: v.title, label: `ENTREVISTA · ${v.channel.toUpperCase()}`, max: INTERVIEW_MAX + 30, cc: !PT.test(v.title) } : null;
 }
 
@@ -266,8 +322,8 @@ export const PREROLL_SLOW = 15; // segundos para a entrevista e a crítica (busc
 export function prerollSources(catalog, type, opts = {}, content = null) {
   const within = (p, secs) => Promise.race([p.catch(() => null), new Promise((r) => setTimeout(() => r(null), secs * 1000))]);
   return [
-    within(pickTrailers(catalog, type, { ...opts, count: PREROLL_COUNT }).then((l) => l[0] || null), PREROLL_WAIT),
-    within(pickCinemaTrailer(), PREROLL_WAIT),
+    within(pickTrailers(catalog, type, { ...opts, count: PREROLL_COUNT }).then((l) => (l[0] ? { ...l[0], mandatory: true } : null)), PREROLL_WAIT),
+    within(pickCinemaTrailer(catalog).then((t) => (t ? { ...t, mandatory: true } : null)), PREROLL_WAIT),
     within(pickInterview(content), PREROLL_SLOW),
     within(pickEiNerdReview(content), PREROLL_SLOW),
   ];

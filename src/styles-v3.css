@@ -531,3 +531,29 @@ html.device-phone body .featured .row-nav { display: none !important; }
 .ck-bar strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ck-nav { display: inline-flex; align-items: center; gap: 4px; }
 @media (max-width: 600px) { .ck-card { width: 200px; } .ck-hint { display: none; } .ck-remove { position: static; margin-bottom: 4px; } }
+
+/* Trailers: onde está o título, "Assistir depois" e trailer obrigatório */
+.tb-where { font-size: 13px; color: #d7d7dd; }
+.tb-later { position: absolute; left: 24px; bottom: 28px; background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255, 255, 255, 0.4); color: #fff; gap: 6px; }
+.tb-later.on { background: #22a35a; border-color: #22a35a; }
+.tb-later small { opacity: 0.7; }
+.tb-must { cursor: default; background: rgba(0, 0, 0, 0.75) !important; border-color: rgba(255, 255, 255, 0.25) !important; color: #ccc !important; pointer-events: none; }
+
+/* Avaliação em estrelas */
+.star-rating { display: flex; align-items: center; gap: 4px; margin-top: 14px; flex-wrap: wrap; }
+.star-rating > .muted { margin-right: 6px; font-size: 14px; }
+.star-btn { background: none; border: 0; padding: 4px; color: #6b6b74; cursor: pointer; border-radius: 6px; line-height: 0; }
+.star-btn.on { color: #f5b301; }
+.star-btn:focus-visible, .star-btn:focus { outline: 2px solid var(--brand); }
+.star-label { margin-left: 8px; font-size: 14px; color: var(--muted); }
+.stars-view { display: inline-flex; gap: 1px; color: #6b6b74; }
+.stars-view .on { color: #f5b301; }
+.fav-rated .row-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.fav-rated-track { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; }
+.fav-rated-item { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+
+/* CLARK: adicionar canal pelo nome */
+.ck-add-form { display: flex; gap: 10px; max-width: 640px; margin-bottom: 12px; }
+.ck-add-form input { flex: 1; min-width: 0; }
+.ck-avatar { width: 40px; height: 40px; border-radius: 50%; flex: none; object-fit: cover; }
+.ck-sug > div { flex: 1; }

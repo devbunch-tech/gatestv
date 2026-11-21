@@ -92,7 +92,7 @@ const cleanConfirmation = (b) => ({
 });
 
 // Chaves aceitas na sincronização: perfis da conta e, por perfil, favoritos/histórico/ocultos/excluídos/lembretes.
-const SYNC_KEY = /^(profiles|p:[\w-]{1,60}:(favorites|history|hidden|deleted|shows))$/;
+const SYNC_KEY = /^(profiles|p:[\w-]{1,60}:(favorites|history|hidden|deleted|shows|later|ratings))$/;
 const SYNC_MAX = 300 * 1024; // tamanho máximo de cada chave (JSON)
 const device = (b) => ({ id: String(b.deviceId || '').slice(0, 80), name: String(b.deviceName || '').slice(0, 80), platform: String(b.platform || '').slice(0, 20) });
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

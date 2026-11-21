@@ -10,7 +10,7 @@ import { isTvMode, rememberFocus, useKeyHandler } from '../lib/keys';
 import { baseName, channelKey, pickWorking, qualityRank, zapGroups } from '../lib/zapping';
 import { playableUrl } from '../lib/health';
 import { cuesAt, fetchSubs, subsMessage, subsQuery, subsSession } from '../lib/subs';
-import { BREAK_COUNT, BREAK_EVERY, BREAK_MAX, BREAK_SKIP_AFTER, PREROLL_WAIT, pickTrailers, prerollSources } from '../lib/breaks';
+import { BREAK_COUNT, BREAK_EVERY, BREAK_MAX, BREAK_SKIP_AFTER, PREROLL_WAIT, markSeen, pickTrailers, prerollSources } from '../lib/breaks';
 import { canCast, canMirror, castDevices, castDiscover, castPause, castSession, castStart, castStatus, castStop, isDlna, mirrorScreen } from '../lib/cast';
 import { SMART_TV, hasNative, isSubscriber, isTouch, native, vibrate } from '../lib/device';
 import { reportWatch } from '../lib/cloudsync';
@@ -374,7 +374,7 @@ function PlayerView({ item, rawQueue }) {
   // Antes de começar: lançamento da plataforma, lançamento nos cinemas e crítica do Ei Nerd.
   // A cada 12 min assistidos: 2 trailers de lançamentos da plataforma, e volta daqui.
   // A contagem segue de um episódio para o outro da mesma série (BREAKS).
-  const { isRestricted } = useStore();
+  const { isRestricted, isLater, toggleLater } = useStore();
   const [breakT, setBreakT] = useState(null); // { list: [{ key, title }], i, at } | { loading: true, at }
   const breakRef = useRef(null);
   const watched = useRef({ last: null });
@@ -391,6 +391,10 @@ function PlayerView({ item, rawQueue }) {
     showBreak(null);
     watched.current.last = null;
     if (!castSession.device) videoRef.current?.play().catch(() => {});
+  };
+  const laterFromBreak = (t) => {
+    const on = toggleLater(t.catalogId);
+    notify(on ? `“${t.title}” guardado em Favoritos › Assistir depois.` : `“${t.title}” saiu da lista Assistir depois.`);
   };
   // Próximo trailer do intervalo; depois do último, volta ao vídeo.
   const nextInBreak = () => {
@@ -816,7 +820,10 @@ function PlayerView({ item, rawQueue }) {
     if (!k) return true;
     // Durante o trailer: OK ou Voltar pulam para o próximo (depois de liberado); o resto do controle fica parado.
     if (breakT) {
-      if ((k === 'ok' || k === 'back') && (breakT.loading || Date.now() - breakT.at > BREAK_SKIP_AFTER * 1000)) {
+      const cur = breakT.list?.[breakT.i];
+      if (k === 'up' && cur?.catalogId) laterFromBreak(cur);
+      else if (k === 'back' && cur?.mandatory) close(); // trailer obrigatório: Voltar sai do player, não pula
+      else if ((k === 'ok' || k === 'back') && (breakT.loading || (!cur?.mandatory && Date.now() - breakT.at > BREAK_SKIP_AFTER * 1000))) {
         if (breakT.loading) endBreak();
         else nextInBreak();
       }
@@ -976,7 +983,15 @@ function PlayerView({ item, rawQueue }) {
         </div>
       )}
       {breakT?.list && (
-        <TrailerBreak key={breakT.i} trailer={breakT.list[breakT.i]} pos={breakT.i + 1} total={breakT.list.length} onDone={nextInBreak} />
+        <TrailerBreak
+          key={breakT.i}
+          trailer={breakT.list[breakT.i]}
+          pos={breakT.i + 1}
+          total={breakT.list.length}
+          onDone={nextInBreak}
+          later={!!breakT.list[breakT.i].catalogId && isLater(breakT.list[breakT.i].catalogId)}
+          onLater={() => laterFromBreak(breakT.list[breakT.i])}
+        />
       )}
       {castPick && (
         <div className="cast-pick" onClick={() => setCastPick(false)}>
@@ -1261,12 +1276,13 @@ function Subtitles({ videoRef, itemId }) {
 
 // Trailer de um lançamento antes ou no meio do filme/série. "Pular" libera depois de alguns segundos;
 // ao terminar o trailer (aviso do YouTube) ou no tempo máximo, passa ao próximo ou volta ao vídeo.
-function TrailerBreak({ trailer, pos, total, onDone }) {
+function TrailerBreak({ trailer, pos, total, onDone, later, onLater }) {
   const [left, setLeft] = useState(BREAK_SKIP_AFTER);
   const frame = useRef(null);
   const done = useRef(onDone);
   done.current = onDone;
   useEffect(() => {
+    markSeen(trailer.key); // passou na tela: não repete mais (nem se for pulado)
     const t = setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
     const max = setTimeout(() => done.current(), (trailer.max || BREAK_MAX) * 1000);
     const onMsg = (e) => {
@@ -1304,10 +1320,22 @@ function TrailerBreak({ trailer, pos, total, onDone }) {
       <div className="tb-label">
         <small>{trailer.label || 'LANÇAMENTO'}{total > 1 ? ` · ${pos} de ${total}` : ''}</small>
         <strong>{trailer.title}</strong>
+        {trailer.where === 'catalog' && <span className="tb-where">Disponível no catálogo do app</span>}
+        {trailer.where === 'cinema' && <span className="tb-where">Em cartaz nos cinemas{trailer.catalogId ? ' · também no catálogo do app' : ''}</span>}
       </div>
-      <button className="btn tb-skip" tabIndex={-1} disabled={left > 0} onClick={() => done.current()}>
-        {left > 0 ? `Pular em ${left}` : isTvMode() ? 'OK para pular' : pos < total ? 'Próximo' : 'Pular'}
-      </button>
+      {trailer.catalogId && (
+        <button className={`btn tb-later ${later ? 'on' : ''}`} tabIndex={-1} onClick={onLater}>
+          <Icon name={later ? 'star' : 'plus'} size={16} /> {later ? 'Na lista Assistir depois' : 'Assistir depois'}
+          {isTvMode() && <small> ▲</small>}
+        </button>
+      )}
+      {trailer.mandatory ? (
+        <span className="btn tb-skip tb-must">Trailer obrigatório</span>
+      ) : (
+        <button className="btn tb-skip" tabIndex={-1} disabled={left > 0} onClick={() => done.current()}>
+          {left > 0 ? `Pular em ${left}` : isTvMode() ? 'OK para pular' : pos < total ? 'Próximo' : 'Pular'}
+        </button>
+      )}
     </div>
   );
 }

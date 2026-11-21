@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { useStore } from '../store';
+import { Stars } from '../components/StarRating';
 import { Card, PageHeader, Row, Thumb } from '../components/Media';
 import Icon from '../components/Icon';
 import { nextAiring } from '../lib/shows';
@@ -14,13 +16,19 @@ const dayLabel = (t) => {
 };
 
 export default function Favorites() {
-  const { favorites, catalog, shows, removeShow, programmesFor, openProgram } = useStore();
+  const { favorites, catalog, shows, removeShow, programmesFor, openProgram, later, ratings } = useStore();
+  const [order, setOrder] = useState('best'); // avaliações: melhores ou piores primeiro
+  const laterItems = later.map((id) => catalog.byId.get(id)).filter(Boolean);
+  const rated = Object.entries(ratings)
+    .map(([id, r]) => ({ item: catalog.byId.get(id), stars: r.stars, at: r.at }))
+    .filter((x) => x.item)
+    .sort((a, b) => (order === 'best' ? b.stars - a.stars : a.stars - b.stars) || b.at - a.at);
   const now = useNow(60000);
   const items = favorites.map((id) => catalog.byId.get(id)).filter(Boolean);
   const live = items.filter((i) => i.type === 'live');
   const movies = items.filter((i) => i.type === 'movie');
   const series = items.filter((i) => i.type === 'series');
-  const total = items.length + shows.length;
+  const total = items.length + shows.length + laterItems.length + rated.length;
 
   return (
     <div className="favorites">
@@ -29,8 +37,15 @@ export default function Favorites() {
         <div className="empty">
           <Icon name="heart" size={48} />
           <h3>Nenhum favorito ainda</h3>
-          <p>Toque no coração em um canal, filme ou série para guardá-lo aqui. No guia de um canal, toque num programa e em “Avisar quando passar”.</p>
+          <p>Toque no coração em um canal, filme ou série para guardá-lo aqui. No guia de um canal, toque num programa e em “Avisar quando passar”. Nos trailers, use “Assistir depois”; nos filmes e séries, dê a sua nota em estrelas.</p>
         </div>
+      )}
+      {laterItems.length > 0 && (
+        <Row title="Marcado para assistir depois">
+          {laterItems.map((it) => (
+            <Card key={it.id} item={it} sub={it.type === 'series' ? 'Série' : 'Filme'} />
+          ))}
+        </Row>
       )}
       {live.length > 0 && (
         <Row title="Canais">
@@ -52,6 +67,29 @@ export default function Favorites() {
             <Card key={it.id} item={it} sub={it.group} />
           ))}
         </Row>
+      )}
+      {rated.length > 0 && (
+        <section className="row fav-rated">
+          <div className="row-head">
+            <h2>Minhas avaliações</h2>
+            <div className="chips">
+              <button className={`chip ${order === 'best' ? 'active' : ''}`} onClick={() => setOrder('best')}>
+                Melhores primeiro
+              </button>
+              <button className={`chip ${order === 'worst' ? 'active' : ''}`} onClick={() => setOrder('worst')}>
+                Piores primeiro
+              </button>
+            </div>
+          </div>
+          <div className="row-track fav-rated-track">
+            {rated.map(({ item, stars }) => (
+              <div key={item.id} className="fav-rated-item">
+                <Card item={item} sub={item.type === 'series' ? 'Série' : 'Filme'} />
+                <Stars value={stars} />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
       {shows.length > 0 && (
         <section className="row fav-shows">
