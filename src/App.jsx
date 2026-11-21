@@ -13,8 +13,9 @@ import Library from './pages/Library';
 import Details from './pages/Details';
 import Search from './pages/Search';
 import Favorites from './pages/Favorites';
-import Clark from './pages/Clark';
-import { HAS_CLARK } from './lib/clark';
+import YoutubeAreaPage, { YoutubeHub } from './pages/YoutubeArea';
+import { YT_AREAS } from './lib/clark';
+import { EDITION } from './lib/device';
 import Sports from './pages/Sports';
 import Settings from './pages/Settings';
 import Person from './pages/Person';
@@ -176,7 +177,13 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/sports" element={<Sports />} />
           <Route path="/favorites" element={<Favorites />} />
-          {HAS_CLARK && <Route path="/clark" element={<Clark />} />}
+          {YT_AREAS.some((a) => a.editions.includes(EDITION)) && (
+            <>
+              <Route path="/yt" element={<YoutubeHub />} />
+              <Route path="/yt/:area" element={<YoutubeAreaPage />} />
+              <Route path="/clark" element={<YoutubeAreaPage id="clark" />} />
+            </>
+          )}
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

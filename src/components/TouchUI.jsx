@@ -1,4 +1,4 @@
-import { HAS_CLARK } from '../lib/clark';
+import { areasFor } from '../lib/clark';
 import { useEffect, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import Icon from './Icon';
@@ -12,14 +12,16 @@ const TABS = [
   { to: '/movies', label: 'Filmes', icon: 'film' },
   { to: '/series', label: 'Séries', icon: 'series' },
   { to: '/favorites', label: 'Favoritos', icon: 'heart' },
-  ...(HAS_CLARK ? [{ to: '/clark', label: 'CLARK', icon: 'star' }] : []),
 ];
 
 // Celular e tablet: navegação principal em abas na parte de baixo (alcance do polegar).
 export function BottomTabs() {
+  const { profile } = useStore();
+  // Áreas do YouTube: uma aba só, que abre a lista de áreas.
+  const tabs = areasFor(profile).length ? [...TABS, { to: '/yt', label: 'YouTube', icon: 'play' }] : TABS;
   return (
     <nav className="bottom-tabs" aria-label="Navegação principal">
-      {TABS.filter((t) => !isDemo || t.to === '/live').map((t) => (
+      {tabs.filter((t) => !isDemo || t.to === '/live').map((t) => (
         <NavLink key={t.to} to={t.to} end={t.end} className="bottom-tab" replace>
           <Icon name={t.icon} size={22} />
           <span>{t.label}</span>

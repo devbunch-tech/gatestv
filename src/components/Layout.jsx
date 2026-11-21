@@ -6,7 +6,7 @@ import { Avatar, ProfileMenu } from './Profiles';
 import { isPhone, isTouch } from '../lib/device';
 import { IS_TEST } from '../config/license';
 import { isDemo } from '../lib/device';
-import { HAS_CLARK } from '../lib/clark';
+import { areasFor } from '../lib/clark';
 
 const NAV = [
   { to: '/', label: 'Início', icon: 'home', end: true },
@@ -15,8 +15,6 @@ const NAV = [
   { to: '/movies', label: 'Filmes', icon: 'film' },
   { to: '/series', label: 'Séries', icon: 'series' },
   { to: '/favorites', label: 'Favoritos', icon: 'heart' },
-  // Canais do YouTube para as crianças (só edições da família e admin).
-  ...(HAS_CLARK ? [{ to: '/clark', label: 'CLARK', icon: 'star' }] : []),
 ];
 
 export function TopBar({ onMenu }) {
@@ -121,7 +119,7 @@ export function Sidebar({ open, onClose }) {
     <>
       <div className={`scrim ${open ? 'show' : ''}`} onClick={onClose} />
       <nav className={`sidebar ${open ? 'open' : ''}`} onClick={onClose}>
-        {NAV.filter((n) => !isDemo || n.to === '/live').map((n) => (
+        {[...NAV, ...areasFor(profile).map((a) => ({ to: a.path, label: a.title, icon: a.icon }))].filter((n) => !isDemo || n.to === '/live').map((n) => (
           <NavLink key={n.to} to={n.to} end={n.end} className="nav-item">
             <Icon name={n.icon} />
             <span>{n.label}</span>

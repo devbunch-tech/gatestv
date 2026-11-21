@@ -1,15 +1,18 @@
-// Menu CLARK: canais do YouTube escolhidos para as crianças (só edições da família e admin).
+// Áreas do YouTube (CLARK, Sergio, Paula; para assinantes: Youtube e Youtube Crianças): canais com os
+// vídeos mais recentes, vídeos avulsos, sugestões e canais adicionados pelo nome (lib/clark.js: YT_AREAS).
 import { useEffect, useRef, useState } from 'react';
+import { Link, Navigate, useParams } from 'react-router-dom';
+import { useStore } from '../store';
 import { PageHeader, Row } from '../components/Media';
 import Icon from '../components/Icon';
-import { CLARK_CHANNELS, CLARK_SUGGESTIONS, CLARK_VIDEOS, channelVideos, searchChannels, thumb } from '../lib/clark';
+import { areaById, areasFor, channelVideos, searchChannels, thumb } from '../lib/clark';
 import { useKeyHandler } from '../lib/keys';
 import { native } from '../lib/device';
 
-const ADDED = 'gates:clark:added'; // sugestões que a família adicionou ao menu
-const loadAdded = () => {
+// Canais adicionados em cada área (guardados no aparelho).
+const loadAdded = (key) => {
   try {
-    return JSON.parse(localStorage.getItem(ADDED) || '[]');
+    return JSON.parse(localStorage.getItem(key) || '[]');
   } catch {
     return [];
   }
@@ -141,10 +144,10 @@ function YtPlayer({ list, start, onClose }) {
 }
 
 // Adicionar um canal pelo nome: busca no YouTube e mostra os canais encontrados para escolher.
-function AddChannel({ added, onAdd }) {
+function AddChannel({ fixedChannels, added, onAdd, first }) {
   const [q, setQ] = useState('');
   const [state, setState] = useState(null); // { loading } | { list } | { error }
-  const fixed = new Set([...CLARK_CHANNELS, ...added].map((c) => c.id));
+  const fixed = new Set([...fixedChannels, ...added].map((c) => c.id));
   const search = async (e) => {
     e?.preventDefault();
     const name = q.trim();
@@ -161,8 +164,9 @@ function AddChannel({ added, onAdd }) {
       <div className="row-head">
         <h2>Adicionar canal pelo nome</h2>
       </div>
+      {first && <p className="muted">Ainda não há canais aqui. Digite o nome de um canal do YouTube que você gosta e toque em “Buscar”.</p>}
       <form className="ck-add-form" onSubmit={search}>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome do canal no YouTube (ex.: Turma da Mônica)" enterKeyHint="search" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome do canal no YouTube" enterKeyHint="search" />
         <button className="btn" type="submit" disabled={q.trim().length < 2 || state?.loading}>
           {state?.loading ? <span className="spinner sm" /> : <Icon name="search" size={16} />} Buscar
         </button>
@@ -195,30 +199,36 @@ function AddChannel({ added, onAdd }) {
   );
 }
 
-export default function Clark() {
-  const [added, setAdded] = useState(loadAdded);
+function YoutubeArea({ area }) {
+  const [added, setAdded] = useState(() => loadAdded(area.store));
   const [playing, setPlaying] = useState(null); // { list, start }
   const save = (l) => {
     setAdded(l);
     try {
-      localStorage.setItem(ADDED, JSON.stringify(l));
+      localStorage.setItem(area.store, JSON.stringify(l));
     } catch {
       /* armazenamento cheio */
     }
   };
+  const videos = area.videos || [];
   const addedIds = new Set(added.map((c) => c.id));
-  const suggestions = CLARK_SUGGESTIONS.filter((s) => !addedIds.has(s.id));
+  const suggestions = (area.suggestions || []).filter((s) => !addedIds.has(s.id));
   const play = (list, start = 0) => setPlaying({ list, start });
+  const empty = !area.channels.length && !added.length && !videos.length;
+  const addChannel = <AddChannel fixedChannels={area.channels} added={added} first={empty} onAdd={(c) => save([...added.filter((x) => x.id !== c.id), c])} />;
 
   return (
     <div className="clark">
-      <PageHeader title="CLARK" />
-      <Row title="Vídeos">
-        {CLARK_VIDEOS.map((v, i) => (
-          <VideoCard key={v.key} v={v} sub={v.sub} onPlay={() => play(CLARK_VIDEOS, i)} />
-        ))}
-      </Row>
-      {CLARK_CHANNELS.map((ch) => (
+      <PageHeader title={area.title} />
+      {empty && addChannel}
+      {videos.length > 0 && (
+        <Row title="Vídeos">
+          {videos.map((v, i) => (
+            <VideoCard key={v.key} v={v} sub={v.sub} onPlay={() => play(videos, i)} />
+          ))}
+        </Row>
+      )}
+      {area.channels.map((ch) => (
         <ChannelRow key={ch.id} ch={ch} onPlay={play} />
       ))}
       {added.map((ch) => (
@@ -245,8 +255,38 @@ export default function Clark() {
           </div>
         </section>
       )}
-      <AddChannel added={added} onAdd={(c) => save([...added.filter((x) => x.id !== c.id), c])} />
+      {!empty && addChannel}
       {playing && <YtPlayer list={playing.list} start={playing.start} onClose={() => setPlaying(null)} />}
+    </div>
+  );
+}
+
+// Rota /clark e /yt/:area (perfis infantis só abrem as áreas infantis).
+export default function YoutubeAreaPage({ id }) {
+  const params = useParams();
+  const { profile } = useStore();
+  const area = areaById(id || params.area);
+  if (!area || (profile?.kids && !area.kidsOk)) return <Navigate to="/yt" replace />;
+  return <YoutubeArea key={area.id} area={area} />;
+}
+
+// /yt: as áreas disponíveis para o perfil (atalho da barra de baixo no celular).
+export function YoutubeHub() {
+  const { profile } = useStore();
+  const areas = areasFor(profile);
+  return (
+    <div className="clark">
+      <PageHeader title="YouTube" />
+      {!areas.length && <p className="muted">Nenhuma área do YouTube disponível neste perfil.</p>}
+      <div className="yt-hub">
+        {areas.map((a) => (
+          <Link key={a.id} to={a.path} className="yt-hub-card">
+            <Icon name={a.icon} size={28} />
+            <strong>{a.title}</strong>
+            <span className="muted">{a.channels.length ? `${a.channels.length} canais` : 'seus canais'}</span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

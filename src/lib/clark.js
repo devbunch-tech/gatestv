@@ -1,10 +1,8 @@
-// Menu CLARK (só nas edições da família e admin, nunca para assinantes nem na degustação):
-// canais do YouTube escolhidos para as crianças, com os vídeos mais recentes de cada um,
-// vídeos avulsos (ex.: "Para dormir") e sugestões de canais parecidos para adicionar depois.
-import { EDITION, isDemo, isSubscriber } from './device';
+// Áreas do YouTube do menu (CLARK, Sergio, Paula; assinantes: Youtube e Youtube Crianças): canais com
+// os vídeos mais recentes, vídeos avulsos (ex.: "Para dormir") e sugestões de canais para adicionar.
+import { EDITION } from './device';
 import { NO_LOCAL_PROXY, fetchText } from './net';
 
-export const HAS_CLARK = !isSubscriber && !isDemo && EDITION !== 'kids';
 
 // Canais fixos do menu (ID do canal no YouTube).
 export const CLARK_CHANNELS = [
@@ -24,6 +22,33 @@ export const CLARK_SUGGESTIONS = [
   { id: 'UC0cGVh96osM7yqMu0ENSKKQ', name: 'Mundo Bita', about: 'Músicas e aprendizado' },
   { id: 'UCBAb_DK4GYZqZR9MFA7y2Xg', name: 'Galinha Pintadinha', about: 'Músicas para os pequenos' },
 ];
+
+// Áreas do YouTube no menu. Cada uma com canais fixos (podem ser zero), vídeos avulsos, sugestões e
+// os canais que a pessoa adiciona (guardados no aparelho em 'store'). 'editions': onde aparece;
+// 'kidsOk': aparece também em perfis infantis.
+export const YT_AREAS = [
+  { id: 'clark', path: '/clark', title: 'CLARK', icon: 'star', channels: CLARK_CHANNELS, videos: CLARK_VIDEOS, suggestions: CLARK_SUGGESTIONS, store: 'gates:clark:added', editions: ['family', 'admin'], kidsOk: true },
+  {
+    id: 'sergio',
+    path: '/yt/sergio',
+    title: 'Sergio',
+    icon: 'tv',
+    channels: [
+      { id: 'UCtq7-pva03GoIMsHJdoSS5A', name: 'Na Torcida Vascaínos' },
+      { id: 'UCt_4wzTQqmcUvemNkeO0plA', name: 'Ei Nerd' },
+      { id: 'UCJ__lXDgtOLMTPyTSn6mUdA', name: 'Podcast Cruzmaltino' },
+    ],
+    store: 'gates:yt:sergio:added',
+    editions: ['family', 'admin'],
+  },
+  { id: 'paula', path: '/yt/paula', title: 'Paula', icon: 'heart', channels: [], store: 'gates:yt:paula:added', editions: ['family', 'admin'] },
+  // Assinantes: uma área livre e a infantil (igual à do Clark).
+  { id: 'youtube', path: '/yt/youtube', title: 'Youtube', icon: 'tv', channels: [], store: 'gates:yt:youtube:added', editions: ['subscriber'] },
+  { id: 'criancas', path: '/yt/criancas', title: 'Youtube Crianças', icon: 'star', channels: CLARK_CHANNELS, videos: CLARK_VIDEOS, suggestions: CLARK_SUGGESTIONS, store: 'gates:yt:criancas:added', editions: ['subscriber'], kidsOk: true },
+];
+// Áreas desta edição para o perfil (perfis infantis só veem as infantis).
+export const areasFor = (profile) => YT_AREAS.filter((a) => a.editions.includes(EDITION) && (a.kidsOk || !profile?.kids));
+export const areaById = (id) => YT_AREAS.find((a) => a.id === id && a.editions.includes(EDITION)) || null;
 
 export const thumb = (key) => `https://i.ytimg.com/vi/${key}/mqdefault.jpg`;
 
