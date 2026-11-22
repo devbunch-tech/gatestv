@@ -459,6 +459,17 @@ html.device-phone body .featured .row-nav { display: none !important; }
 .tb-skip { position: absolute; right: 24px; bottom: 28px; min-width: 150px; justify-content: center; background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255, 255, 255, 0.4); color: #fff; }
 .tb-skip:not(:disabled) { background: var(--brand); border-color: var(--brand); }
 
+/* Séries: "Pular abertura" e cartão do próximo episódio (acima da barra do player, sempre visíveis) */
+.skip-intro { position: absolute; right: 28px; bottom: 140px; z-index: 4; min-width: 170px; justify-content: center; background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255, 255, 255, 0.6); color: #fff; font-weight: 700; }
+.skip-intro:hover, .skip-intro:focus-visible { background: var(--brand); border-color: var(--brand); }
+.skip-intro small, .unc-actions small { opacity: 0.7; margin-left: 6px; font-size: 11px; }
+.up-next-card { position: absolute; right: 28px; bottom: 140px; z-index: 4; display: flex; flex-direction: column; gap: 6px; max-width: min(420px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 10px; background: rgba(0, 0, 0, 0.85); border: 1px solid rgba(255, 255, 255, 0.25); }
+.up-next-card > small { color: var(--brand); font-weight: 800; letter-spacing: 0.08em; font-size: 11px; }
+.up-next-card > strong { font-size: 17px; }
+.unc-actions { display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+.unc-actions .btn:first-child { background: var(--brand); border-color: var(--brand); color: #fff; }
+html.touch .skip-intro, html.touch .up-next-card { right: max(16px, env(safe-area-inset-right)); bottom: 120px; }
+
 /* Lembrete de programa favorito (aviso 5 min antes) */
 .show-alert { position: fixed; right: 20px; bottom: 20px; z-index: 450; display: flex; align-items: center; gap: 14px; max-width: min(520px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 12px; background: #24242a; border-left: 4px solid var(--brand); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6); animation: rise 0.2s ease-out; }
 .show-alert .sa-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }

@@ -33,6 +33,31 @@ const TRIED = new Map();
 const BREAKS = { key: null, t: 0, seen: 0 };
 const BREAK_FRESH = 30 * 60e3; // reabrindo o mesmo título depois disso, passa o trailer de abertura de novo
 
+// Séries: "Pular abertura" e "Próximo episódio".
+// As listas IPTV não dizem onde a abertura termina: o botão pula INTRO_DEFAULT segundos e, se a
+// pessoa ajustar com ◀ ▶ (±10 s) logo depois, o app guarda o tamanho da abertura daquela série.
+const INTRO_STORE = 'gates:intro';
+const INTRO_DEFAULT = 80;
+const INTRO_WINDOW = 300; // o botão aparece nos 5 primeiros minutos do episódio
+const INTRO_ADJUST = 20e3; // ajustes até 20 s depois de pular entram no tamanho guardado
+const UPNEXT_AT = 40; // cartão do próximo episódio nos últimos 40 s
+const introMap = () => {
+  try {
+    return JSON.parse(localStorage.getItem(INTRO_STORE) || '{}') || {};
+  } catch {
+    return {};
+  }
+};
+const introLenOf = (k) => (k && introMap()[k]) || INTRO_DEFAULT;
+const saveIntroLen = (k, s) => {
+  if (!k) return;
+  try {
+    localStorage.setItem(INTRO_STORE, JSON.stringify({ ...introMap(), [k]: s }));
+  } catch {
+    // sem armazenamento: vale só nesta sessão
+  }
+};
+
 export default function Player() {
   const { playing } = useStore();
   if (!playing) return null;
@@ -689,8 +714,35 @@ function PlayerView({ item, rawQueue }) {
   const v = () => videoRef.current;
   const togglePlay = () => (v().paused ? v().play().catch(() => {}) : v().pause());
   const seekBy = (d) => {
-    if (seekable) v().currentTime = Math.max(0, Math.min(v().duration, v().currentTime + d));
+    if (!seekable) return;
+    v().currentTime = Math.max(0, Math.min(v().duration, v().currentTime + d));
+    // Logo depois de pular a abertura: o ajuste vira o tamanho da abertura desta série.
+    const a = introAdjust.current;
+    if (a && Date.now() - a.at < INTRO_ADJUST) {
+      a.len = Math.max(15, Math.min(240, a.len + d));
+      a.at = Date.now();
+      setIntroLen(a.len);
+      saveIntroLen(introKey, a.len);
+    }
   };
+
+  // ---------- Séries: pular abertura e próximo episódio ----------
+  const isEpisode = !isLive && !!item.series && !casting;
+  const introKey = item.seriesId || seriesId || item.series?.name;
+  const [introLen, setIntroLen] = useState(() => introLenOf(introKey));
+  const [introDone, setIntroDone] = useState(false);
+  const introAdjust = useRef(null); // { at, len }
+  const showIntro = isEpisode && seekable && !breakT && !introDone && st.dur > 600 && st.time >= 1 && st.time < INTRO_WINDOW;
+  const skipIntro = () => {
+    const el = v();
+    el.currentTime = Math.min(el.duration - UPNEXT_AT - 5, el.currentTime + introLen);
+    setIntroDone(true);
+    introAdjust.current = { at: Date.now(), len: introLen };
+    notify(`Abertura pulada (${introLen} s). Cortou demais ou de menos? Ajuste com ${isTouch ? '−10 / +10' : '◀ ▶'} agora: o app aprende para esta série.`);
+  };
+  const [upNextOff, setUpNextOff] = useState(false);
+  const left = st.dur - st.time;
+  const showUpNext = isEpisode && !!next && seekable && !breakT && !upNextOff && st.dur > 300 && left > 0 && left <= UPNEXT_AT;
   const toggleFs = () => (document.fullscreenElement ? document.exitFullscreen() : wrapRef.current.requestFullscreen?.());
   const toggleMute = () => (v().muted = !v().muted);
   const goto = (it) => it && play(it, queue);
@@ -841,6 +893,16 @@ function PlayerView({ item, rawQueue }) {
       if (isLive) setNumBuf((b) => (b + k[1]).slice(-4));
       return true;
     }
+    // Cartão do próximo episódio: OK assiste agora, Voltar cancela. Na abertura, OK pula.
+    if (!panel && showUpNext && (k === 'ok' || k === 'back')) {
+      if (k === 'ok') goto(next);
+      else setUpNextOff(true);
+      return true;
+    }
+    if (!panel && showIntro && k === 'ok') {
+      skipIntro();
+      return true;
+    }
     switch (k) {
       case 'back':
         if (e.key === 'Escape' && document.fullscreenElement) return true;
@@ -938,7 +1000,7 @@ function PlayerView({ item, rawQueue }) {
     },
     onEnded: () => {
       if (!isLive) saveProgress(item.id, { position: 0, duration: st.dur, watched: true });
-      if (next && item.type === 'series') goto(next);
+      if (next && item.type === 'series' && !upNextOff) goto(next);
     },
     onError: () => {
       const el = videoRef.current;
@@ -1118,6 +1180,28 @@ function PlayerView({ item, rawQueue }) {
       )}
 
       {!isLive && panel === 'info' && <VodInfo item={item} meta={meta} age={age} actions={vodActions} act={act} />}
+
+      {showIntro && !panel && (
+        <button className="btn skip-intro" tabIndex={-1} onClick={skipIntro}>
+          Pular abertura {isTvMode() && <small>OK</small>}
+        </button>
+      )}
+      {showUpNext && !panel && (
+        <div className="up-next-card">
+          <small>PRÓXIMO EPISÓDIO EM {Math.ceil(left)} S</small>
+          <strong>
+            {next.series ? `T${next.series.season} · E${next.series.episode}${next.series.title ? ' — ' + next.series.title : ''}` : next.name}
+          </strong>
+          <div className="unc-actions">
+            <button className="btn" tabIndex={-1} onClick={() => goto(next)}>
+              <Icon name="play" size={16} /> Assistir agora{isTvMode() && <small> OK</small>}
+            </button>
+            <button className="btn ghost" tabIndex={-1} onClick={() => setUpNextOff(true)}>
+              Cancelar{isTvMode() && <small> Voltar</small>}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="player-bottom" onTouchStart={isTouch ? poke : undefined}>
         {seekable ? (
