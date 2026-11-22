@@ -431,7 +431,8 @@ async function route(req, env, cfg) {
     }
     if (p === '/api/v1/account/device' && b.deviceId) c = await db.update(email, (x) => (delete x.devices?.[String(b.deviceId)], x));
     if (p === '/api/v1/account/cancel' && !c.cancelledAt) {
-      for (const id of Object.keys(c.gateway?.subscriptions || {})) await asaas.cancelSubscription(id).catch((e) => console.warn('[cancelar]', e.message));
+      const r = await cancelAllSubscriptions(asaas, c);
+      if (!r.ok) return json(502, { ok: false, error: 'gateway', message: CANCEL_FAIL });
       c = await db.update(email, (x) => ((x.cancelledAt = Date.now()), x));
     }
     if (!c.refCode) c = await db.update(email, (x) => ((x.refCode = newRefCode()), x));
@@ -485,6 +486,34 @@ async function referralView(c, cfg, db) {
   };
 }
 
+const CANCEL_FAIL = 'Não foi possível cancelar agora no sistema de pagamento. Tente de novo em alguns minutos ou fale com o suporte pelo WhatsApp.';
+
+// Cancela no Asaas as assinaturas guardadas aqui e também as ativas encontradas lá pelo cliente
+// (assinaturas criadas fora do checkout não ficam guardadas). Só dá certo se nenhuma falhar.
+async function cancelAllSubscriptions(asaas, c) {
+  const custs = c?.gateway?.customerIds || [];
+  // Com cadastro no Asaas, vale a lista de lá (só as ativas); sem ele, as guardadas aqui.
+  const ids = new Set(custs.length ? [] : Object.keys(c?.gateway?.subscriptions || {}));
+  for (const cust of custs) {
+    try {
+      for (const id of await asaas.activeSubscriptions(cust)) ids.add(id);
+    } catch (e) {
+      console.warn('[cancelar] não listou as assinaturas de', cust, e.message);
+      return { ok: false };
+    }
+  }
+  let cancelled = 0;
+  for (const id of ids) {
+    try {
+      if (await asaas.cancelSubscription(id)) cancelled++; // null = já não existia (404)
+    } catch (e) {
+      console.warn('[cancelar] não cancelou', id, e.message);
+      return { ok: false };
+    }
+  }
+  return { ok: true, cancelled };
+}
+
 async function accountView(c, cfg, db) {
   const st = evaluate(c, cfg);
   const plan = cfg.plans.find((x) => x.id === c.plan);
@@ -504,7 +533,8 @@ async function accountView(c, cfg, db) {
     payUrl: st.status !== 'active' ? c.lastInvoiceUrl || null : null,
     renewUrl: `/assinar?email=${encodeURIComponent(c.email)}`,
     cancelled: !!c.cancelledAt,
-    canCancel: !!Object.keys(c.gateway?.subscriptions || {}).length && !c.cancelledAt,
+    // Qualquer cliente com cadastro no Asaas pode cancelar (as assinaturas são buscadas lá na hora).
+    canCancel: !c.cancelledAt && !!(Object.keys(c.gateway?.subscriptions || {}).length || c.gateway?.customerIds?.length),
     phone: c.phone || null,
     phoneBad: !!c.phone && !normPhone(c.phone),
     devices: Object.entries(c.devices || {}).map(([id, d]) => ({ id, name: d.name, platform: d.platform, lastSeen: d.lastSeen })),
@@ -655,8 +685,9 @@ async function admin(req, url, b, { db, asaas, subs, cfg, fail }) {
   }
   if (parts[2] === 'cancel' && req.method === 'POST') {
     const c = await db.get(email);
-    for (const id of Object.keys(c?.gateway?.subscriptions || {})) await asaas.cancelSubscription(id).catch((e) => console.warn('[cancelar]', e.message));
-    return json(200, { ok: true, customer: view(await db.update(email, (x) => ((x.cancelledAt = Date.now()), x))) });
+    const r = await cancelAllSubscriptions(asaas, c);
+    if (!r.ok) return json(502, { ok: false, error: 'gateway', message: CANCEL_FAIL });
+    return json(200, { ok: true, cancelled: r.cancelled, customer: view(await db.update(email, (x) => ((x.cancelledAt = Date.now()), x))) });
   }
   if (parts[2] === 'devices' && parts[3] && req.method === 'DELETE')
     return json(200, { ok: true, customer: view(await db.update(email, (x) => (delete x.devices?.[decodeURIComponent(parts[3])], x))) });

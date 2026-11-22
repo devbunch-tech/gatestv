@@ -81,6 +81,11 @@ export function makeAsaas(cfg) {
       return { subscriptionId: sub.id, invoiceUrl: first?.invoiceUrl || null, firstPaymentId: first?.id || null };
     },
     cancelSubscription: (id) => api(`/subscriptions/${id}`, { method: 'DELETE' }),
+    // Assinaturas ativas do cliente no Asaas (inclui as criadas fora do nosso checkout).
+    async activeSubscriptions(customerId) {
+      const r = await api(`/subscriptions?customer=${customerId}&limit=100`);
+      return (r?.data || []).filter((s) => !s.deleted && String(s.status || 'ACTIVE').toUpperCase() === 'ACTIVE').map((s) => String(s.id));
+    },
     fetchPayment: (id) => api(`/payments/${id}`),
     // Divide a cobrança com a carteira Asaas do indicador (ou remove a divisão: split = []).
     setPaymentSplit: (id, split) => api(`/payments/${id}`, { method: 'PUT', body: { split } }),

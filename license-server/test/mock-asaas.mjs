@@ -100,6 +100,7 @@ export function startMock(port = 8796, { host = '127.0.0.1', invoiceBase = '', w
           last.invoiceUrl = invoiceBase ? `${invoiceBase}/${last.id}` : `https://sandbox.asaas.com/i/${s.id}`;
           return send(200, s);
         }
+        if (p === '/subscriptions' && req.method === 'GET') return send(200, { data: db.subscriptions.filter((x) => x.customer === q('customer')) });
         if ((m = p.match(/^\/subscriptions\/([\w]+)\/payments$/))) return send(200, { data: db.payments.filter((x) => x.subscription === m[1]) });
         if ((m = p.match(/^\/subscriptions\/([\w]+)$/)) && req.method === 'DELETE') {
           const s = db.subscriptions.find((x) => x.id === m[1]);
