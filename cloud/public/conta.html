@@ -75,6 +75,7 @@
         <a class="btn pri" id="pay" target="_blank" rel="noopener" hidden>Pagar agora</a>
         <a class="btn" id="renew" hidden>Renovar / trocar de plano</a>
         <button class="btn" id="refresh">Atualizar</button>
+        <button class="btn" id="cancelTop" hidden>Cancelar assinatura</button>
       </div>
       <div class="msg" id="amsg"></div>
     </div>
@@ -144,6 +145,14 @@
       <h2>Cancelar assinatura</h2>
       <p class="muted" style="margin:0 0 14px">As próximas cobranças são canceladas. Você continua usando até o fim do período já pago.</p>
       <button class="btn" id="cancel">Cancelar assinatura</button>
+      <div id="cancelAsk" hidden>
+        <p style="margin:0 0 12px"><b>Tem certeza?</b> As próximas cobranças não serão feitas.</p>
+        <div class="actions">
+          <button class="btn pri" id="cancelYes">Sim, cancelar</button>
+          <button class="btn" id="cancelNo">Voltar</button>
+        </div>
+      </div>
+      <div class="msg" id="cmsg"></div>
     </div>
     <p class="center" style="text-align:center"><button class="link" id="logout">Sair</button></p>
   </div>
@@ -192,7 +201,7 @@
     $('renew').hidden = !(a.status === 'suspended' || a.cancelled || trial);
     $('renew').textContent = trial || trialEnded ? 'Assinar agora' : 'Renovar / trocar de plano';
     $('renew').href = a.renewUrl;
-    $('cancelCard').hidden = !a.canCancel;
+    $('cancelCard').hidden = $('cancelTop').hidden = !a.canCancel;
     const r = a.referral || {};
     $('refPct').textContent = $('refPct2').textContent = r.percent || 20;
     $('refLink').textContent = r.link || '—';
@@ -226,7 +235,7 @@
       row.append(info, btn); box.append(row);
     }
   }
-  const err = (id, t) => { $(id).textContent = t; $(id).style.display = 'block'; };
+  const err = (id, t) => { $(id).textContent = t; $(id).style.cssText = 'display:block'; };
 
   $('login').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -318,9 +327,23 @@
     } catch (e) { err('refmsg', e.message); }
   };
   $('refresh').onclick = async () => { try { show(await call('/api/v1/account')); } catch (e) { err('amsg', e.message); } };
-  $('cancel').onclick = async () => {
-    if (!confirm('Cancelar a assinatura? As próximas cobranças não serão feitas.')) return;
-    try { show(await call('/api/v1/account/cancel')); } catch (e) { err('amsg', e.message); }
+  // Confirmação na própria página (o confirm() não aparece nos navegadores do WhatsApp/Instagram).
+  const askCancel = (on) => { $('cancel').hidden = on; $('cancelAsk').hidden = !on; $('cmsg').style.display = 'none'; };
+  $('cancel').onclick = () => askCancel(true);
+  $('cancelNo').onclick = () => askCancel(false);
+  $('cancelTop').onclick = () => { askCancel(true); $('cancelCard').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+  $('cancelYes').onclick = async () => {
+    $('cancelYes').disabled = true;
+    $('cancelYes').textContent = 'Cancelando…';
+    try {
+      show(await call('/api/v1/account/cancel'));
+      askCancel(false);
+      $('amsg').textContent = 'Assinatura cancelada. Nenhuma nova cobrança será feita.';
+      $('amsg').style.cssText = 'display:block;background:rgba(40,200,120,.12);color:#5fe3a1';
+      $('acc').scrollIntoView({ behavior: 'smooth' });
+    } catch (e) { err('cmsg', e.message); }
+    $('cancelYes').disabled = false;
+    $('cancelYes').textContent = 'Sim, cancelar';
   };
   $('logout').onclick = () => { sessionStorage.removeItem('gates-conta'); creds = null; $('acc').hidden = true; $('login').hidden = false; };
   const q = new URLSearchParams(location.search);
