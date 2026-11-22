@@ -822,8 +822,7 @@ function PlayerView({ item, rawQueue }) {
     if (breakT) {
       const cur = breakT.list?.[breakT.i];
       if (k === 'up' && cur?.catalogId) laterFromBreak(cur);
-      else if (k === 'back' && cur?.mandatory) close(); // trailer obrigatório: Voltar sai do player, não pula
-      else if ((k === 'ok' || k === 'back') && (breakT.loading || (!cur?.mandatory && Date.now() - breakT.at > BREAK_SKIP_AFTER * 1000))) {
+      else if ((k === 'ok' || k === 'back') && (breakT.loading || Date.now() - breakT.at > BREAK_SKIP_AFTER * 1000)) {
         if (breakT.loading) endBreak();
         else nextInBreak();
       }
@@ -1329,13 +1328,9 @@ function TrailerBreak({ trailer, pos, total, onDone, later, onLater }) {
           {isTvMode() && <small> ▲</small>}
         </button>
       )}
-      {trailer.mandatory ? (
-        <span className="btn tb-skip tb-must">Trailer obrigatório</span>
-      ) : (
-        <button className="btn tb-skip" tabIndex={-1} disabled={left > 0} onClick={() => done.current()}>
-          {left > 0 ? `Pular em ${left}` : isTvMode() ? 'OK para pular' : pos < total ? 'Próximo' : 'Pular'}
-        </button>
-      )}
+      <button className="btn tb-skip" tabIndex={-1} disabled={left > 0} onClick={() => done.current()}>
+        {left > 0 ? `Pular em ${left}` : isTvMode() ? 'OK para pular' : pos < total ? 'Próximo' : 'Pular'}
+      </button>
     </div>
   );
 }

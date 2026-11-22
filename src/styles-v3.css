@@ -532,12 +532,11 @@ html.device-phone body .featured .row-nav { display: none !important; }
 .ck-nav { display: inline-flex; align-items: center; gap: 4px; }
 @media (max-width: 600px) { .ck-card { width: 200px; } .ck-hint { display: none; } .ck-remove { position: static; margin-bottom: 4px; } }
 
-/* Trailers: onde está o título, "Assistir depois" e trailer obrigatório */
+/* Trailers: onde está o título e "Assistir depois" */
 .tb-where { font-size: 13px; color: #d7d7dd; }
 .tb-later { position: absolute; left: 24px; bottom: 28px; background: rgba(0, 0, 0, 0.75); border: 1px solid rgba(255, 255, 255, 0.4); color: #fff; gap: 6px; }
 .tb-later.on { background: #22a35a; border-color: #22a35a; }
 .tb-later small { opacity: 0.7; }
-.tb-must { cursor: default; background: rgba(0, 0, 0, 0.75) !important; border-color: rgba(255, 255, 255, 0.25) !important; color: #ccc !important; pointer-events: none; }
 
 /* Avaliação em estrelas */
 .star-rating { display: flex; align-items: center; gap: 4px; margin-top: 14px; flex-wrap: wrap; }

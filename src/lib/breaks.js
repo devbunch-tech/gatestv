@@ -324,11 +324,11 @@ export async function pickInterview(content) {
 export const PREROLL_SLOW = 15; // segundos para a entrevista e a crítica (buscas no YouTube)
 export function prerollSources(catalog, type, opts = {}, content = null) {
   const within = (p, secs) => Promise.race([p.catch(() => null), new Promise((r) => setTimeout(() => r(null), secs * 1000))]);
-  // 3 trailers: plataforma, cinema e plataforma de novo (os dois primeiros são obrigatórios).
+  // 3 trailers: plataforma, cinema e plataforma de novo (todos podem ser pulados).
   const platform = pickTrailers(catalog, type, { ...opts, count: PREROLL_COUNT });
   return [
-    within(platform.then((l) => (l[0] ? { ...l[0], mandatory: true } : null)), PREROLL_WAIT),
-    within(pickCinemaTrailer(catalog).then((t) => (t ? { ...t, mandatory: true } : null)), PREROLL_WAIT),
+    within(platform.then((l) => l[0] || null), PREROLL_WAIT),
+    within(pickCinemaTrailer(catalog), PREROLL_WAIT),
     within(platform.then((l) => l[1] || null), PREROLL_WAIT),
     within(pickInterview(content), PREROLL_SLOW),
     within(pickEiNerdReview(content), PREROLL_SLOW),

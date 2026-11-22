@@ -437,8 +437,8 @@ export function PlaybackSection() {
         Antes de começar um filme ou série, passa 2 trailers de lançamentos do mesmo tipo e 1 de um filme estreando nos cinemas
         do Brasil; se houver, também uma entrevista oficial de até 8 minutos e a crítica do canal Ei Nerd sobre o que você vai
         assistir. A cada 12 minutos assistidos, passa mais 2 trailers de lançamentos e volta ao ponto em que parou. Trailers só
-        dublados ou legendados em português, de títulos com classificação até 14 anos, e nunca repetidos. Os 2 primeiros trailers da
-        abertura são obrigatórios; nos demais, o botão "Pular" libera em 5 segundos. "Assistir depois" guarda o título nos Favoritos.
+        dublados ou legendados em português, de títulos com classificação até 14 anos, e nunca repetidos. Em todos eles, o botão
+        "Pular" libera em 5 segundos. "Assistir depois" guarda o título nos Favoritos.
       </Toggle>
       {settings.curatedZap && <LiveHealthStatus />}
       <div className="field">
