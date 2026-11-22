@@ -172,8 +172,8 @@ export function ParentalSection() {
             onChange={async (v) => (await ensurePin()) && updateParental({ enabled: v })}
             title="Ativar controle parental"
           >
-            Exige o PIN para canais, filmes e séries acima da classificação escolhida. Itens bloqueados individualmente sempre pedem
-            o PIN.
+            Esconde das listas os canais, filmes e séries acima da classificação escolhida (outro título aparece no lugar). Com o
+            PIN, tudo volta a aparecer por 10 minutos.
           </Toggle>
 
           <div className="field">
@@ -190,9 +190,6 @@ export function ParentalSection() {
             </small>
           </div>
 
-          <Toggle checked={parental.hideRestricted} onChange={(v) => updateParental({ hideRestricted: v })} title="Ocultar conteúdo restrito">
-            Em vez de pedir o PIN, esconde das listas o que estiver acima da classificação ou bloqueado.
-          </Toggle>
           <Toggle checked={parental.blockAdultGroups} onChange={(v) => updateParental({ blockAdultGroups: v })} title="Tratar categorias adultas como 18 anos">
             Categorias com “Adulto”, “XXX”, “+18” etc. recebem classificação 18 automaticamente.
           </Toggle>

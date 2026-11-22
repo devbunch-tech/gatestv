@@ -53,7 +53,10 @@ export function markSeen(key) {
   }
 }
 // Classificação conhecida e abaixo de 16 anos (sem classificação também fica de fora).
-const ageOk = (cert) => cert != null && cert < MAX_AGE;
+// E nunca acima do limite do perfil (ex.: Melissa, 12 anos: trailers só até 12).
+let profileLimit = null;
+export const setTrailerAgeLimit = (n) => (profileLimit = n ?? null);
+const ageOk = (cert) => cert != null && cert < MAX_AGE && (profileLimit == null || cert <= profileLimit);
 const KIND = { movie: 'FILME', series: 'SÉRIE' };
 
 function shuffle(list) {

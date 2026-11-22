@@ -4,7 +4,9 @@ import { parseM3U, parseM3UHeader, buildSeries, hash } from './lib/m3u';
 import { dataProxy, fetchText } from './lib/net';
 import { findNow, loadEpg as loadEpgWorker, normName } from './lib/epg';
 import { ADULT_RE } from './lib/parental';
-import { configureMeta } from './lib/meta';
+import { configureMeta, tmdbGet } from './lib/meta';
+import { classifyTitle, groupAge, is24h, ratingKey } from './lib/titles';
+import { setTrailerAgeLimit } from './lib/breaks';
 import { fetchXtreamCatalog, fetchXtreamEpisodes, fetchXtreamInfo, parseXtreamUrl, xtreamEpgUrl } from './lib/xtream';
 import { mergeVariants } from './lib/variants';
 import { baseName, zapGroups } from './lib/zapping';
@@ -255,6 +257,10 @@ export function StoreProvider({ account, children }) {
   const [rawParental, setParental] = usePersisted('parental', DEFAULT_PARENTAL);
   const [overrides, setOverrides] = usePersisted('overrides', {});
   const [metaRatings, setMetaRatings] = usePersisted('metaRatings', {});
+  // Classificação por título: a que vem pronta no app (public/ratings.json, scripts/build-ratings.mjs)
+  // e a que o aparelho descobre sozinho para os títulos novos da lista.
+  const [titleRatings, setTitleRatings] = useState(null);
+  const [learnedRatings, setLearnedRatings] = usePersisted('ratingsLearned', {});
   const [tmdbLinks, setTmdbLinks] = usePersisted('tmdbLinks', {});
   const [itemsByPl, setItemsByPl] = useState({});
   const [episodesBy, setEpisodesBy] = useState({});
@@ -579,7 +585,24 @@ export function StoreProvider({ account, children }) {
   const isLocked = (item) =>
     !!(overrides[item.id]?.locked || (item.seriesId && overrides[item.seriesId]?.locked) || parental.lockedGroups.includes(item.group));
   const ageLimit = profile?.maxAge ?? (parental.enabled ? parental.maxAge : null);
-  const blockUnrated = !!profile?.blockUnrated;
+  // Com limite de idade, filme ou série sem classificação conhecida fica de fora até ser classificado.
+  const strictAge = ageLimit != null && ageLimit < 18;
+  useEffect(() => {
+    setTrailerAgeLimit(ageLimit);
+  }, [ageLimit]);
+  // Chave do título (episódios usam a da série).
+  const keyOf = (it, byId) => {
+    if (!it) return null;
+    if (it._rk === undefined) it._rk = it.seriesId ? keyOf(byId.get(it.seriesId), byId) : ratingKey(it.type, it.type === 'series' ? it.series?.name || it.name : it.name, it.year);
+    return it._rk;
+  };
+  const titleAge = (it, byId) => {
+    const k = keyOf(it, byId);
+    const t = k ? learnedRatings[k] ?? titleRatings?.[k] : null;
+    return t != null && t >= 0 ? t : null;
+  };
+  const groupDefault = (it, byId) => groupAge((it.seriesId && byId.get(it.seriesId)) || it);
+  const overAge = (it, r) => (ageLimit == null ? false : r == null ? strictAge && it.type !== 'live' : r > ageLimit);
 
   // ---------- Catálogo ----------
   const catalog = useMemo(() => {
@@ -605,20 +628,19 @@ export function StoreProvider({ account, children }) {
     const hiddenSet = new Set([...hiddenList, ...masterHidden]);
     const gone = (id) => goneSet.has(id);
     const hidden = (id) => hiddenSet.has(id);
-    const hideR = (profile?.kids || profile?.hideRestricted || (profile?.maxAge == null && parental.hideRestricted)) && !unlocked;
+    // Bloqueado ou acima da classificação: some das listas (e outro título ocupa o lugar). Com o PIN, volta por 10 min.
+    const hideR = !unlocked;
     const staticRating = (it) => {
       const o = overrides[it.id]?.rating ?? (it.seriesId ? overrides[it.seriesId]?.rating : undefined);
       if (o != null) return o;
       const m = metaRatings[it.seriesId || it.id];
       if (m != null) return m;
-      return parental.blockAdultGroups && ADULT_RE.test(it.group || '') ? 18 : null;
+      const t = titleAge(it, byId);
+      if (t != null) return t;
+      if (parental.blockAdultGroups && ADULT_RE.test(it.group || '')) return 18;
+      return groupDefault(it, byId);
     };
-    const restrictedStatic = (it) => {
-      if (isLocked(it)) return true;
-      if (ageLimit == null) return false;
-      const r = staticRating(it);
-      return r == null ? blockUnrated : r > ageLimit;
-    };
+    const restrictedStatic = (it) => isLocked(it) || overAge(it, staticRating(it));
     const visible = (it) =>
       !gone(it.id) && !hidden(it.id) && !(it.seriesId && (gone(it.seriesId) || hidden(it.seriesId))) && !(hideR && restrictedStatic(it));
 
@@ -655,7 +677,65 @@ export function StoreProvider({ account, children }) {
     }
     return { all: [...live, ...movies, ...visSeries.flatMap((s) => s.episodes)], raw, live, movies, series, byId };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playlists, itemsByPl, episodesBy, localLogos, overrides, rawParental, unlocked, metaRatings, hiddenList, deletedList, masterHidden, masterDeleted, profile]);
+  }, [playlists, itemsByPl, episodesBy, localLogos, overrides, rawParental, unlocked, metaRatings, titleRatings, learnedRatings, hiddenList, deletedList, masterHidden, masterDeleted, profile]);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('./ratings.json')
+      .then((r) => (r.ok ? r.json() : { r: {} }))
+      .catch(() => ({ r: {} }))
+      .then((d) => alive && setTitleRatings(d?.r || {}));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  // Títulos que não vieram classificados (novos na lista): consulta o TMDB aos poucos, do mais novo para o
+  // mais antigo. Enquanto isso eles ficam escondidos dos perfis com limite de idade.
+  const learnRef = useRef(learnedRatings);
+  learnRef.current = learnedRatings;
+  useEffect(() => {
+    if (!titleRatings || !strictAge || !settings.tmdbKey || loading) return undefined;
+    let alive = true;
+    const known = (k) => k in titleRatings || k in learnRef.current;
+    const seen = new Set();
+    const todo = [];
+    for (const it of catalog.raw) {
+      if (!(it.type === 'movie' || (it.type === 'series' && it.shell) || (it.type === 'live' && is24h(it.name)))) continue;
+      const k = keyOf(it, catalog.byId);
+      if (!k || seen.has(k) || known(k)) continue;
+      seen.add(k);
+      todo.push(it);
+    }
+    if (!todo.length) return undefined;
+    todo.sort((a, b) => (b.added || 0) - (a.added || 0));
+    const queue = todo.slice(0, 3000);
+    let batch = {};
+    const flush = () => {
+      if (!Object.keys(batch).length) return;
+      const b = batch;
+      batch = {};
+      setLearnedRatings((o) => ({ ...o, ...b }));
+    };
+    const timer = setInterval(flush, 15000);
+    const worker = async () => {
+      while (alive && queue.length) {
+        const it = queue.shift();
+        try {
+          batch[it._rk] = await classifyTitle(tmdbGet, { type: it.type, name: it.name, year: it.year, poster: it.logo });
+        } catch (e) {
+          if (/inválida|não configurada/.test(e.message)) queue.length = 0;
+        }
+      }
+    };
+    Promise.all([worker(), worker(), worker()]).then(() => alive && flush());
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      flush();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // (pelo tamanho da lista: o catálogo é refeito a cada lote salvo e reiniciaria a fila)
+  }, [titleRatings, strictAge, settings.tmdbKey, loading, catalog.raw.length]);
 
   // Canais existentes, para o worker ignorar o restante do XMLTV (guias Xtream são enormes).
   useEffect(() => {
@@ -757,16 +837,14 @@ export function StoreProvider({ account, children }) {
     }
     const m = metaRatings[item.seriesId || item.id];
     if (m != null) return m;
+    const t = titleAge(item, catalog.byId);
+    if (t != null) return t;
     if (parental.blockAdultGroups && ADULT_RE.test(item.group || '')) return 18;
-    return null;
+    return groupDefault(item, catalog.byId);
   };
-  const isRestricted = (item, useEpg = true) => {
-    if (!item) return false;
-    if (isLocked(item)) return true;
-    if (ageLimit == null) return false;
-    const r = ratingOf(item, useEpg);
-    return r == null ? blockUnrated : r > ageLimit;
-  };
+  const isRestricted = (item, useEpg = true) => !!item && (isLocked(item) || overAge(item, ratingOf(item, useEpg)));
+  // Some das listas (cartões, guia de canais): bloqueado ou acima da idade, inclusive pelo programa atual do EPG.
+  const isHiddenNow = (item) => unlockedUntil <= Date.now() && isRestricted(item);
 
   const requestPin = useCallback((reason, opts = {}) => new Promise((resolve) => setPinReq({ reason, resolve, ...opts })), []);
   const resolvePin = (ok, newPin) => {
@@ -996,6 +1074,7 @@ export function StoreProvider({ account, children }) {
     ratingOf,
     isLocked,
     isRestricted,
+    isHiddenNow,
 
     overrides,
     setOverride,

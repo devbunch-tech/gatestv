@@ -58,35 +58,10 @@ async function omdb(imdbId) {
   return data;
 }
 
-export const normTitle = (s) =>
-  (s || '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/&/g, ' e ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-
-const NOISE =
-  /\b(4k|uhd|fhd|full ?hd|hd|sd|hdr|h\.?26[45]|hevc|x26[45]|1080p|720p|2160p|dublad[oa]s?|legendad[oa]s?|dual(?: [aá]udio)?|nacional|leg|dub|pt-?br|subtitled|web-?dl|bluray|remux|imax|trailer|teaser)\b/gi;
-
-// "BR | Tears of Steel (2012) [4K] Dublado" -> { title: "Tears of Steel", year: 2012 }
-export function cleanTitle(name) {
-  let s = String(name || '');
-  const ym = s.match(/[([]\s*((?:19|20)\d{2})\s*[)\]]|\b((?:19|20)\d{2})\s*$/);
-  const year = ym ? +(ym[1] || ym[2]) : null;
-  s = s
-    .replace(/^\s*[A-Z]{2,3}\s*[|:]\s*/, '')
-    .replace(/[([][^)\]]*[)\]]/g, ' ')
-    .replace(/\bS\d{1,2}\s*E\d{1,4}\b.*$/i, '')
-    .replace(NOISE, ' ')
-    .replace(/[|_]+/g, ' ')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/[\s\-–—:|]+$/, '')
-    .trim();
-  if (year) s = s.replace(new RegExp(`\\s${year}$`), '').trim();
-  return { title: s || String(name), year };
-}
+export { normTitle, cleanTitle } from './titles';
+// Consulta direta ao TMDB (classificação do catálogo em segundo plano).
+export const tmdbGet = (path, params) => tmdb(path, params);
+import { normTitle, cleanTitle } from './titles';
 
 const yearOf = (r) => +(r.release_date || r.first_air_date || '').slice(0, 4) || null;
 

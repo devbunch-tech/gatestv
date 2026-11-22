@@ -196,12 +196,18 @@ function ItemMenuBody({ item, onClose }) {
           <>
         <button
           onClick={run(async () => {
-            if (locked ? await s.unlock(`Digite o PIN para desbloquear “${item.name}”`) : await s.ensurePin())
-              s.setOverride(item.id, { locked: !locked });
+            if (!(locked ? await s.unlock(`Digite o PIN para desbloquear “${item.name}”`) : await s.ensurePin())) return;
+            for (const i of ids) s.setOverride(i, { locked: !locked });
+            if (!locked) {
+              // Some das listas na hora; para ver de novo: Configurações › Conteúdo oculto, com o PIN.
+              s.lockNow();
+              s.notify(`“${item.displayName || item.name}” foi bloqueado e saiu das listas. Para liberar: Configurações, com o PIN.`);
+              onClose();
+            }
           })}
         >
           <Icon name={locked ? 'unlock' : 'lock'} /> {locked ? `Desbloquear ${kind}` : `Bloquear ${kind} com PIN`}
-          <small>{locked ? 'Hoje exige PIN para assistir' : 'Exigirá o PIN para assistir'}</small>
+          <small>{locked ? 'Volta a aparecer nas listas' : 'Some das listas; outro título aparece no lugar'}</small>
         </button>
 
         <div className="menu-section">

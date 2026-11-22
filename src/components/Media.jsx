@@ -67,8 +67,9 @@ export function RatingBadge({ age, large }) {
 
 export function Card({ item, variant = 'poster', sub, progress, onClick }) {
   const open = useOpenItem();
-  const { programmesFor, isRestricted, openMenu } = useStore();
+  const { programmesFor, isRestricted, isHiddenNow, openMenu } = useStore();
   const isLive = item.type === 'live';
+  if (isHiddenNow(item)) return null;
   const restricted = isRestricted(item);
   const subtitle = sub ?? (isLive ? findNow(programmesFor(item))?.title || item.group : undefined);
   return (

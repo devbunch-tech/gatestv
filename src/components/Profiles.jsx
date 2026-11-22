@@ -143,7 +143,7 @@ export function ProfileEditor({ profile, onClose }) {
   const set = (patch) => setD((x) => ({ ...x, ...patch }));
 
   const setKids = (kids) =>
-    set(kids ? { kids, maxAge: d.maxAge ?? 10, hideRestricted: true } : { kids, maxAge: null, hideRestricted: false, blockUnrated: false });
+    set(kids ? { kids, maxAge: d.maxAge ?? 10, hideRestricted: true } : { kids, maxAge: null });
 
   const save = async () => {
     const name = d.name.trim();
@@ -227,26 +227,9 @@ export function ProfileEditor({ profile, onClose }) {
       </div>
 
       {(d.maxAge != null || d.kids) && (
-        <>
-          {!d.kids && (
-            <label className="toggle">
-              <input type="checkbox" checked={d.hideRestricted} onChange={(e) => set({ hideRestricted: e.target.checked })} />
-              <span className="switch" />
-              <div>
-                <strong>Ocultar o que estiver acima da classificação</strong>
-                <small>Em vez de pedir o PIN.</small>
-              </div>
-            </label>
-          )}
-          <label className="toggle">
-            <input type="checkbox" checked={d.blockUnrated} onChange={(e) => set({ blockUnrated: e.target.checked })} />
-            <span className="switch" />
-            <div>
-              <strong>Bloquear conteúdo sem classificação</strong>
-              <small>Mais seguro, mas em listas IPTV muitos itens não têm classificação (use o TMDB, o EPG ou defina manualmente).</small>
-            </div>
-          </label>
-        </>
+        <p className="muted small">
+          O que passar da classificação some das listas, e outro título aparece no lugar. Título sem classificação conhecida também fica de fora até ser classificado.
+        </p>
       )}
 
       <div className="field">

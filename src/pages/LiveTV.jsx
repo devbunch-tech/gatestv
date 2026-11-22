@@ -16,7 +16,7 @@ const FAV = 'Favoritos';
 
 export default function LiveTV() {
   const store = useStore();
-  const { catalog, play, playing, isFavorite, toggleFavorite, favorites, loading, programmesFor, openMenu, openProgram, isRestricted, ratingOf, liveHealth, settings, updateSettings } = store;
+  const { catalog, play, playing, isFavorite, toggleFavorite, favorites, loading, programmesFor, openMenu, openProgram, isRestricted, isHiddenNow, ratingOf, liveHealth, settings, updateSettings } = store;
 
   // Ao entrar em TV ao Vivo, abre direto a Globo do estado do cliente (ou a padrão), na versão que
   // estiver no ar, e a tela por trás do player passa a ser o Início: ao sair do player o cliente
@@ -54,7 +54,7 @@ export default function LiveTV() {
   }, [catalog.live]);
 
   const channels = useMemo(() => {
-    let list = catalog.live;
+    let list = catalog.live.filter((c) => !isHiddenNow(c));
     if (group === FAV) list = list.filter((c) => favorites.includes(c.id));
     else if (group !== ALL) list = list.filter((c) => c.group === group);
     if (filter) {
@@ -62,7 +62,8 @@ export default function LiveTV() {
       list = list.filter((c) => c.name.toLowerCase().includes(f) || String(c.num) === f);
     }
     return list;
-  }, [catalog.live, group, filter, favorites]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog.live, group, filter, favorites, store.unlocked, programmesFor, Math.floor(now / 300000)]);
 
   useEffect(() => {
     if (firstChannels.current) return void (firstChannels.current = false);
