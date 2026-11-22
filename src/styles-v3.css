@@ -561,6 +561,9 @@ html.touch .skip-intro, html.touch .up-next-card { right: max(16px, env(safe-are
 .fav-rated .row-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .fav-rated-track { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; }
 .fav-rated-item { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.fav-rated .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.fav-rated .chip { display: inline-flex; align-items: center; gap: 4px; }
+.fav-remove { font-size: 12px; padding: 4px 10px; }
 
 /* CLARK: adicionar canal pelo nome */
 .ck-add-form { display: flex; gap: 10px; max-width: 640px; margin-bottom: 12px; }

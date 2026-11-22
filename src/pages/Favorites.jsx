@@ -16,19 +16,22 @@ const dayLabel = (t) => {
 };
 
 export default function Favorites() {
-  const { favorites, catalog, shows, removeShow, programmesFor, openProgram, later, ratings } = useStore();
-  const [order, setOrder] = useState('best'); // avaliações: melhores ou piores primeiro
+  const { favorites, catalog, shows, removeShow, programmesFor, openProgram, later, toggleLater, ratings } = useStore();
+  const [order, setOrder] = useState('best'); // classificações: melhores ou piores primeiro
+  const [stars, setStars] = useState(0); // classificações: 0 = todas as notas
   const laterItems = later.map((id) => catalog.byId.get(id)).filter(Boolean);
-  const rated = Object.entries(ratings)
+  const allRated = Object.entries(ratings)
     .map(([id, r]) => ({ item: catalog.byId.get(id), stars: r.stars, at: r.at }))
-    .filter((x) => x.item)
+    .filter((x) => x.item);
+  const rated = allRated
+    .filter((x) => !stars || x.stars === stars)
     .sort((a, b) => (order === 'best' ? b.stars - a.stars : a.stars - b.stars) || b.at - a.at);
   const now = useNow(60000);
   const items = favorites.map((id) => catalog.byId.get(id)).filter(Boolean);
   const live = items.filter((i) => i.type === 'live');
   const movies = items.filter((i) => i.type === 'movie');
   const series = items.filter((i) => i.type === 'series');
-  const total = items.length + shows.length + laterItems.length + rated.length;
+  const total = items.length + shows.length + laterItems.length + allRated.length;
 
   return (
     <div className="favorites">
@@ -41,11 +44,56 @@ export default function Favorites() {
         </div>
       )}
       {laterItems.length > 0 && (
-        <Row title="Marcado para assistir depois">
-          {laterItems.map((it) => (
-            <Card key={it.id} item={it} sub={it.type === 'series' ? 'Série' : 'Filme'} />
-          ))}
-        </Row>
+        <section className="row fav-rated fav-later">
+          <div className="row-head">
+            <h2>Assistir depois</h2>
+          </div>
+          <div className="row-track fav-rated-track">
+            {laterItems.map((it) => (
+              <div key={it.id} className="fav-rated-item">
+                <Card item={it} sub={it.type === 'series' ? 'Série' : 'Filme'} />
+                <button className="chip fav-remove" onClick={() => toggleLater(it.id)} aria-label={`Excluir “${it.displayName || it.name}” da lista Assistir depois`}>
+                  <Icon name="trash" size={14} /> Excluir
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {allRated.length > 0 && (
+        <section className="row fav-rated">
+          <div className="row-head">
+            <h2>Classificações</h2>
+            <div className="chips">
+              <button className={`chip ${order === 'best' ? 'active' : ''}`} onClick={() => setOrder('best')}>
+                Melhores primeiro
+              </button>
+              <button className={`chip ${order === 'worst' ? 'active' : ''}`} onClick={() => setOrder('worst')}>
+                Piores primeiro
+              </button>
+              <button className={`chip ${!stars ? 'active' : ''}`} onClick={() => setStars(0)}>
+                Todas
+              </button>
+              {[5, 4, 3, 2, 1].map((n) => (
+                <button key={n} className={`chip ${stars === n ? 'active' : ''}`} onClick={() => setStars(n)} aria-label={`Só as de ${n} estrela${n > 1 ? 's' : ''}`}>
+                  {n} <Icon name="star" size={12} filled />
+                </button>
+              ))}
+            </div>
+          </div>
+          {rated.length ? (
+            <div className="row-track fav-rated-track">
+              {rated.map(({ item, stars: s }) => (
+                <div key={item.id} className="fav-rated-item">
+                  <Card item={item} sub={item.type === 'series' ? 'Série' : 'Filme'} />
+                  <Stars value={s} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="muted">Nenhum título com {stars} estrela{stars > 1 ? 's' : ''}.</p>
+          )}
+        </section>
       )}
       {live.length > 0 && (
         <Row title="Canais">
@@ -67,29 +115,6 @@ export default function Favorites() {
             <Card key={it.id} item={it} sub={it.group} />
           ))}
         </Row>
-      )}
-      {rated.length > 0 && (
-        <section className="row fav-rated">
-          <div className="row-head">
-            <h2>Minhas avaliações</h2>
-            <div className="chips">
-              <button className={`chip ${order === 'best' ? 'active' : ''}`} onClick={() => setOrder('best')}>
-                Melhores primeiro
-              </button>
-              <button className={`chip ${order === 'worst' ? 'active' : ''}`} onClick={() => setOrder('worst')}>
-                Piores primeiro
-              </button>
-            </div>
-          </div>
-          <div className="row-track fav-rated-track">
-            {rated.map(({ item, stars }) => (
-              <div key={item.id} className="fav-rated-item">
-                <Card item={item} sub={item.type === 'series' ? 'Série' : 'Filme'} />
-                <Stars value={stars} />
-              </div>
-            ))}
-          </div>
-        </section>
       )}
       {shows.length > 0 && (
         <section className="row fav-shows">

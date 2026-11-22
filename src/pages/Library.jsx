@@ -102,6 +102,13 @@ export default function Library({ kind }) {
     return all;
   }, [all, platform]);
 
+  // Categorias (Terror, Comédia…) da plataforma aberta ou de toda a biblioteca, em ordem alfabética.
+  const genres = useMemo(() => {
+    const m = new Map();
+    for (const it of source) for (const g of genresOf(it)) m.set(g, (m.get(g) || 0) + 1);
+    return [...m.entries()].filter(([, n]) => n >= 2).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
+  }, [source]);
+
   const filtered = useMemo(() => {
     let list = group ? all.filter((x) => inGroup(x, group)) : source;
     if (genre) list = list.filter((x) => genresOf(x).includes(genre));
@@ -124,6 +131,8 @@ export default function Library({ kind }) {
     const next = Object.fromEntries(params);
     Object.assign(next, patch);
     for (const k of Object.keys(next)) if (next[k] == null || next[k] === '' || (k === 'sort' && next[k] === 'default')) delete next[k];
+    // Na tela principal, escolher um filtro abre "Todos os filmes/séries" já filtrado.
+    if (!next.p && !next.prov && !next.g && Object.keys(next).length) next.p = ALL;
     setParams(next, { replace: true });
   };
 
@@ -138,6 +147,15 @@ export default function Library({ kind }) {
   );
   const filters = (
     <div className="lib-filters">
+      <select value={genre || ''} onChange={(e) => update({ gen: e.target.value })} aria-label="Categoria">
+        <option value="">Todas as categorias</option>
+        {genre && !genres.some(([g]) => g === genre) && <option value={genre}>{genre}</option>}
+        {genres.map(([g, n]) => (
+          <option key={g} value={g}>
+            {g} ({n.toLocaleString('pt-BR')})
+          </option>
+        ))}
+      </select>
       <select value={sort} onChange={(e) => update({ sort: e.target.value })} aria-label="Ordem">
         {Object.entries(SORTS).map(([k, s]) => (
           <option key={k} value={k}>
@@ -250,7 +268,9 @@ export default function Library({ kind }) {
     <div className="library lib-overview">
       <LibraryHero items={all} />
       <div className="library-head">
-        <PageHeader title={label} count={all.length} />
+        <PageHeader title={label} count={all.length}>
+          {filters}
+        </PageHeader>
       </div>
       <PlatformStrip items={all} />
       <Row title="Lançamentos">

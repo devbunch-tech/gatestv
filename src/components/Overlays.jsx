@@ -176,6 +176,11 @@ function ItemMenuBody({ item, onClose }) {
         <button onClick={() => s.toggleFavorite(item.id)}>
           <Icon name="heart" filled={s.isFavorite(item.id)} /> {s.isFavorite(item.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
         </button>
+        {item.type !== 'live' && (
+          <button onClick={() => s.toggleLater(item.id)}>
+            <Icon name={s.isLater(item.id) ? 'trash' : 'plus'} /> {s.isLater(item.id) ? 'Excluir de Assistir depois' : 'Assistir depois'}
+          </button>
+        )}
         <button
           onClick={() => {
             for (const i of ids) if (s.hiddenList.includes(i) === hidden) s.toggleHidden(i);
