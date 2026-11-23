@@ -244,6 +244,7 @@ function PlayerView({ item, rawQueue }) {
     ? [
         { key: 'source', icon: 'refresh', label: 'Outra fonte', run: findOtherSource },
         narrOk && { key: 'narr', icon: 'volume', label: narration.narr ? `Narração: ${narration.narr.channel}` : 'Narração do YouTube', run: openNarr },
+        narration.narr && { key: 'narr-hide', icon: 'eye', label: narration.view.hidden ? 'Mostrar a janela da narração' : 'Esconder a janela da narração (só o som)', run: narration.toggleHidden },
         narration.narr && { key: 'narr-swap', icon: 'refresh', label: narration.view.swap ? 'Jogo em tela cheia' : 'Narração em tela cheia (jogo na janela)', run: narration.toggleSwap },
         narration.narr && { key: 'narr-size', icon: 'fullscreen', label: `Janela da narração: ${NARR_SIZES.find((s) => s.id === narration.view.size).label}`, run: narration.cycleSize },
         narration.narr && { key: 'narr-pos', icon: 'more', label: 'Mudar a janela de canto', run: narration.cycleCorner },
@@ -1304,6 +1305,11 @@ function PlayerView({ item, rawQueue }) {
           {narrOk && (
             <button className={`icon-btn source-btn ${narration.narr ? 'on' : ''}`} tabIndex={-1} onClick={openNarr} title="Ouvir a narração de um canal do YouTube">
               <Icon name="volume" /> <span>{narration.narr ? narration.narr.channel : 'Narração'}</span>
+            </button>
+          )}
+          {narration.narr && (
+            <button className={`icon-btn ${narration.view.hidden ? '' : 'on'}`} tabIndex={-1} onClick={narration.toggleHidden} title={narration.view.hidden ? 'Mostrar a janela da narração' : 'Esconder a janela da narração (o som continua)'}>
+              <Icon name="eye" />
             </button>
           )}
           {isLive && (

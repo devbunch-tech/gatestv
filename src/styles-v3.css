@@ -595,6 +595,9 @@ html.touch .player.narr-l { --nw: 420px; --nh: 236px; }
 .player.narr-swap .narr-dock iframe { height: 100%; pointer-events: none; }
 .player.narr-swap .narr-dock > :not(iframe) { display: none; }
 .narr-sub { margin-top: 14px !important; }
+.player.narr-hidden .narr-dock { opacity: 0; pointer-events: none; }
+.narr-sync-label { align-self: center; font-size: 12px; opacity: 0.75; margin-right: 2px; }
+.narr-dock .narr-sync-label { min-width: 52px; }
 .narr-bar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 13px; background: rgba(20, 20, 24, 0.95); }
 .narr-bar strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .narr-bar svg { color: var(--brand); flex: none; }

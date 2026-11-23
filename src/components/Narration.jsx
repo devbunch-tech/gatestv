@@ -31,17 +31,67 @@ const VIEW_KEY = 'gates:narr:view';
 const loadView = () => {
   try {
     const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null') || {};
-    return { size: NARR_SIZES.some((s) => s.id === v.size) ? v.size : 's', pos: NARR_CORNERS.some((c) => c.id === v.pos) ? v.pos : 'br', swap: false };
+    return { size: NARR_SIZES.some((s) => s.id === v.size) ? v.size : 's', pos: NARR_CORNERS.some((c) => c.id === v.pos) ? v.pos : 'br', swap: false, hidden: false };
   } catch {
-    return { size: 's', pos: 'br', swap: false };
+    return { size: 's', pos: 'br', swap: false, hidden: false };
+  }
+};
+// Atraso da narração: o último ajuste fica guardado e vale como padrão para as próximas narrações.
+const OFFSET_KEY = 'gates:narr:offset';
+const loadOffset = () => {
+  try {
+    const n = Number(localStorage.getItem(OFFSET_KEY));
+    return Number.isFinite(n) ? Math.round(n) : 0;
+  } catch {
+    return 0;
+  }
+};
+const saveOffset = (n) => {
+  try {
+    localStorage.setItem(OFFSET_KEY, String(n));
+  } catch {
+    /* armazenamento cheio */
   }
 };
 const nextOf = (list, id) => list[(list.findIndex((x) => x.id === id) + 1) % list.length].id;
 
+// Botões de sincronia. A narração do YouTube costuma chegar bem antes da TV (20 s a 1 min),
+// por isso há passos grandes para atrasar.
+const DELAYS = [1, 5, 10, 30];
+const ADVANCES = [1, 5, 10];
+function SyncButtons({ shift, offset, compact, autofocus }) {
+  const tab = compact ? { tabIndex: -1 } : {};
+  return (
+    <>
+      <div className="narr-sync">
+        <span className="narr-sync-label">{compact ? 'Atrasar' : 'Atrasar a narração (ela está na frente do jogo)'}</span>
+        {DELAYS.map((s, i) => (
+          <button key={s} className="chip" {...tab} data-autofocus={autofocus && i === 1 ? true : undefined} onClick={() => shift(s)} title={`Atrasar a narração ${s} s`}>
+            {s} s
+          </button>
+        ))}
+      </div>
+      <div className="narr-sync">
+        <span className="narr-sync-label">{compact ? 'Adiantar' : 'Adiantar a narração (ela está atrás do jogo)'}</span>
+        {ADVANCES.map((s) => (
+          <button key={s} className="chip" {...tab} onClick={() => shift(-s)} title={`Adiantar a narração ${s} s`}>
+            {s} s
+          </button>
+        ))}
+        {offset !== 0 && (
+          <button className="chip" {...tab} onClick={() => shift(-offset)} title="Voltar à sincronia original (sem atraso)">
+            Zerar
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
 // Estado e controle da narração dentro do player. 'videoRef': o vídeo do jogo (fica mudo/baixo).
 export function useNarration(videoRef, notify) {
   const [narr, setNarr] = useState(null); // { key, title, channel, channelId }
-  const [offset, setOffset] = useState(0);
+  const [offset, setOffset] = useState(loadOffset);
   const [gameVol, setGameVol] = useState(0); // som do jogo: 0 = mudo, 0.2 = baixo
   const [ask, setAsk] = useState(false);
   const [view, setViewState] = useState(loadView);
@@ -58,19 +108,25 @@ export function useNarration(videoRef, notify) {
   const setView = useCallback((patch) => setViewState((v) => ({ ...v, ...patch })), []);
   const cycleSize = useCallback(() => setViewState((v) => ({ ...v, size: nextOf(NARR_SIZES, v.size) })), []);
   const cycleCorner = useCallback(() => setViewState((v) => ({ ...v, pos: nextOf(NARR_CORNERS, v.pos) })), []);
-  const toggleSwap = useCallback(() => setViewState((v) => ({ ...v, swap: !v.swap })), []);
+  const toggleSwap = useCallback(() => setViewState((v) => ({ ...v, swap: !v.swap, hidden: false })), []);
+  // Esconder: a janela some por completo e a narração continua tocando; "Mostrar" traz de volta.
+  const toggleHidden = useCallback(() => setViewState((v) => ({ ...v, hidden: !v.hidden, swap: false })), []);
   const info = useRef({ t: 0, d: 0 });
   const timers = useRef([]);
+  const pending = useRef(0); // atraso padrão a aplicar quando a live começar a tocar
+  const moveRef = useRef(null);
 
   const stop = useCallback(() => {
     setNarr(null);
     setAsk(false);
-    setViewState((v) => ({ ...v, swap: false }));
+    setViewState((v) => ({ ...v, swap: false, hidden: false }));
   }, []);
   const start = useCallback((n) => {
     info.current = { t: 0, d: 0 };
-    setViewState((v) => ({ ...v, swap: false }));
-    setOffset(0);
+    setViewState((v) => ({ ...v, swap: false, hidden: false }));
+    const saved = loadOffset();
+    pending.current = saved;
+    setOffset(saved);
     setNarr(n);
   }, []);
 
@@ -102,6 +158,13 @@ export function useNarration(videoRef, notify) {
       }
       if (m?.info?.currentTime != null) info.current.t = m.info.currentTime;
       if (m?.info?.duration != null) info.current.d = m.info.duration;
+      if (m?.info?.playerState != null) info.current.s = m.info.playerState;
+      // Live tocando: aplica o atraso padrão (o mesmo do último ajuste).
+      if (pending.current && info.current.s === 1 && info.current.t > 0) {
+        const p = pending.current;
+        pending.current = 0;
+        timers.current.push(setTimeout(() => moveRef.current?.(p, 0), 1500));
+      }
       if (m?.event === 'onError') {
         notify(`A live de “${narr.channel}” não pode tocar fora do YouTube. Escolha outra narração.`, 'err');
         stop();
@@ -122,24 +185,44 @@ export function useNarration(videoRef, notify) {
   const cmd = (func, args = []) => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
   const listen = () => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
 
-  // d > 0: atrasa a narração d segundos (volta a live do YouTube). d < 0: adianta — avança a live
-  // se ela estiver atrás do ao vivo; senão, segura o vídeo do jogo pelo mesmo tempo.
-  const shift = (d) => {
-    const { t, d: dur } = info.current;
-    if (d > 0) cmd('seekTo', [Math.max(0, t - d), true]);
-    else if (dur && dur - t > -d + 2) cmd('seekTo', [t - d, true]);
-    else {
-      const v = videoRef.current;
-      if (v && !v.paused) {
-        v.pause();
-        timers.current.push(setTimeout(() => v.play().catch(() => {}), -d * 1000));
-      }
+  // Segura a narração d segundos (pausa e retoma do mesmo ponto): atrasa mesmo sem a posição da live.
+  const hold = (d) => {
+    cmd('pauseVideo');
+    timers.current.push(setTimeout(() => cmd('playVideo'), d * 1000));
+  };
+
+  // d > 0: atrasa a narração d segundos (volta a live do YouTube; se a live não deixar voltar,
+  // segura a narração pelo mesmo tempo). d < 0: adianta — desfaz primeiro o atraso já aplicado
+  // ('cur', avançando a live); o que passar disso segura o vídeo do jogo pelo mesmo tempo.
+  const move = (d, cur) => {
+    const { t } = info.current;
+    if (d > 0) {
+      if (t > d + 1) {
+        const target = t - d;
+        cmd('seekTo', [target, true]);
+        // Confere depois de 2,5 s: se a posição não voltou, a live não tem DVR — segura a narração.
+        timers.current.push(setTimeout(() => info.current.t > target + 7 && hold(d), 2500));
+      } else hold(d);
+      return;
     }
-    setOffset((o) => {
-      const n = o + d;
-      notify(`Sincronia: ${offsetText(n)}.`);
-      return n;
-    });
+    const back = Math.max(0, Math.min(-d, cur));
+    if (back) cmd('seekTo', [t + back, true]);
+    const rest = -d - back;
+    const v = videoRef.current;
+    if (rest > 0 && v && !v.paused) {
+      v.pause();
+      timers.current.push(setTimeout(() => v.play().catch(() => {}), rest * 1000));
+    }
+  };
+  moveRef.current = move;
+  const shift = (d) => {
+    if (!d) return;
+    pending.current = 0;
+    move(d, offset);
+    const n = offset + d;
+    setOffset(n);
+    saveOffset(n);
+    notify(`Sincronia: ${offsetText(n)}.`);
   };
 
   const answer = (subscribed) => {
@@ -179,27 +262,15 @@ export function useNarration(videoRef, notify) {
           <button className={`chip ${view.swap ? 'active' : ''}`} tabIndex={-1} onClick={toggleSwap} title="Inverter: a live do YouTube em tela cheia e o jogo na janela menor">
             <Icon name="refresh" size={12} /> Inverter
           </button>
-        </div>
-      )}
-      {!isTvMode() && (
-        <div className="narr-sync">
-          <button className="chip" tabIndex={-1} onClick={() => shift(5)} title="Atrasar a narração 5 s (ela está na frente do vídeo)">
-            −5 s
-          </button>
-          <button className="chip" tabIndex={-1} onClick={() => shift(1)} title="Atrasar a narração 1 s">
-            −1 s
-          </button>
-          <button className="chip" tabIndex={-1} onClick={() => shift(-1)} title="Adiantar a narração 1 s">
-            +1 s
-          </button>
-          <button className="chip" tabIndex={-1} onClick={() => shift(-5)} title="Adiantar a narração 5 s (ela está atrás do vídeo)">
-            +5 s
+          <button className="chip" tabIndex={-1} onClick={toggleHidden} title="Esconder a janela (a narração continua tocando)">
+            <Icon name="eye" size={12} /> Esconder
           </button>
           <button className="chip" tabIndex={-1} onClick={stop} title="Desligar a narração (volta o som do jogo)">
             <Icon name="close" size={12} />
           </button>
         </div>
       )}
+      {!isTvMode() && <SyncButtons shift={shift} offset={offset} compact />}
     </div>
   );
 
@@ -229,9 +300,9 @@ export function useNarration(videoRef, notify) {
   );
 
   // Classes no <div className="player">: posicionam a janela menor (a narração ou, invertido, o jogo).
-  const wrapClass = narr ? `narr-on narr-${view.size} narr-${view.pos}${view.swap ? ' narr-swap' : ''}` : '';
+  const wrapClass = narr ? `narr-on narr-${view.size} narr-${view.pos}${view.swap ? ' narr-swap' : ''}${view.hidden ? ' narr-hidden' : ''}` : '';
 
-  return { narr, start, stop, shift, offset, gameVol, setGameVol, dock, askModal, view, setView, cycleSize, cycleCorner, toggleSwap, wrapClass };
+  return { narr, start, stop, shift, offset, gameVol, setGameVol, dock, askModal, view, setView, cycleSize, cycleCorner, toggleSwap, toggleHidden, wrapClass };
 }
 
 // Uma linha de narração (live): toca ao escolher; a estrela favorita o canal.
@@ -302,13 +373,8 @@ export function NarrationPicker({ n, game, title, onClose }) {
           <h3>
             Ouvindo: {n.narr.channel} <small className="muted">· {offsetText(n.offset)}</small>
           </h3>
-          <p className="muted">A narração está na frente do vídeo? Atrase. Está atrás? Adiante.</p>
-          <div className="narr-sync">
-            <button className="chip" data-autofocus onClick={() => n.shift(5)}>Atrasar 5 s</button>
-            <button className="chip" onClick={() => n.shift(1)}>Atrasar 1 s</button>
-            <button className="chip" onClick={() => n.shift(-1)}>Adiantar 1 s</button>
-            <button className="chip" onClick={() => n.shift(-5)}>Adiantar 5 s</button>
-          </div>
+          <p className="muted">A narração está na frente do jogo? Atrase. Está atrás? Adiante. O ajuste fica salvo e vale para as próximas narrações.</p>
+          <SyncButtons shift={n.shift} offset={n.offset} autofocus />
           <div className="narr-sync">
             <button className={`chip ${!n.gameVol ? 'active' : ''}`} onClick={() => n.setGameVol(0)}>Som do jogo: mudo</button>
             <button className={`chip ${n.gameVol ? 'active' : ''}`} onClick={() => n.setGameVol(0.2)}>Som do jogo: baixo</button>
@@ -334,6 +400,9 @@ export function NarrationPicker({ n, game, title, onClose }) {
           <div className="narr-sync">
             <button className={`chip ${n.view.swap ? 'active' : ''}`} onClick={n.toggleSwap}>
               <Icon name="refresh" size={12} /> {n.view.swap ? 'Voltar: jogo em tela cheia' : 'Inverter: narração em tela cheia e jogo na janela'}
+            </button>
+            <button className={`chip ${n.view.hidden ? 'active' : ''}`} onClick={n.toggleHidden}>
+              <Icon name="eye" size={12} /> {n.view.hidden ? 'Mostrar a janela' : 'Esconder a janela (só o som)'}
             </button>
           </div>
         </section>
