@@ -14,22 +14,62 @@ const ASK_AGAIN = 15 * 60e3; // "Agora não": pergunta de novo depois de 15 min
 const openExternal = (url) => !SMART_TV && (hasNative('openUrl') ? native('openUrl', url) : window.open(url, '_blank', 'noopener'));
 const offsetText = (o) => (o === 0 ? 'sincronia original' : o > 0 ? `narração ${o} s atrasada` : `narração ${-o} s adiantada`);
 
+// Janela menor (picture-in-picture): tamanho, canto da tela e "inverter" (a live do YouTube em tela
+// cheia e o jogo na janela menor). A janela nunca some: o YouTube exige o player visível (mín. 200 px).
+export const NARR_SIZES = [
+  { id: 's', label: 'Pequena' },
+  { id: 'm', label: 'Média' },
+  { id: 'l', label: 'Grande' },
+];
+export const NARR_CORNERS = [
+  { id: 'br', label: 'Inferior direito', arrow: '↘' },
+  { id: 'bl', label: 'Inferior esquerdo', arrow: '↙' },
+  { id: 'tl', label: 'Superior esquerdo', arrow: '↖' },
+  { id: 'tr', label: 'Superior direito', arrow: '↗' },
+];
+const VIEW_KEY = 'gates:narr:view';
+const loadView = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(VIEW_KEY) || 'null') || {};
+    return { size: NARR_SIZES.some((s) => s.id === v.size) ? v.size : 's', pos: NARR_CORNERS.some((c) => c.id === v.pos) ? v.pos : 'br', swap: false };
+  } catch {
+    return { size: 's', pos: 'br', swap: false };
+  }
+};
+const nextOf = (list, id) => list[(list.findIndex((x) => x.id === id) + 1) % list.length].id;
+
 // Estado e controle da narração dentro do player. 'videoRef': o vídeo do jogo (fica mudo/baixo).
 export function useNarration(videoRef, notify) {
   const [narr, setNarr] = useState(null); // { key, title, channel, channelId }
   const [offset, setOffset] = useState(0);
   const [gameVol, setGameVol] = useState(0); // som do jogo: 0 = mudo, 0.2 = baixo
   const [ask, setAsk] = useState(false);
+  const [view, setViewState] = useState(loadView);
   const frame = useRef(null);
+
+  // Tamanho e canto ficam guardados no aparelho; o "inverter" vale só para esta narração.
+  useEffect(() => {
+    try {
+      localStorage.setItem(VIEW_KEY, JSON.stringify({ size: view.size, pos: view.pos }));
+    } catch {
+      /* armazenamento cheio */
+    }
+  }, [view.size, view.pos]);
+  const setView = useCallback((patch) => setViewState((v) => ({ ...v, ...patch })), []);
+  const cycleSize = useCallback(() => setViewState((v) => ({ ...v, size: nextOf(NARR_SIZES, v.size) })), []);
+  const cycleCorner = useCallback(() => setViewState((v) => ({ ...v, pos: nextOf(NARR_CORNERS, v.pos) })), []);
+  const toggleSwap = useCallback(() => setViewState((v) => ({ ...v, swap: !v.swap })), []);
   const info = useRef({ t: 0, d: 0 });
   const timers = useRef([]);
 
   const stop = useCallback(() => {
     setNarr(null);
     setAsk(false);
+    setViewState((v) => ({ ...v, swap: false }));
   }, []);
   const start = useCallback((n) => {
     info.current = { t: 0, d: 0 };
+    setViewState((v) => ({ ...v, swap: false }));
     setOffset(0);
     setNarr(n);
   }, []);
@@ -129,6 +169,19 @@ export function useNarration(videoRef, notify) {
         <small className="muted">{offsetText(offset)}</small>
       </div>
       {!isTvMode() && (
+        <div className="narr-sync narr-win">
+          <button className="chip" tabIndex={-1} onClick={cycleSize} title="Mudar o tamanho da janela da narração">
+            <Icon name="fullscreen" size={12} /> {NARR_SIZES.find((s) => s.id === view.size).label}
+          </button>
+          <button className="chip" tabIndex={-1} onClick={cycleCorner} title="Levar a janela para outro canto da tela">
+            {NARR_CORNERS.find((c) => c.id === view.pos).arrow} Canto
+          </button>
+          <button className={`chip ${view.swap ? 'active' : ''}`} tabIndex={-1} onClick={toggleSwap} title="Inverter: a live do YouTube em tela cheia e o jogo na janela menor">
+            <Icon name="refresh" size={12} /> Inverter
+          </button>
+        </div>
+      )}
+      {!isTvMode() && (
         <div className="narr-sync">
           <button className="chip" tabIndex={-1} onClick={() => shift(5)} title="Atrasar a narração 5 s (ela está na frente do vídeo)">
             −5 s
@@ -175,7 +228,10 @@ export function useNarration(videoRef, notify) {
     </Modal>
   );
 
-  return { narr, start, stop, shift, offset, gameVol, setGameVol, dock, askModal };
+  // Classes no <div className="player">: posicionam a janela menor (a narração ou, invertido, o jogo).
+  const wrapClass = narr ? `narr-on narr-${view.size} narr-${view.pos}${view.swap ? ' narr-swap' : ''}` : '';
+
+  return { narr, start, stop, shift, offset, gameVol, setGameVol, dock, askModal, view, setView, cycleSize, cycleCorner, toggleSwap, wrapClass };
 }
 
 // Uma linha de narração (live): toca ao escolher; a estrela favorita o canal.
@@ -258,6 +314,26 @@ export function NarrationPicker({ n, game, title, onClose }) {
             <button className={`chip ${n.gameVol ? 'active' : ''}`} onClick={() => n.setGameVol(0.2)}>Som do jogo: baixo</button>
             <button className="chip" onClick={() => (n.stop(), onClose())}>
               <Icon name="close" size={12} /> Desligar narração
+            </button>
+          </div>
+          <h3 className="narr-sub">Janela da narração</h3>
+          <div className="narr-sync">
+            {NARR_SIZES.map((s) => (
+              <button key={s.id} className={`chip ${n.view.size === s.id ? 'active' : ''}`} onClick={() => n.setView({ size: s.id })}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+          <div className="narr-sync">
+            {NARR_CORNERS.map((c) => (
+              <button key={c.id} className={`chip ${n.view.pos === c.id ? 'active' : ''}`} onClick={() => n.setView({ pos: c.id })} title={c.label}>
+                {c.arrow} {c.label}
+              </button>
+            ))}
+          </div>
+          <div className="narr-sync">
+            <button className={`chip ${n.view.swap ? 'active' : ''}`} onClick={n.toggleSwap}>
+              <Icon name="refresh" size={12} /> {n.view.swap ? 'Voltar: jogo em tela cheia' : 'Inverter: narração em tela cheia e jogo na janela'}
             </button>
           </div>
         </section>

@@ -38,11 +38,18 @@ export const subscribeUrl = (id) => `https://www.youtube.com/channel/${id}?sub_c
 // Termo de busca para um jogo (ex.: "Flamengo x Vasco narração ao vivo").
 export const queryFor = (game) => (game ? `${game.homeShort || game.home} x ${game.awayShort || game.away} narração ao vivo` : 'narração ao vivo futebol');
 
+// No Android o YouTube redireciona para m.youtube.com, que entrega o ytInitialData como texto
+// escapado ('\x7b\x22...'): lê os dois formatos.
+const unescapeJs = (s) =>
+  s.replace(/\\x([0-9a-fA-F]{2})|\\u([0-9a-fA-F]{4})|\\(.)/g, (_, x, u, c) =>
+    x ? String.fromCharCode(parseInt(x, 16)) : u ? String.fromCharCode(parseInt(u, 16)) : c
+  );
 const initialData = (html) => {
   const m = /var ytInitialData = (\{.*?\});<\/script>/s.exec(html);
-  if (!m) return null;
+  const q = !m && /var ytInitialData = '(.*?)';<\/script>/s.exec(html);
+  if (!m && !q) return null;
   try {
-    return JSON.parse(m[1]);
+    return JSON.parse(m ? m[1] : unescapeJs(q[1]));
   } catch {
     return null;
   }
@@ -54,16 +61,18 @@ function parseLives(data) {
   const out = [];
   const walk = (o) => {
     if (!o || typeof o !== 'object') return;
-    const v = o.videoRenderer;
+    const v = o.videoRenderer || o.videoWithContextRenderer;
     if (v?.videoId) {
-      const owner = v.ownerText?.runs?.[0] || v.longBylineText?.runs?.[0];
+      const owner = v.ownerText?.runs?.[0] || v.longBylineText?.runs?.[0] || v.shortBylineText?.runs?.[0];
       const j = JSON.stringify(v.badges || []) + JSON.stringify(v.thumbnailOverlays || []);
+      const title = v.title || v.headline;
+      const views = v.viewCountText || v.shortViewCountText;
       out.push({
         key: v.videoId,
-        title: v.title?.runs?.map((r) => r.text).join('') || v.title?.simpleText || '',
+        title: title?.runs?.map((r) => r.text).join('') || title?.simpleText || '',
         channel: owner?.text || '',
         channelId: owner?.navigationEndpoint?.browseEndpoint?.browseId || '',
-        viewers: (v.viewCountText?.runs || []).map((r) => r.text).join('') || v.viewCountText?.simpleText || '',
+        viewers: (views?.runs || []).map((r) => r.text).join('') || views?.simpleText || '',
         live: /LIVE/.test(j),
       });
       return;

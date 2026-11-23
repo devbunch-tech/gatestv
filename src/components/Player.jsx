@@ -16,7 +16,7 @@ import { SMART_TV, hasNative, isSubscriber, isTouch, native, vibrate } from '../
 import { reportWatch } from '../lib/cloudsync';
 import { eventForProgram, useTodaysEvents } from '../lib/sports';
 import { STATS_LEAGUES } from '../lib/match';
-import { NarrationPicker, useNarration } from './Narration';
+import { NARR_SIZES, NarrationPicker, useNarration } from './Narration';
 import { findNow, fmtTime, nowNext, progressOf, useNow } from '../lib/epg';
 
 const fmt = (s) => {
@@ -244,6 +244,9 @@ function PlayerView({ item, rawQueue }) {
     ? [
         { key: 'source', icon: 'refresh', label: 'Outra fonte', run: findOtherSource },
         narrOk && { key: 'narr', icon: 'volume', label: narration.narr ? `Narração: ${narration.narr.channel}` : 'Narração do YouTube', run: openNarr },
+        narration.narr && { key: 'narr-swap', icon: 'refresh', label: narration.view.swap ? 'Jogo em tela cheia' : 'Narração em tela cheia (jogo na janela)', run: narration.toggleSwap },
+        narration.narr && { key: 'narr-size', icon: 'fullscreen', label: `Janela da narração: ${NARR_SIZES.find((s) => s.id === narration.view.size).label}`, run: narration.cycleSize },
+        narration.narr && { key: 'narr-pos', icon: 'more', label: 'Mudar a janela de canto', run: narration.cycleCorner },
         game && STATS_LEAGUES.has(game.league) && { key: 'stats', icon: 'ball', label: 'Estatísticas do jogo', run: () => openMatch(game) },
         guide.now && { key: 'details', icon: 'info', label: 'Mais detalhes, elenco e trailer', run: () => openProgram({ item, prog: guide.now }) },
       ].filter(Boolean)
@@ -1023,7 +1026,7 @@ function PlayerView({ item, rawQueue }) {
   const showBanner = isLive && (osd || panel === 'info');
 
   return (
-    <div ref={wrapRef} className={`player ${ui || panel ? '' : 'idle'}`} onMouseMove={isTouch ? undefined : poke} onTouchStart={isTouch ? undefined : poke} data-nav-root>
+    <div ref={wrapRef} className={`player ${ui || panel ? '' : 'idle'} ${narration.wrapClass}`} onMouseMove={isTouch ? undefined : poke} onTouchStart={isTouch ? undefined : poke} data-nav-root>
       <video ref={videoRef} playsInline onClick={isTouch ? undefined : togglePlay} onDoubleClick={isTouch ? undefined : toggleFs} {...ev} />
       {!isLive && ext?.cues ? (
         <ExternalSubs cues={ext.cues} t={st.time - ext.offset} />
