@@ -16,6 +16,7 @@ import { SMART_TV, hasNative, isSubscriber, isTouch, native, vibrate } from '../
 import { reportWatch } from '../lib/cloudsync';
 import { eventForProgram, useTodaysEvents } from '../lib/sports';
 import { STATS_LEAGUES } from '../lib/match';
+import { NarrationPicker, useNarration } from './Narration';
 import { findNow, fmtTime, nowNext, progressOf, useNow } from '../lib/epg';
 
 const fmt = (s) => {
@@ -231,9 +232,18 @@ function PlayerView({ item, rawQueue }) {
   const guide = useMemo(() => nowNext(progs, now), [progs, now]);
   const todays = useTodaysEvents(isLive);
   const game = isLive && guide.now ? eventForProgram(guide.now, todays) : null;
+  // Narração do YouTube: nos jogos e nos canais de esporte.
+  const narration = useNarration(videoRef, notify);
+  const [narrPick, setNarrPick] = useState(false);
+  const narrOk = isLive && (!!game || !!narration.narr || /esporte|sport|espn|premiere|futebol|combate|dazn|cazé|caze|tnt|band ?sports|fox/i.test(`${item.group} ${item.name}`));
+  const openNarr = () => {
+    setPanel(null);
+    setNarrPick(true);
+  };
   const liveActions = isLive
     ? [
         { key: 'source', icon: 'refresh', label: 'Outra fonte', run: findOtherSource },
+        narrOk && { key: 'narr', icon: 'volume', label: narration.narr ? `Narração: ${narration.narr.channel}` : 'Narração do YouTube', run: openNarr },
         game && STATS_LEAGUES.has(game.league) && { key: 'stats', icon: 'ball', label: 'Estatísticas do jogo', run: () => openMatch(game) },
         guide.now && { key: 'details', icon: 'info', label: 'Mais detalhes, elenco e trailer', run: () => openProgram({ item, prog: guide.now }) },
       ].filter(Boolean)
@@ -1054,6 +1064,9 @@ function PlayerView({ item, rawQueue }) {
           onLater={() => laterFromBreak(breakT.list[breakT.i])}
         />
       )}
+      {narration.dock}
+      {narration.askModal}
+      {narrPick && <NarrationPicker n={narration} game={game} title={guide.now?.title} onClose={() => setNarrPick(false)} />}
       {castPick && (
         <div className="cast-pick" onClick={() => setCastPick(false)}>
           <div className="cast-box" onClick={(e) => e.stopPropagation()}>
@@ -1283,6 +1296,11 @@ function PlayerView({ item, rawQueue }) {
           {isLive && (
             <button className="icon-btn source-btn" tabIndex={-1} onClick={findOtherSource} title="Buscar outra fonte deste canal (sem áudio, travando ou com problema)">
               <Icon name="refresh" /> <span>Outra fonte</span>
+            </button>
+          )}
+          {narrOk && (
+            <button className={`icon-btn source-btn ${narration.narr ? 'on' : ''}`} tabIndex={-1} onClick={openNarr} title="Ouvir a narração de um canal do YouTube">
+              <Icon name="volume" /> <span>{narration.narr ? narration.narr.channel : 'Narração'}</span>
             </button>
           )}
           {isLive && (

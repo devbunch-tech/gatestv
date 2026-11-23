@@ -576,3 +576,36 @@ html.touch .skip-intro, html.touch .up-next-card { right: max(16px, env(safe-are
 .yt-hub-card { display: flex; flex-direction: column; gap: 8px; padding: 20px; border-radius: 14px; background: rgba(255, 255, 255, 0.05); color: inherit; text-decoration: none; }
 .yt-hub-card:focus-visible, .yt-hub-card:focus { outline: 3px solid var(--brand); }
 .yt-hub-card svg { color: var(--brand); }
+
+/* Narração do YouTube nos jogos: player pequeno no canto (o YouTube exige o player visível, mín. 200 px) */
+.narr-dock { position: absolute; right: 16px; bottom: 96px; z-index: 30; width: 356px; max-width: calc(100vw - 32px); border-radius: 12px; overflow: hidden; background: #000; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); }
+.narr-dock iframe { display: block; width: 100%; height: 200px; border: 0; }
+.narr-bar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 13px; background: rgba(20, 20, 24, 0.95); }
+.narr-bar strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.narr-bar svg { color: var(--brand); flex: none; }
+.narr-dock .narr-sync { padding: 0 8px 8px; background: rgba(20, 20, 24, 0.95); }
+.narr-sync { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.narr-sync .chip { display: inline-flex; align-items: center; gap: 4px; }
+.narr-modal { width: min(640px, 94vw); }
+.narr-sec { margin-bottom: 18px; }
+.narr-sec h3 { margin: 0 0 8px; font-size: 16px; }
+.narr-row { display: flex; align-items: center; gap: 8px; padding: 4px; border-radius: 10px; }
+.narr-row.on { background: var(--brand-soft); }
+.narr-pick { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 8px 10px; border-radius: 8px; border: 0; background: rgba(255, 255, 255, 0.05); color: inherit; cursor: pointer; }
+.narr-row.off .narr-pick { cursor: default; opacity: 0.7; }
+.narr-pick span { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.narr-live { color: #ff4d5e; font-weight: 700; font-size: 12px; }
+.narr-row .icon-btn.on { color: #f5b301; }
+.narr-hint { font-size: 13px; }
+.narr-ask p { margin: 0 0 12px; }
+.narr-qr { display: flex; justify-content: center; margin: 8px 0 14px; }
+.narr-ask-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+html.touch .narr-dock { right: 8px; bottom: 80px; width: 240px; }
+
+/* Áreas do YouTube: todos os vídeos do canal e destino Adulto/Infantil ao adicionar */
+.see-all-card.ck-all { width: 180px; aspect-ratio: 16 / 9; align-self: flex-start; cursor: pointer; }
+.ck-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.ck-grid .ck-card { width: auto; }
+.ck-more { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 24px 0; }
+.ck-target { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+@media (max-width: 600px) { .ck-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } }

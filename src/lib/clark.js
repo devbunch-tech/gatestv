@@ -83,6 +83,15 @@ export async function channelVideos(id) {
   return list;
 }
 
+// Todos os vídeos de um canal, 30 por página (servidor: cloud/src/youtube.js). 'next' vem da página anterior.
+const API = (import.meta.env.VITE_LICENSE_API || 'https://gatesapptv.pages.dev').replace(/\/$/, '');
+export async function allVideosPage(id, next = '') {
+  const r = await fetch(`${API}/api/v1/yt/videos?ch=${encodeURIComponent(id)}${next ? '&next=' + encodeURIComponent(next) : ''}`);
+  const j = await r.json().catch(() => ({}));
+  if (!j.ok) throw new Error(j.message || 'Não foi possível carregar os vídeos do canal agora.');
+  return { list: j.videos, next: j.next || null };
+}
+
 // Busca de canais pelo nome (resultados do YouTube só do tipo "Canal"). O YouTube alterna entre
 // dois formatos de página (channelRenderer e o novo lockupViewModel): lê os dois e, se vier vazio,
 // tenta mais uma vez.

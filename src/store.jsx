@@ -24,7 +24,6 @@ export const useStore = () => useContext(Ctx);
 
 const HOUR = 3600e3;
 const UNLOCK_MS = 10 * 60e3;
-const RECHECK_MS = 5 * 60e3; // intervalo mínimo entre verificações de novidades no Xtream
 
 const DEFAULT_SETTINGS = { proxyMode: 'auto', liveDelay: 35, curatedZap: true, uf: '', subtitles: true, trailerBreaks: true, tvMode: 'auto', tmdbKey: '', omdbKey: '', epgUrls: [] };
 const DEFAULT_PARENTAL = {
@@ -421,11 +420,13 @@ export function StoreProvider({ account, children }) {
     });
   }, []);
 
-  // Verifica novidades nas fontes Xtream (ao abrir o app). Itens ocultos/excluídos continuam
+  // Verifica novidades nas fontes Xtream só na primeira abertura do app no dia (nas outras, usa a
+  // lista guardada; em Configurações dá para verificar na hora). Itens ocultos/excluídos continuam
   // ocultos, pois os IDs são estáveis (baseados no stream_id).
   const checkForUpdates = useCallback(
     async (list, { force = false, silent = false } = {}) => {
-      const targets = list.filter((p) => xtreamOf(p) && (force || Date.now() - (p.checkedAt || 0) > RECHECK_MS));
+      const today = new Date().toDateString();
+      const targets = list.filter((p) => xtreamOf(p) && (force || new Date(p.checkedAt || 0).toDateString() !== today));
       if (!targets.length) return;
       setSyncing(true);
       for (const p of targets) {

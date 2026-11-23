@@ -9,6 +9,7 @@ import { sportsResponse } from './sports.js';
 import { crestImage, crestsResponse } from './crests.js';
 import { subsResponse } from './subs.js';
 import { matchResponse } from './match.js';
+import { channelVideosPage } from './youtube.js';
 import { applyReferralSplit, ensureTvCode, makeSubscribers, newRefCode, recordCommission, normPhone, PHONE_ERROR, startCheckout, startTrial } from './subscribers.js';
 
 const json = (code, obj, headers = {}) =>
@@ -145,6 +146,19 @@ async function route(req, env, cfg) {
     return json(r.ok ? 200 : r.error === 'bad_request' ? 400 : 503, r, r.ok ? { 'Cache-Control': 'public, max-age=300' } : {});
   }
   if (p === '/api/v1/crest-img' && req.method === 'GET') return crestImage(url);
+  // Todos os vídeos de um canal do YouTube (áreas do YouTube nos apps), 30 por página.
+  if (p === '/api/v1/yt/videos' && req.method === 'GET') {
+    const ch = url.searchParams.get('ch') || '';
+    const next = url.searchParams.get('next') || '';
+    if (!/^UC[\w-]{22}$/.test(ch) || next.length > 4000) return fail(400, 'bad_request');
+    if (await db.limited('yt:' + ip, 600, 3600e3)) return fail(429, 'rate_limited');
+    try {
+      return json(200, { ok: true, ...(await channelVideosPage(ch, next)) }, { 'Cache-Control': 'public, max-age=1800' });
+    } catch (e) {
+      console.warn('[yt]', ch, e.message);
+      return json(503, { ok: false, error: 'unavailable', message: 'Não foi possível carregar os vídeos do canal agora.' });
+    }
+  }
   if (p === '/api/v1/subs' && req.method === 'GET') {
     if (await db.limited('subs:' + ip, 40, 3600e3)) return fail(429, 'rate_limited');
     return subsResponse(env, url);

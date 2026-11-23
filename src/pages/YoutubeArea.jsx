@@ -5,9 +5,9 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import { useStore } from '../store';
 import { PageHeader, Row } from '../components/Media';
 import Icon from '../components/Icon';
-import { areaById, areasFor, channelVideos, searchChannels, thumb } from '../lib/clark';
+import { YT_AREAS, allVideosPage, areaById, areasFor, channelVideos, searchChannels, thumb } from '../lib/clark';
 import { useKeyHandler } from '../lib/keys';
-import { native } from '../lib/device';
+import { EDITION, native } from '../lib/device';
 
 // Canais adicionados em cada área (guardados no aparelho).
 const loadAdded = (key) => {
@@ -32,7 +32,7 @@ function VideoCard({ v, onPlay, sub }) {
 }
 
 // Uma fileira por canal, com os vídeos mais recentes.
-function ChannelRow({ ch, onPlay, onRemove }) {
+function ChannelRow({ ch, onPlay, onRemove, onAll }) {
   const [state, setState] = useState({ loading: true });
   useEffect(() => {
     let alive = true;
@@ -56,7 +56,72 @@ function ChannelRow({ ch, onPlay, onRemove }) {
         {state.list?.map((v, i) => (
           <VideoCard key={v.key} v={v} onPlay={() => onPlay(state.list, i)} />
         ))}
+        {state.list?.length > 0 && (
+          <button className="see-all-card ck-all" onClick={() => onAll(ch)}>
+            <Icon name="chevron-right" size={28} />
+            <span>Ver todos os vídeos</span>
+          </button>
+        )}
       </Row>
+    </div>
+  );
+}
+
+// Todos os vídeos de um canal (do mais novo ao mais antigo), carregados de 30 em 30 conforme rola.
+function ChannelAll({ ch, onPlay, onBack }) {
+  const [s, setS] = useState({ list: [], next: '', loading: true });
+  const end = useRef(null);
+  const busy = useRef(false);
+  const more = async (token) => {
+    if (busy.current) return;
+    busy.current = true;
+    setS((x) => ({ ...x, loading: true, error: null }));
+    try {
+      const r = await allVideosPage(ch.id, token);
+      setS((x) => {
+        const seen = new Set(x.list.map((v) => v.key));
+        return { list: [...x.list, ...r.list.filter((v) => !seen.has(v.key))], next: r.next, loading: false };
+      });
+    } catch (e) {
+      setS((x) => ({ ...x, loading: false, error: e.message }));
+    }
+    busy.current = false;
+  };
+  useEffect(() => {
+    more('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ch.id]);
+  // Chegando perto do fim da grade, carrega a próxima página sozinho.
+  useEffect(() => {
+    const el = end.current;
+    if (!el || !s.next || s.loading || s.error) return undefined;
+    const io = new IntersectionObserver(([e]) => e.isIntersecting && more(s.next), { rootMargin: '600px' });
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [s.next, s.loading, s.error]);
+  useKeyHandler((k) => (k === 'back' ? (onBack(), true) : false));
+  return (
+    <div className="clark">
+      <button className="link-btn back-link" onClick={onBack}>
+        <Icon name="chevron-left" size={16} /> Voltar
+      </button>
+      <PageHeader title={ch.name} count={s.list.length || null} />
+      <div className="ck-grid">
+        {s.list.map((v, i) => (
+          <VideoCard key={v.key} v={v} sub={[v.when, v.len].filter(Boolean).join(' · ')} onPlay={() => onPlay(s.list, i)} />
+        ))}
+      </div>
+      <div ref={end} className="ck-more">
+        {s.loading && <span className="spinner" />}
+        {s.error && <p className="muted">{s.error}</p>}
+        {!s.loading && (s.next || s.error) && (
+          <button className="btn" onClick={() => more(s.error && !s.list.length ? '' : s.next)}>
+            {s.error ? 'Tentar de novo' : 'Carregar mais vídeos'}
+          </button>
+        )}
+        {!s.loading && !s.next && !s.error && s.list.length > 0 && <p className="muted">Esses são todos os {s.list.length} vídeos do canal.</p>}
+      </div>
     </div>
   );
 }
@@ -144,10 +209,22 @@ function YtPlayer({ list, start, onClose }) {
 }
 
 // Adicionar um canal pelo nome: busca no YouTube e mostra os canais encontrados para escolher.
-function AddChannel({ fixedChannels, added, onAdd, first }) {
+// Assinantes: o canal pode ir para a área Adulto ("Youtube") ou Infantil ("Youtube Crianças").
+// Perfis infantis só adicionam na infantil.
+const SUB_TARGETS = [
+  { id: 'youtube', label: 'Adulto' },
+  { id: 'criancas', label: 'Infantil' },
+];
+
+function AddChannel({ area, fixedChannels, added, onAdd, first }) {
+  const { profile } = useStore();
   const [q, setQ] = useState('');
   const [state, setState] = useState(null); // { loading } | { list } | { error }
-  const fixed = new Set([...fixedChannels, ...added].map((c) => c.id));
+  const choose = EDITION === 'subscriber' && !profile?.kids && SUB_TARGETS.some((t) => t.id === area.id);
+  const [target, setTarget] = useState(area.id);
+  const targetArea = YT_AREAS.find((a) => a.id === target) || area;
+  const targetAdded = target === area.id ? added : loadAdded(targetArea.store);
+  const fixed = new Set([...(target === area.id ? fixedChannels : targetArea.channels), ...targetAdded].map((c) => c.id));
   const search = async (e) => {
     e?.preventDefault();
     const name = q.trim();
@@ -165,6 +242,16 @@ function AddChannel({ fixedChannels, added, onAdd, first }) {
         <h2>Adicionar canal pelo nome</h2>
       </div>
       {first && <p className="muted">Ainda não há canais aqui. Digite o nome de um canal do YouTube que você gosta e toque em “Buscar”.</p>}
+      {choose && (
+        <div className="chips ck-target">
+          <span className="muted">Adicionar no perfil:</span>
+          {SUB_TARGETS.map((t) => (
+            <button key={t.id} className={`chip ${target === t.id ? 'active' : ''}`} onClick={() => setTarget(t.id)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
       <form className="ck-add-form" onSubmit={search}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome do canal no YouTube" enterKeyHint="search" />
         <button className="btn" type="submit" disabled={q.trim().length < 2 || state?.loading}>
@@ -185,9 +272,9 @@ function AddChannel({ fixedChannels, added, onAdd, first }) {
                 <span className="muted">{c.about || 'Canal do YouTube'}</span>
               </div>
               {fixed.has(c.id) ? (
-                <span className="muted">no menu</span>
+                <span className="muted">{choose ? `no ${SUB_TARGETS.find((t) => t.id === target).label}` : 'no menu'}</span>
               ) : (
-                <button className="btn small" onClick={() => onAdd({ id: c.id, name: c.name, about: c.about })}>
+                <button className="btn small" onClick={() => onAdd({ id: c.id, name: c.name, about: c.about }, targetArea)}>
                   <Icon name="plus" size={14} /> Adicionar
                 </button>
               )}
@@ -202,6 +289,8 @@ function AddChannel({ fixedChannels, added, onAdd, first }) {
 function YoutubeArea({ area }) {
   const [added, setAdded] = useState(() => loadAdded(area.store));
   const [playing, setPlaying] = useState(null); // { list, start }
+  const [allOf, setAllOf] = useState(null); // canal aberto em "Ver todos os vídeos"
+  const { notify } = useStore();
   const save = (l) => {
     setAdded(l);
     try {
@@ -215,7 +304,26 @@ function YoutubeArea({ area }) {
   const suggestions = (area.suggestions || []).filter((s) => !addedIds.has(s.id));
   const play = (list, start = 0) => setPlaying({ list, start });
   const empty = !area.channels.length && !added.length && !videos.length;
-  const addChannel = <AddChannel fixedChannels={area.channels} added={added} first={empty} onAdd={(c) => save([...added.filter((x) => x.id !== c.id), c])} />;
+  // Adicionar: nesta área ou (assinantes) na outra, Adulto/Infantil, guardada no aparelho.
+  const addTo = (c, target) => {
+    if (target.id === area.id) return save([...added.filter((x) => x.id !== c.id), c]);
+    const l = loadAdded(target.store);
+    try {
+      localStorage.setItem(target.store, JSON.stringify([...l.filter((x) => x.id !== c.id), c]));
+    } catch {
+      /* armazenamento cheio */
+    }
+    notify(`“${c.name}” adicionado em ${target.title}.`, 'ok');
+  };
+  const addChannel = <AddChannel area={area} fixedChannels={area.channels} added={added} first={empty} onAdd={addTo} />;
+
+  if (allOf)
+    return (
+      <>
+        <ChannelAll ch={allOf} onPlay={play} onBack={() => setAllOf(null)} />
+        {playing && <YtPlayer list={playing.list} start={playing.start} onClose={() => setPlaying(null)} />}
+      </>
+    );
 
   return (
     <div className="clark">
@@ -229,10 +337,10 @@ function YoutubeArea({ area }) {
         </Row>
       )}
       {area.channels.map((ch) => (
-        <ChannelRow key={ch.id} ch={ch} onPlay={play} />
+        <ChannelRow key={ch.id} ch={ch} onPlay={play} onAll={setAllOf} />
       ))}
       {added.map((ch) => (
-        <ChannelRow key={ch.id} ch={ch} onPlay={play} onRemove={() => save(added.filter((c) => c.id !== ch.id))} />
+        <ChannelRow key={ch.id} ch={ch} onPlay={play} onAll={setAllOf} onRemove={() => save(added.filter((c) => c.id !== ch.id))} />
       ))}
       {suggestions.length > 0 && (
         <section className="row ck-suggest">
