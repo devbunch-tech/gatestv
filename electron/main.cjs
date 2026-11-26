@@ -35,7 +35,9 @@ async function createWindow() {
       const cfg = require('../ota.config.json');
       const userData = app.getPath('userData');
       webRoot = ota.activeRoot(userData, embeddedDir);
-      setTimeout(() => ota.check({ userData, embeddedDir, activeDir: webRoot, manifestUrl: cfg.manifestUrl, publicKey: cfg.publicKey }), 15000);
+      const opts = { userData, embeddedDir, activeDir: webRoot, manifestUrl: cfg.manifestUrl, publicKey: cfg.publicKey };
+      setTimeout(() => ota.check(opts), 15000);
+      otaApi = { status: () => ota.status({ userData, activeDir: webRoot, enabled: true }), check: () => ota.check(opts) };
     } catch {
       webRoot = embeddedDir;
     }
@@ -84,6 +86,21 @@ ipcMain.handle('gates:shutdown', (e) => {
 });
 ipcMain.handle('gates:quit', (e) => {
   if (win && e.sender === win.webContents) app.quit();
+});
+
+// Tela "Procurar atualizações": situação, verificar agora e reabrir já na versão baixada
+// (activeRoot aplica a versão pendente ao abrir).
+let otaApi = null;
+ipcMain.handle('gates:ota-info', (e) => (win && e.sender === win.webContents ? otaApi?.status() || { enabled: false } : null));
+ipcMain.handle('gates:ota-check', (e) => {
+  if (!win || e.sender !== win.webContents || !otaApi) return false;
+  otaApi.check();
+  return true;
+});
+ipcMain.handle('gates:ota-apply', (e) => {
+  if (!win || e.sender !== win.webContents || !otaApi) return;
+  app.relaunch();
+  app.exit(0);
 });
 
 app.on('second-instance', () => {

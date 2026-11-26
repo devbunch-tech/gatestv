@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { probeHandler, proxyHandler } from './server/gates-server.mjs';
@@ -18,6 +19,8 @@ const proxyPlugin = () => ({
 export default defineConfig({
   // Caminhos relativos: o mesmo build funciona no navegador, no Windows (Electron) e no Android.
   base: './',
+  // Versão do app (package.json), mostrada em "Procurar atualizações".
+  define: { __APP_VERSION__: JSON.stringify(JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version) },
   // Smart TVs Samsung/LG (VITE_PLATFORM=tizen|webos): script clássico e CSS para navegadores antigos.
   plugins: [react(), proxyPlugin(), ...(process.env.VITE_PLATFORM ? [smartTvPlugin()] : [])],
   server: { port: 5173, host: true },

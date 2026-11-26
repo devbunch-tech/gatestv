@@ -10,6 +10,8 @@ import { crestImage, crestsResponse } from './crests.js';
 import { subsResponse } from './subs.js';
 import { matchResponse } from './match.js';
 import { channelVideosPage } from './youtube.js';
+import { ytForget, ytSocialRoute } from './ytsocial.js';
+import { VOICE_MAX, VOICE_PER_DAY, transcribe } from './voice.js';
 import { applyReferralSplit, ensureTvCode, makeSubscribers, newRefCode, recordCommission, normPhone, PHONE_ERROR, startCheckout, startTrial } from './subscribers.js';
 
 const json = (code, obj, headers = {}) =>
@@ -159,6 +161,11 @@ async function route(req, env, cfg) {
       return json(503, { ok: false, error: 'unavailable', message: 'Não foi possível carregar os vídeos do canal agora.' });
     }
   }
+  // Comentários e chat ao vivo do YouTube (ler, e enviar com a conta do YouTube do assinante).
+  if (p.startsWith('/api/v1/yt/')) {
+    const r = await ytSocialRoute({ req, env, cfg, db, url, p, b, ip });
+    if (r) return r;
+  }
   if (p === '/api/v1/subs' && req.method === 'GET') {
     if (await db.limited('subs:' + ip, 40, 3600e3)) return fail(429, 'rate_limited');
     return subsResponse(env, url);
@@ -286,6 +293,29 @@ async function route(req, env, cfg) {
       return json(200, { ok: true });
     }
     return fail(404, 'Rota inexistente.');
+  }
+  // ---------- App: busca por voz (Windows e navegadores sem reconhecimento de voz) ----------
+  // GET: o app pergunta se está disponível (503 = sem a ligação de IA; o microfone fica escondido).
+  if (p === '/api/v1/voice') {
+    if (!env.AI) return json(503, { ok: false, error: 'voice_off', message: 'A busca por voz não está disponível.' });
+    if (req.method !== 'POST') return json(200, { ok: true });
+    const t = await readToken(b.token, cfg);
+    if (!t || (b.deviceId && b.deviceId !== t.did)) return fail(401, 'invalid_token');
+    const audio = typeof b.audio === 'string' ? b.audio : '';
+    if (audio.length < 200 || audio.length > VOICE_MAX || !/^[A-Za-z0-9+/]+={0,2}$/.test(audio)) return fail(400, 'bad_request');
+    if (await db.limited('voice:' + t.did, 12, 60e3)) return fail(429, 'rate_limited');
+    const c = await db.get(t.email);
+    if (!c?.devices?.[t.did]) return fail(401, 'invalid_token');
+    const st = evaluate(c, cfg).status;
+    if (st !== 'active' && st !== 'grace') return json(403, { ok: false, error: 'not_active', message: 'A busca por voz fica disponível com a assinatura em dia.' });
+    if (await db.limited('voice:' + t.email, VOICE_PER_DAY, 24 * 3600e3))
+      return json(429, { ok: false, error: 'rate_limited', message: 'Limite diário da busca por voz atingido. Digite a busca ou tente amanhã.' });
+    try {
+      return json(200, { ok: true, text: await transcribe(env.AI, audio) });
+    } catch (e) {
+      console.warn('[voz]', e?.message);
+      return json(503, { ok: false, error: 'unavailable', message: 'Não foi possível reconhecer a voz agora. Tente de novo.' });
+    }
   }
   if (p === '/api/v1/logout' && req.method === 'POST') {
     const t = await readToken(b.token, cfg);
@@ -738,6 +768,7 @@ async function admin(req, url, b, { db, asaas, subs, cfg, fail }) {
     await db.remove(email);
     await db.userdata.remove(email);
     await db.watch.remove(email);
+    await ytForget(env, email).catch((e) => console.warn('[excluir] youtube', e.message));
     return json(200, { ok: true, cancelled });
   }
   return json(200, { ok: true, customer: view(await db.get(email)) });

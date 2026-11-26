@@ -7,7 +7,7 @@ import QrCode from './QrCode';
 import { Modal } from './Overlays';
 import { SMART_TV, hasNative, isTouch, native } from '../lib/device';
 import { isTvMode } from '../lib/keys';
-import { channelLive, isSubscribed, loadFavs, markSubscribed, queryFor, searchLives, subscribeUrl, toggleFav } from '../lib/narration';
+import { channelLive, edgeClock, isSubscribed, loadFavs, markSubscribed, median, queryFor, searchLives, subscribeUrl, toggleFav } from '../lib/narration';
 
 const ASK_AFTER = 3 * 60e3; // convite para se inscrever depois de 3 min ouvindo
 const ASK_AGAIN = 15 * 60e3; // "Agora não": pergunta de novo depois de 15 min
@@ -36,30 +36,51 @@ const loadView = () => {
     return { size: 's', pos: 'br', swap: false, hidden: false };
   }
 };
-// Atraso da narração: o último ajuste fica guardado e vale como padrão para as próximas narrações.
+// Atraso da narração guardado por narrador (id do canal do YouTube): cada canal tem o seu atraso.
+// O último ajuste ('gates:narr:offset', a chave antiga) vale como padrão para narradores novos.
 const OFFSET_KEY = 'gates:narr:offset';
-const loadOffset = () => {
+const OFFSETS_KEY = 'gates:narr:offsets';
+const loadOffsets = () => {
   try {
-    const n = Number(localStorage.getItem(OFFSET_KEY));
+    return JSON.parse(localStorage.getItem(OFFSETS_KEY) || 'null') || {};
+  } catch {
+    return {};
+  }
+};
+const loadOffset = (ch) => {
+  try {
+    const by = loadOffsets();
+    const n = Number(ch && by[ch] != null ? by[ch] : localStorage.getItem(OFFSET_KEY));
     return Number.isFinite(n) ? Math.round(n) : 0;
   } catch {
     return 0;
   }
 };
-const saveOffset = (n) => {
+const saveOffset = (ch, n) => {
   try {
+    if (ch) localStorage.setItem(OFFSETS_KEY, JSON.stringify({ ...loadOffsets(), [ch]: n }));
     localStorage.setItem(OFFSET_KEY, String(n));
   } catch {
     /* armazenamento cheio */
   }
 };
+// Sincronia automática (anti-deriva): ligada por padrão; desligar fica guardado no aparelho.
+const AUTO_KEY = 'gates:narr:auto';
+const loadAuto = () => {
+  try {
+    return localStorage.getItem(AUTO_KEY) !== '0';
+  } catch {
+    return true;
+  }
+};
+const LANCE_WAIT = 60e3; // "Sincronizar pelo lance": desiste se o segundo toque não vier em 1 min
 const nextOf = (list, id) => list[(list.findIndex((x) => x.id === id) + 1) % list.length].id;
 
 // Botões de sincronia. A narração do YouTube costuma chegar bem antes da TV (20 s a 1 min),
 // por isso há passos grandes para atrasar.
 const DELAYS = [1, 5, 10, 30];
 const ADVANCES = [1, 5, 10];
-function SyncButtons({ shift, offset, compact, autofocus }) {
+function SyncButtons({ shift, offset, compact, autofocus, lance, markLance }) {
   const tab = compact ? { tabIndex: -1 } : {};
   return (
     <>
@@ -83,6 +104,16 @@ function SyncButtons({ shift, offset, compact, autofocus }) {
             Zerar
           </button>
         )}
+      </div>
+      {/* Pelo lance: um toque ao ver o lance na tela e outro ao ouvir o narrador, em qualquer ordem. */}
+      <div className="narr-sync">
+        <span className="narr-sync-label">{compact ? 'Lance' : 'Sincronizar pelo lance (toque nos dois, em qualquer ordem)'}</span>
+        <button className={`chip ${lance?.kind === 'saw' ? 'active' : ''}`} {...tab} onClick={() => markLance('saw')} title="Toque quando vir um lance marcante na tela (gol, apito)">
+          <Icon name="eye" size={12} /> Vi o lance
+        </button>
+        <button className={`chip ${lance?.kind === 'heard' ? 'active' : ''}`} {...tab} onClick={() => markLance('heard')} title="Toque quando ouvir o narrador reagir ao mesmo lance">
+          <Icon name="volume" size={12} /> Ouvi o narrador
+        </button>
       </div>
     </>
   );
@@ -111,20 +142,36 @@ export function useNarration(videoRef, notify) {
   const toggleSwap = useCallback(() => setViewState((v) => ({ ...v, swap: !v.swap, hidden: false })), []);
   // Esconder: a janela some por completo e a narração continua tocando; "Mostrar" traz de volta.
   const toggleHidden = useCallback(() => setViewState((v) => ({ ...v, hidden: !v.hidden, swap: false })), []);
-  const info = useRef({ t: 0, d: 0 });
+  const info = useRef({ t: 0, d: 0, at: 0 });
   const timers = useRef([]);
   const pending = useRef(0); // atraso padrão a aplicar quando a live começar a tocar
   const moveRef = useRef(null);
+  // Sincronia automática: 'ref' é a diferença de "distância do ao vivo" (narração - jogo) logo depois
+  // de começar ou de um ajuste; 'samples', as últimas leituras (1 por segundo).
+  const [auto, setAuto] = useState(loadAuto);
+  const sync = useRef({ ref: null, samples: [], waitUntil: 0, lastFix: 0, lastCheck: 0 });
+  const narrEdge = useRef(edgeClock());
+  const gameEdge = useRef(edgeClock());
+  // Recomeça a referência depois de 'ms' (tempo para o ajuste ou a troca assentar).
+  const resync = (ms) => {
+    sync.current = { ...sync.current, ref: null, samples: [], waitUntil: Date.now() + ms };
+  };
+  const [lance, setLance] = useState(null); // primeiro toque do "Sincronizar pelo lance": { kind: 'saw' | 'heard', at }
+  const lanceTimer = useRef(0);
 
   const stop = useCallback(() => {
     setNarr(null);
     setAsk(false);
+    setLance(null);
+    clearTimeout(lanceTimer.current);
     setViewState((v) => ({ ...v, swap: false, hidden: false }));
   }, []);
   const start = useCallback((n) => {
-    info.current = { t: 0, d: 0 };
+    info.current = { t: 0, d: 0, at: 0 };
+    narrEdge.current.reset();
+    sync.current = { ref: null, samples: [], waitUntil: Date.now() + 8000, lastFix: 0, lastCheck: 0 };
     setViewState((v) => ({ ...v, swap: false, hidden: false }));
-    const saved = loadOffset();
+    const saved = loadOffset(n.channelId);
     pending.current = saved;
     setOffset(saved);
     setNarr(n);
@@ -156,14 +203,25 @@ export function useNarration(videoRef, notify) {
       } catch {
         return;
       }
-      if (m?.info?.currentTime != null) info.current.t = m.info.currentTime;
-      if (m?.info?.duration != null) info.current.d = m.info.duration;
+      // 'at': quando chegou a posição (entre uma mensagem e outra, a posição é estimada pelo relógio).
+      if (m?.info?.currentTime != null) info.current = { ...info.current, t: m.info.currentTime, at: Date.now() };
+      if (m?.info?.duration != null) {
+        info.current.d = m.info.duration;
+        // Na live, a duração é a ponta do ao vivo do YouTube (vai crescendo).
+        narrEdge.current.feed(m.info.duration);
+      }
       if (m?.info?.playerState != null) info.current.s = m.info.playerState;
-      // Live tocando: aplica o atraso padrão (o mesmo do último ajuste).
+      // Live tocando: aplica o atraso padrão (o guardado para este narrador).
       if (pending.current && info.current.s === 1 && info.current.t > 0) {
         const p = pending.current;
         pending.current = 0;
-        timers.current.push(setTimeout(() => moveRef.current?.(p, 0), 1500));
+        resync(8000);
+        timers.current.push(
+          setTimeout(() => {
+            moveRef.current?.(p, 0);
+            resync(6000);
+          }, 1500)
+        );
       }
       if (m?.event === 'onError') {
         notify(`A live de “${narr.channel}” não pode tocar fora do YouTube. Escolha outra narração.`, 'err');
@@ -180,7 +238,93 @@ export function useNarration(videoRef, notify) {
     const t = setTimeout(() => setAsk(true), ASK_AFTER);
     return () => clearTimeout(t);
   }, [narr]);
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  useEffect(
+    () => () => {
+      timers.current.forEach(clearTimeout);
+      clearTimeout(lanceTimer.current);
+    },
+    []
+  );
+
+  // Vídeo do jogo trocado ou recarregado (outro canal/fonte): a ponta do ao vivo é outra, mede de novo.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !narr) return undefined;
+    const onReset = () => {
+      gameEdge.current.reset();
+      resync(6000);
+    };
+    v.addEventListener('emptied', onReset);
+    return () => v.removeEventListener('emptied', onReset);
+  }, [narr, videoRef]);
+
+  // Sincronia automática (anti-deriva). Distância do ao vivo da narração = duração - posição no YouTube;
+  // a do jogo = ponta do trecho disponível (seekable, que serve para hls.js, mpegts.js e o player
+  // nativo) - posição do vídeo. Logo depois de começar ou de um ajuste guarda a diferença entre as duas;
+  // se um dos dois travar e ela se afastar mais de 1,5 s, corrige a posição da narração.
+  useEffect(() => {
+    if (!narr || !auto) return undefined;
+    const id = setInterval(() => {
+      const s = sync.current;
+      const now = Date.now();
+      const v = videoRef.current;
+      if (!v) return;
+      const r = v.seekable.length ? v.seekable : v.buffered;
+      if (r.length) gameEdge.current.feed(r.end(r.length - 1), now);
+      const y = info.current;
+      // Só mede com os dois tocando normalmente (sem carregar, pausa ou o jogo correndo atrás do ao vivo)
+      // e fora do tempo de acomodação de um ajuste.
+      const steady = !v.paused && !v.seeking && v.readyState >= 3 && v.playbackRate === 1 && y.s === 1 && now - y.at < 3000;
+      if (!steady || pending.current || now < s.waitUntil) {
+        s.samples = [];
+        return;
+      }
+      const yt = y.t + (now - y.at) / 1000;
+      const nd = narrEdge.current.get(now) - yt;
+      const gd = gameEdge.current.get(now) - v.currentTime;
+      // Leitura absurda (ponta desconhecida ou parada): não mede.
+      if (!(nd > -3 && nd < 900 && gd > -3 && gd < 900)) {
+        s.samples = [];
+        return;
+      }
+      s.samples = [...s.samples.slice(-4), nd - gd];
+      if (s.samples.length < 3) return;
+      const m = median(s.samples);
+      if (s.ref == null) {
+        s.ref = m;
+        s.lastCheck = now;
+        return;
+      }
+      if (s.samples.length < 5 || now - s.lastCheck < 5000) return;
+      s.lastCheck = now;
+      // err > 0: a narração ficou mais longe do ao vivo do que no ajuste (atrás do jogo).
+      // Diferença enorme é leitura errada, não travamento; e no máximo uma correção a cada 10 s.
+      const err = m - s.ref;
+      if (Math.abs(err) < 1.5 || Math.abs(err) > 90 || now - s.lastFix < 10000) return;
+      if (err > 0) {
+        // Adianta a narração, sem passar do ao vivo do YouTube.
+        const target = Math.min(yt + err, narrEdge.current.get(now) - 1);
+        if (target - yt < 1) return;
+        cmd('seekTo', [target, true]);
+      } else moveRef.current?.(-err, 0); // atrasa (volta a live ou, sem DVR, segura a narração)
+      s.lastFix = now;
+      s.samples = [];
+      s.waitUntil = now + 4000;
+    }, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [narr, auto, videoRef]);
+  const toggleAuto = () => {
+    const on = !auto;
+    setAuto(on);
+    try {
+      localStorage.setItem(AUTO_KEY, on ? '1' : '0');
+    } catch {
+      /* armazenamento cheio */
+    }
+    if (on) resync(2000);
+    notify(on ? 'Sincronia automática ligada: se o jogo ou a narração travar, o atraso é corrigido sozinho.' : 'Sincronia automática desligada.');
+  };
 
   const cmd = (func, args = []) => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
   const listen = () => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
@@ -215,14 +359,38 @@ export function useNarration(videoRef, notify) {
     }
   };
   moveRef.current = move;
-  const shift = (d) => {
+  // 'why': começo do aviso (ex.: o resultado do "Sincronizar pelo lance").
+  const shift = (d, why = '') => {
     if (!d) return;
     pending.current = 0;
     move(d, offset);
+    resync(6000); // o ajuste manual vira a nova referência da sincronia automática
     const n = offset + d;
     setOffset(n);
-    saveOffset(n);
-    notify(`Sincronia: ${offsetText(n)}.`);
+    saveOffset(narr?.channelId, n);
+    notify(`${why}Sincronia: ${offsetText(n)}.`);
+  };
+
+  // Sincronizar pelo lance: o tempo entre "Vi o lance" e "Ouvi o narrador" vira o ajuste.
+  // Ouviu depois de ver: a narração está atrás do jogo, adianta; ouviu antes: atrasa pelo mesmo tempo.
+  const markLance = (kind) => {
+    const now = Date.now();
+    clearTimeout(lanceTimer.current);
+    if (!lance || lance.kind === kind || now - lance.at > LANCE_WAIT) {
+      setLance({ kind, at: now });
+      lanceTimer.current = setTimeout(() => {
+        setLance(null);
+        notify('Sincronia pelo lance cancelada: o segundo toque não veio em 1 minuto.');
+      }, LANCE_WAIT);
+      notify(kind === 'saw' ? 'Agora toque em “Ouvi o narrador” quando ele reagir ao lance.' : 'Agora toque em “Vi o lance” quando o lance aparecer na tela.');
+      return;
+    }
+    setLance(null);
+    const saw = kind === 'saw' ? now : lance.at;
+    const heard = kind === 'heard' ? now : lance.at;
+    const d = Math.round((saw - heard) / 1000);
+    if (!d) return notify('Pelo lance, a narração já está em sincronia com o jogo.');
+    shift(d, `Pelo lance, a narração estava ${Math.abs(d)} s ${d < 0 ? 'atrás' : 'na frente'} do jogo. `);
   };
 
   const answer = (subscribed) => {
@@ -250,6 +418,11 @@ export function useNarration(videoRef, notify) {
         <Icon name="volume" size={14} />
         <strong title={narr.title}>{narr.channel}</strong>
         <small className="muted">{offsetText(offset)}</small>
+        {auto && (
+          <small className="muted" title="Sincronia mantida automaticamente: se o jogo ou a narração travar, o atraso é corrigido sozinho">
+            · auto
+          </small>
+        )}
       </div>
       {!isTvMode() && (
         <div className="narr-sync narr-win">
@@ -270,7 +443,7 @@ export function useNarration(videoRef, notify) {
           </button>
         </div>
       )}
-      {!isTvMode() && <SyncButtons shift={shift} offset={offset} compact />}
+      {!isTvMode() && <SyncButtons shift={shift} offset={offset} lance={lance} markLance={markLance} compact />}
     </div>
   );
 
@@ -302,7 +475,7 @@ export function useNarration(videoRef, notify) {
   // Classes no <div className="player">: posicionam a janela menor (a narração ou, invertido, o jogo).
   const wrapClass = narr ? `narr-on narr-${view.size} narr-${view.pos}${view.swap ? ' narr-swap' : ''}${view.hidden ? ' narr-hidden' : ''}` : '';
 
-  return { narr, start, stop, shift, offset, gameVol, setGameVol, dock, askModal, view, setView, cycleSize, cycleCorner, toggleSwap, toggleHidden, wrapClass };
+  return { narr, start, stop, shift, offset, auto, toggleAuto, lance, markLance, gameVol, setGameVol, dock, askModal, view, setView, cycleSize, cycleCorner, toggleSwap, toggleHidden, wrapClass };
 }
 
 // Uma linha de narração (live): toca ao escolher; a estrela favorita o canal.
@@ -373,8 +546,13 @@ export function NarrationPicker({ n, game, title, onClose }) {
           <h3>
             Ouvindo: {n.narr.channel} <small className="muted">· {offsetText(n.offset)}</small>
           </h3>
-          <p className="muted">A narração está na frente do jogo? Atrase. Está atrás? Adiante. O ajuste fica salvo e vale para as próximas narrações.</p>
-          <SyncButtons shift={n.shift} offset={n.offset} autofocus />
+          <p className="muted">A narração está na frente do jogo? Atrase. Está atrás? Adiante. Ou use “Vi o lance” e “Ouvi o narrador” num gol ou apito. O ajuste fica salvo para este narrador e vale como padrão para os novos.</p>
+          <SyncButtons shift={n.shift} offset={n.offset} lance={n.lance} markLance={n.markLance} autofocus />
+          <div className="narr-sync">
+            <button className={`chip ${n.auto ? 'active' : ''}`} onClick={n.toggleAuto} title="Se o jogo ou a narração travar, corrige o atraso sozinho">
+              <Icon name="refresh" size={12} /> {n.auto ? 'Sincronia mantida automaticamente (toque para desligar)' : 'Sincronia automática desligada (toque para ligar)'}
+            </button>
+          </div>
           <div className="narr-sync">
             <button className={`chip ${!n.gameVol ? 'active' : ''}`} onClick={() => n.setGameVol(0)}>Som do jogo: mudo</button>
             <button className={`chip ${n.gameVol ? 'active' : ''}`} onClick={() => n.setGameVol(0.2)}>Som do jogo: baixo</button>

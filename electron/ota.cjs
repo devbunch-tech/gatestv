@@ -56,9 +56,14 @@ async function download(url) {
 }
 
 let running = false;
+// Estado da última verificação, para a tela "Procurar atualizações" (mesmos nomes do Android):
+// idle | checking | downloading | ready | uptodate | native (precisa de instalador novo) | error
+const st = { state: 'idle', error: '', checkedAt: 0, available: null };
+
 async function check({ userData, embeddedDir, activeDir, manifestUrl, publicKey }) {
   if (running || !manifestUrl || !publicKey) return;
   running = true;
+  Object.assign(st, { state: 'checking', error: '' });
   try {
     const t = '?t=' + Date.now();
     const bytes = await download(manifestUrl + t);
@@ -66,9 +71,12 @@ async function check({ userData, embeddedDir, activeDir, manifestUrl, publicKey 
     const key = crypto.createPublicKey({ key: Buffer.from(publicKey, 'base64'), format: 'der', type: 'spki' });
     if (!crypto.verify('sha256', bytes, key, sig)) throw new Error('assinatura inválida');
     const m = JSON.parse(bytes.toString('utf8'));
-    if ((m.minNative || 1) > NATIVE_API) return; // precisa de um instalador mais novo
+    st.available = { version: m.version, build: m.build, minNative: m.minNative || 1, notes: Array.isArray(m.notes) ? m.notes : [] };
     const d = dirs(userData);
-    if (m.build <= buildOf(activeDir) || m.build <= Math.max(0, buildOf(embeddedDir)) || buildOf(d.pending) >= m.build) return;
+    if (m.build <= buildOf(activeDir) || m.build <= Math.max(0, buildOf(embeddedDir))) return void (st.state = 'uptodate');
+    if ((m.minNative || 1) > NATIVE_API) return void (st.state = 'native'); // precisa de um instalador mais novo
+    if (buildOf(d.pending) >= m.build) return void (st.state = 'ready');
+    st.state = 'downloading';
     const base = manifestUrl.slice(0, manifestUrl.lastIndexOf('/') + 1) + m.build + '/';
     rm(d.stage);
     for (const [rel, info] of Object.entries(m.files)) {
@@ -94,14 +102,32 @@ async function check({ userData, embeddedDir, activeDir, manifestUrl, publicKey 
       }
       fs.writeFileSync(dest, data);
     }
-    fs.writeFileSync(path.join(d.stage, 'ota.json'), JSON.stringify({ version: m.version, build: m.build }));
+    fs.writeFileSync(path.join(d.stage, 'ota.json'), JSON.stringify({ version: m.version, build: m.build, notes: st.available.notes }));
     rm(d.pending);
     fs.renameSync(d.stage, d.pending);
-  } catch {
+    st.state = 'ready';
+  } catch (err) {
     // sem internet, site fora do ar ou arquivo corrompido: tenta de novo na próxima abertura
+    Object.assign(st, { state: 'error', error: String(err?.message || err) });
   } finally {
+    st.checkedAt = Date.now();
     running = false;
   }
 }
 
-module.exports = { activeRoot, check };
+// Situação da atualização para a página (GatesDesktop.otaInfo()).
+function status({ userData, activeDir, enabled }) {
+  const pending = readJson(path.join(dirs(userData).pending, 'ota.json'));
+  return {
+    enabled,
+    nativeApi: NATIVE_API,
+    current: readJson(path.join(activeDir, 'ota.json')),
+    pending: pending?.build > 0 ? pending : null,
+    state: pending?.build > 0 && !running ? 'ready' : st.state,
+    available: st.available,
+    error: st.error,
+    checkedAt: st.checkedAt,
+  };
+}
+
+module.exports = { activeRoot, check, status };

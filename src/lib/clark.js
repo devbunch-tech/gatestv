@@ -49,6 +49,14 @@ export const YT_AREAS = [
 // Áreas desta edição para o perfil (perfis infantis só veem as infantis).
 export const areasFor = (profile) => YT_AREAS.filter((a) => a.editions.includes(EDITION) && (a.kidsOk || !profile?.kids));
 export const areaById = (id) => YT_AREAS.find((a) => a.id === id && a.editions.includes(EDITION)) || null;
+// Canais adicionados em cada área (guardados no aparelho).
+export const loadAdded = (key) => {
+  try {
+    return JSON.parse(localStorage.getItem(key) || '[]');
+  } catch {
+    return [];
+  }
+};
 
 export const thumb = (key) => `https://i.ytimg.com/vi/${key}/mqdefault.jpg`;
 

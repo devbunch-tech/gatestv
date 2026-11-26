@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from './Icon';
+import { cleanVoiceText, onVoice, startVoice, voiceMode } from '../lib/voice';
+import { useKeyHandler } from '../lib/keys';
 import { useStore } from '../store';
 import { Avatar, ProfileMenu } from './Profiles';
 import { isPhone, isTouch } from '../lib/device';
 import { IS_TEST } from '../config/license';
 import { isDemo } from '../lib/device';
 import { areasFor } from '../lib/clark';
+import { useUpdateAlert } from '../lib/updates';
 
 const NAV = [
   { to: '/', label: 'Início', icon: 'home', end: true },
@@ -23,7 +26,7 @@ export function TopBar({ onMenu }) {
   const [params] = useSearchParams();
   const [q, setQ] = useState(params.get('q') || '');
   const [profileMenu, setProfileMenu] = useState(false);
-  const { profile } = useStore();
+  const { profile, notify } = useStore();
   // Celular: a busca fica recolhida num ícone e abre ocupando a barra.
   const [searchOpen, setSearchOpen] = useState(false);
   const compact = isPhone && !searchOpen && location.pathname !== '/search';
@@ -41,6 +44,43 @@ export function TopBar({ onMenu }) {
     navigate(to, { replace: location.pathname === '/search' });
   };
 
+  // Busca por voz (lib/voice.js): modo do aparelho (null = sem microfone) e 'listening' | 'working'.
+  const [voice, setVoice] = useState(null);
+  const [voiceState, setVoiceState] = useState(null);
+  const stopVoice = useRef(null);
+  useEffect(() => {
+    let alive = true;
+    voiceMode().then((m) => alive && setVoice(m));
+    return () => {
+      alive = false;
+      stopVoice.current?.();
+    };
+  }, []);
+  // O que foi dito (também pela tecla de busca do controle no Android) vira a busca.
+  useEffect(
+    () =>
+      onVoice(({ text, error }) => {
+        if (error) return notify(error, 'err');
+        const v = cleanVoiceText(text);
+        if (!v) return;
+        setQ(v);
+        setSearchOpen(true);
+        navigate(`/search?q=${encodeURIComponent(v)}`, { replace: location.pathname === '/search' });
+      }),
+    [location.pathname, navigate, notify]
+  );
+  const toggleVoice = () => {
+    if (voiceState) return stopVoice.current?.();
+    stopVoice.current = startVoice(voice, setVoiceState);
+  };
+  useKeyHandler((k) => (k === 'back' ? (stopVoice.current?.(), true) : false), !!voiceState);
+  const listening = voiceState === 'listening' ? 'Ouvindo… fale o que quer assistir' : voiceState ? 'Entendendo…' : '';
+  const mic = voice && (
+    <button className={`icon-btn voice-btn ${voiceState ? 'on' : ''}`} onClick={toggleVoice} aria-label={voiceState ? 'Parar a busca por voz' : 'Buscar por voz'} title="Buscar por voz">
+      {voiceState === 'working' ? <span className="spinner sm" /> : <Icon name="mic" size={18} />}
+    </button>
+  );
+
   if (isPhone && !compact)
     return (
       <header className="topbar search-mode">
@@ -56,12 +96,13 @@ export function TopBar({ onMenu }) {
         </button>
         <label className="search">
           <Icon name="search" size={18} />
-          <input value={q} onChange={onChange} placeholder="Buscar canais, filmes e séries" autoFocus enterKeyHint="search" />
-          {q && (
+          <input value={listening ? '' : q} onChange={onChange} placeholder={listening || 'Buscar canais, filmes e séries'} autoFocus enterKeyHint="search" />
+          {q && !listening && (
             <button className="icon-btn" onClick={() => onChange({ target: { value: '' } })} aria-label="Limpar">
               <Icon name="close" size={16} />
             </button>
           )}
+          {mic}
         </label>
       </header>
     );
@@ -81,12 +122,13 @@ export function TopBar({ onMenu }) {
       ) : (
       <label className="search">
         <Icon name="search" size={18} />
-        <input value={q} onChange={onChange} placeholder="Buscar canais, filmes e séries" enterKeyHint="search" />
-        {q && (
+        <input value={listening ? '' : q} onChange={onChange} placeholder={listening || 'Buscar canais, filmes e séries'} enterKeyHint="search" />
+        {q && !listening && (
           <button className="icon-btn" onClick={() => onChange({ target: { value: '' } })} aria-label="Limpar">
             <Icon name="close" size={16} />
           </button>
         )}
+        {mic}
       </label>
       )}
       <div className="topbar-right">
@@ -115,6 +157,7 @@ export function TopBar({ onMenu }) {
 export function Sidebar({ open, onClose }) {
   const { playlists, catalog, profile } = useStore();
   const counts = { '/live': catalog.live.length, '/movies': catalog.movies.length, '/series': catalog.series.length };
+  const updateAlert = useUpdateAlert();
   return (
     <>
       <div className={`scrim ${open ? 'show' : ''}`} onClick={onClose} />
@@ -126,6 +169,13 @@ export function Sidebar({ open, onClose }) {
             {counts[n.to] > 0 && <em>{counts[n.to]}</em>}
           </NavLink>
         ))}
+        {!isDemo && (
+          <NavLink to="/updates" className="nav-item nav-updates">
+            <Icon name="refresh" />
+            <span>Procurar atualizações na plataforma</span>
+            {updateAlert && <i className="nav-dot" title="Atualização disponível" />}
+          </NavLink>
+        )}
         {!profile?.kids && !isDemo && (
           <>
         <div className="nav-section">Fontes</div>

@@ -77,7 +77,11 @@ if (!args.has('--sem-ota')) {
     files[rel] = { sha256: crypto.createHash('sha256').update(data).digest('hex'), size: data.length };
   }
   const minArg = [...args].find((a) => a.startsWith('--ota-min-native='));
-  const manifestBytes = Buffer.from(JSON.stringify({ version, build, minNative: minArg ? +minArg.split('=')[1] : 1, files }));
+  // Novidades desta versão (src/config/novidades.json): aparecem em "Procurar atualizações" antes de atualizar.
+  const novidades = JSON.parse(fs.readFileSync(path.join(root, 'src', 'config', 'novidades.json'), 'utf8'));
+  const notes = novidades.find((n) => n.versao === version)?.itens || [];
+  if (!notes.length) console.warn(`⚠ sem novidades para a versão ${version} em src/config/novidades.json`);
+  const manifestBytes = Buffer.from(JSON.stringify({ version, build, minNative: minArg ? +minArg.split('=')[1] : 1, notes, files }));
   const signature = crypto.sign('sha256', manifestBytes, crypto.createPrivateKey(fs.readFileSync(otaKeyFile)));
   fs.writeFileSync(path.join(otaDir, 'manifest.json'), manifestBytes);
   fs.writeFileSync(path.join(otaDir, 'manifest.sig'), signature.toString('base64'));
@@ -124,6 +128,9 @@ if (args.has('--segredos')) {
   put('OPENSUBTITLES_API_KEY', dotenv.OPENSUBTITLES_API_KEY);
   put('OPENSUBTITLES_USER', dotenv.OPENSUBTITLES_USER);
   put('OPENSUBTITLES_PASS', dotenv.OPENSUBTITLES_PASS);
+  // Comentários e chat do YouTube pelo app (cliente OAuth 2.0 "Aplicativo da Web" do Google Cloud).
+  put('GOOGLE_CLIENT_ID', dotenv.GOOGLE_CLIENT_ID);
+  put('GOOGLE_CLIENT_SECRET', dotenv.GOOGLE_CLIENT_SECRET);
   console.log('✓ segredos gravados na Cloudflare (cópia local em cloud/.segredos.json)');
 }
 

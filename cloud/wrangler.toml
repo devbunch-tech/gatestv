@@ -15,6 +15,10 @@ database_id = "15edc610-e9c6-4300-aa29-91edca56ee76"
 binding = "FILES"
 id = "3118fa8cfd8a4a6fbeb3038454b1d1fb"
 
+# Busca por voz do app no Windows (transcrição com o Whisper da Workers AI; ver src/voice.js).
+[ai]
+binding = "AI"
+
 # Configurações públicas (os segredos — chave do Asaas, senha do painel, chave de assinatura —
 # ficam em "segredos" da Cloudflare: node cloud/deploy.mjs --segredos).
 [vars]

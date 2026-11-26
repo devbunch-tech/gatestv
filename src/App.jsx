@@ -18,6 +18,7 @@ import { YT_AREAS } from './lib/clark';
 import { EDITION } from './lib/device';
 import Sports from './pages/Sports';
 import Settings from './pages/Settings';
+import Updates from './pages/Updates';
 import Person from './pages/Person';
 import Title from './pages/Title';
 import { useStore } from './store';
@@ -185,6 +186,7 @@ export default function App() {
             </>
           )}
           <Route path="/settings" element={<Settings />} />
+          <Route path="/updates" element={<Updates />} />
         </Routes>
       </main>
       {isTouch && <BottomTabs />}

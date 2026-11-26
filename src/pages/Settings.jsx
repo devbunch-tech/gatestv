@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useStore } from '../store';
 import { PageHeader } from '../components/Media';
 import Icon from '../components/Icon';
@@ -168,6 +169,9 @@ export default function Settings() {
             {l}
           </button>
         ))}
+        <Link to="/updates" className="chip">
+          <Icon name="refresh" size={14} /> Procurar atualizações
+        </Link>
       </nav>
 
       {isSubscriber && <SubscriptionSection />}

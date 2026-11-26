@@ -4,7 +4,7 @@
 //   GET /api/v1/yt/videos?ch=UC...            -> { ok, videos: [{ key, title, when, len }], next }
 //   GET /api/v1/yt/videos?ch=UC...&next=TOKEN -> próxima página
 const API = 'https://www.youtube.com/youtubei/v1/browse?prettyPrint=false';
-const CONTEXT = { client: { clientName: 'WEB', clientVersion: '2.20251120.01.00', hl: 'pt-BR', gl: 'BR' } };
+export const CONTEXT = { client: { clientName: 'WEB', clientVersion: '2.20251120.01.00', hl: 'pt-BR', gl: 'BR' } };
 const VIDEOS_TAB = 'EgZ2aWRlb3PyBgQKAjoA';
 
 function parse(data) {

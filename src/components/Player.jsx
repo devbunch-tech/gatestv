@@ -17,6 +17,8 @@ import { reportWatch } from '../lib/cloudsync';
 import { eventForProgram, useTodaysEvents } from '../lib/sports';
 import { STATS_LEAGUES } from '../lib/match';
 import { NARR_SIZES, NarrationPicker, useNarration } from './Narration';
+import YtComments from './YtComments';
+import { socialAllowed } from '../lib/ytsocial';
 import { findNow, fmtTime, nowNext, progressOf, useNow } from '../lib/epg';
 
 const fmt = (s) => {
@@ -240,10 +242,26 @@ function PlayerView({ item, rawQueue }) {
     setPanel(null);
     setNarrPick(true);
   };
+  // Chat da live da narração (components/YtComments.jsx), ao lado do jogo; fecha junto com a narração.
+  const [ytChat, setYtChat] = useState(false);
+  const socialOk = socialAllowed(useStore().profile); // perfil infantil: sem chat
+  const chatOk = !!narration.narr && socialOk;
+  const chatOn = ytChat && chatOk;
+  useEffect(() => {
+    if (!narration.narr) setYtChat(false);
+  }, [narration.narr]);
+  const openChat = () => {
+    setPanel(null);
+    setYtChat((o) => !o);
+  };
   const liveActions = isLive
     ? [
         { key: 'source', icon: 'refresh', label: 'Outra fonte', run: findOtherSource },
         narrOk && { key: 'narr', icon: 'volume', label: narration.narr ? `Narração: ${narration.narr.channel}` : 'Narração do YouTube', run: openNarr },
+        chatOk && { key: 'narr-chat', icon: 'chat', label: chatOn ? 'Fechar o chat da live' : 'Chat da live', run: openChat },
+        // Sincronizar pelo lance no controle remoto: o painel fica embaixo e deixa ver o jogo.
+        narration.narr && { key: 'narr-saw', icon: 'eye', label: narration.lance?.kind === 'saw' ? 'Vi o lance ✓' : 'Vi o lance', run: () => narration.markLance('saw') },
+        narration.narr && { key: 'narr-heard', icon: 'volume', label: narration.lance?.kind === 'heard' ? 'Ouvi o narrador ✓' : 'Ouvi o narrador', run: () => narration.markLance('heard') },
         narration.narr && { key: 'narr-hide', icon: 'eye', label: narration.view.hidden ? 'Mostrar a janela da narração' : 'Esconder a janela da narração (só o som)', run: narration.toggleHidden },
         narration.narr && { key: 'narr-swap', icon: 'refresh', label: narration.view.swap ? 'Jogo em tela cheia' : 'Narração em tela cheia (jogo na janela)', run: narration.toggleSwap },
         narration.narr && { key: 'narr-size', icon: 'fullscreen', label: `Janela da narração: ${NARR_SIZES.find((s) => s.id === narration.view.size).label}`, run: narration.cycleSize },
@@ -1027,7 +1045,7 @@ function PlayerView({ item, rawQueue }) {
   const showBanner = isLive && (osd || panel === 'info');
 
   return (
-    <div ref={wrapRef} className={`player ${ui || panel ? '' : 'idle'} ${narration.wrapClass}`} onMouseMove={isTouch ? undefined : poke} onTouchStart={isTouch ? undefined : poke} data-nav-root>
+    <div ref={wrapRef} className={`player ${ui || panel ? '' : 'idle'} ${narration.wrapClass}${chatOn ? ' yc-open' : ''}`} onMouseMove={isTouch ? undefined : poke} onTouchStart={isTouch ? undefined : poke} data-nav-root>
       <video ref={videoRef} playsInline onClick={isTouch ? undefined : togglePlay} onDoubleClick={isTouch ? undefined : toggleFs} {...ev} />
       {!isLive && ext?.cues ? (
         <ExternalSubs cues={ext.cues} t={st.time - ext.offset} />
@@ -1068,6 +1086,7 @@ function PlayerView({ item, rawQueue }) {
           onLater={() => laterFromBreak(breakT.list[breakT.i])}
         />
       )}
+      {chatOn && <YtComments v={narration.narr.key} live title={narration.narr.title} onClose={() => setYtChat(false)} />}
       {narration.dock}
       {narration.askModal}
       {narrPick && <NarrationPicker n={narration} game={game} title={guide.now?.title} onClose={() => setNarrPick(false)} />}
@@ -1310,6 +1329,11 @@ function PlayerView({ item, rawQueue }) {
           {narration.narr && (
             <button className={`icon-btn ${narration.view.hidden ? '' : 'on'}`} tabIndex={-1} onClick={narration.toggleHidden} title={narration.view.hidden ? 'Mostrar a janela da narração' : 'Esconder a janela da narração (o som continua)'}>
               <Icon name="eye" />
+            </button>
+          )}
+          {chatOk && (
+            <button className={`icon-btn source-btn ${chatOn ? 'on' : ''}`} tabIndex={-1} onClick={openChat} title="Chat ao vivo e comentários da live da narração">
+              <Icon name="chat" /> <span>Chat da live</span>
             </button>
           )}
           {isLive && (

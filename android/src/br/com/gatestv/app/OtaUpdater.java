@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.util.Base64;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -36,6 +37,13 @@ final class OtaUpdater {
     static final int NATIVE_API = 1;
 
     private static volatile boolean running = false;
+
+    // Estado da última verificação, para a tela "Procurar atualizações" (GatesAndroid.otaInfo()).
+    // idle | checking | downloading | ready | uptodate | native (precisa de APK novo) | error
+    private static volatile String state = "idle";
+    private static volatile String lastError = "";
+    private static volatile long checkedAt = 0;
+    private static volatile JSONObject available = null; // versão publicada no site (version, build, notes, minNative)
 
     private OtaUpdater() {
     }
@@ -103,14 +111,19 @@ final class OtaUpdater {
     static void checkAsync(final Context c, final AssetManager assets, final String manifestUrl, final String publicKey) {
         if (manifestUrl == null || manifestUrl.isEmpty() || publicKey == null || publicKey.isEmpty() || running) return;
         running = true;
+        state = "checking";
+        lastError = "";
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
                     check(c, assets, manifestUrl, publicKey);
-                } catch (Exception ignored) {
+                } catch (Exception e) {
                     // sem internet, site fora do ar ou arquivo corrompido: tenta de novo na próxima abertura
+                    state = "error";
+                    lastError = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
                 } finally {
+                    checkedAt = System.currentTimeMillis();
                     running = false;
                 }
             }
@@ -130,10 +143,27 @@ final class OtaUpdater {
 
         JSONObject m = new JSONObject(new String(manifestBytes, "UTF-8"));
         long build = m.getLong("build");
-        if (m.optInt("minNative", 1) > NATIVE_API) return; // precisa de um APK mais novo
+        JSONObject av = new JSONObject();
+        av.put("version", m.optString("version"));
+        av.put("build", build);
+        av.put("minNative", m.optInt("minNative", 1));
+        av.put("notes", m.optJSONArray("notes") != null ? m.optJSONArray("notes") : new JSONArray());
+        available = av;
         File active = activeDir(c, assets);
         long have = active != null ? buildOf(active) : embeddedBuild(assets);
-        if (build <= have || buildOf(pendingDir(c)) >= build) return;
+        if (build <= have) {
+            state = "uptodate";
+            return;
+        }
+        if (m.optInt("minNative", 1) > NATIVE_API) {
+            state = "native"; // precisa de um APK mais novo
+            return;
+        }
+        if (buildOf(pendingDir(c)) >= build) {
+            state = "ready";
+            return;
+        }
+        state = "downloading";
 
         String base = manifestUrl.substring(0, manifestUrl.lastIndexOf('/') + 1) + build + "/";
         File stage = new File(root(c), "stage");
@@ -156,11 +186,45 @@ final class OtaUpdater {
         JSONObject info = new JSONObject();
         info.put("version", m.optString("version"));
         info.put("build", build);
+        if (m.optJSONArray("notes") != null) info.put("notes", m.optJSONArray("notes"));
         writeFile(new File(stage, "ota.json"), info.toString().getBytes("UTF-8"));
         synchronized (OtaUpdater.class) {
             File pend = pendingDir(c);
             deleteTree(pend);
-            if (!stage.renameTo(pend)) deleteTree(stage);
+            if (!stage.renameTo(pend)) {
+                deleteTree(stage);
+                throw new IOException("não foi possível gravar a versão nova");
+            }
+        }
+        state = "ready";
+    }
+
+    /** Conteúdo do ota.json de uma pasta (ou do que veio no APK, com dir == null). */
+    private static JSONObject infoOf(File dir, AssetManager assets) {
+        try {
+            return new JSONObject(dir != null ? readAll(new FileInputStream(new File(dir, "ota.json"))) : readAll(assets.open("web/ota.json")));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Situação da atualização em JSON, para a tela "Procurar atualizações" (GatesAndroid.otaInfo()). */
+    static String status(Context c, AssetManager assets, boolean enabled) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("enabled", enabled);
+            o.put("nativeApi", NATIVE_API);
+            JSONObject cur = infoOf(activeDir(c, assets), assets);
+            if (cur != null) o.put("current", cur);
+            JSONObject pend = buildOf(pendingDir(c)) > 0 ? infoOf(pendingDir(c), assets) : null;
+            if (pend != null) o.put("pending", pend);
+            o.put("state", pend != null && !running ? "ready" : state);
+            if (available != null) o.put("available", available);
+            o.put("error", lastError);
+            o.put("checkedAt", checkedAt);
+            return o.toString();
+        } catch (Exception e) {
+            return "{\"enabled\":" + enabled + ",\"state\":\"error\"}";
         }
     }
 

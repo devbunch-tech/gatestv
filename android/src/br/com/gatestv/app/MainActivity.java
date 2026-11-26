@@ -190,6 +190,12 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
+        // Tecla de busca / microfone do controle: busca por voz.
+        int code = event.getKeyCode();
+        if ((code == KeyEvent.KEYCODE_SEARCH || code == KeyEvent.KEYCODE_VOICE_ASSIST) && web != null && voiceReady()) {
+            if (event.getAction() == KeyEvent.ACTION_UP) startVoice();
+            return true;
+        }
         String key = KEYS.get(event.getKeyCode());
         if (key != null && web != null) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) sendKey("keydown", key, event.getRepeatCount() > 0);
@@ -197,6 +203,48 @@ public class MainActivity extends Activity {
             return true;
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    // ---------------------------------------------------------------- busca por voz
+
+    private static final int VOICE_REQUEST = 72;
+
+    // Há reconhecedor de voz no aparelho (Google, Assistente da TV…)? Não precisa de permissão de microfone.
+    private boolean voiceReady() {
+        try {
+            return !getPackageManager().queryIntentActivities(new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH), 0).isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void startVoice() {
+        Intent i = new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        i.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        i.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "pt-BR");
+        i.putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Fale o que você quer assistir");
+        i.putExtra(android.speech.RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        try {
+            startActivityForResult(i, VOICE_REQUEST);
+        } catch (Exception e) {
+            sendVoice(null, "Não foi possível abrir o reconhecimento de voz deste aparelho.");
+        }
+    }
+
+    // O texto volta para a página no evento 'gates-voice' (src/lib/voice.js).
+    private void sendVoice(String text, String error) {
+        if (web == null) return;
+        String detail = error != null ? "{error:" + org.json.JSONObject.quote(error) + "}" : "{text:" + org.json.JSONObject.quote(text) + "}";
+        web.evaluateJavascript("window.dispatchEvent(new CustomEvent('gates-voice',{detail:" + detail + "}));", null);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != VOICE_REQUEST) return;
+        java.util.ArrayList<String> r = resultCode == RESULT_OK && data != null ? data.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS) : null;
+        if (r != null && !r.isEmpty()) sendVoice(r.get(0), null);
+        else if (resultCode == android.speech.RecognizerIntent.RESULT_NO_MATCH) sendVoice(null, "Não entendi. Fale de novo, perto do controle.");
     }
 
     // "Voltar" vai para o app web (fecha painéis, sai do player, volta de tela).
@@ -449,6 +497,22 @@ public class MainActivity extends Activity {
             return openMirror();
         }
 
+        // ---------- Busca por voz (o texto volta no evento 'gates-voice') ----------
+        @JavascriptInterface
+        public boolean voiceAvailable() {
+            return voiceReady();
+        }
+
+        @JavascriptInterface
+        public void voiceSearch() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    startVoice();
+                }
+            });
+        }
+
         // ---------- Lembretes de programas favoritos (ReminderReceiver) ----------
         @JavascriptInterface
         public void scheduleReminder(String key, double at, String title, String text, String channel) {
@@ -478,6 +542,32 @@ public class MainActivity extends Activity {
             String ch = pendingReminder;
             pendingReminder = null;
             return ch == null ? "" : ch;
+        }
+
+        // Tela "Procurar atualizações": situação, verificar agora e aplicar a versão baixada.
+        @JavascriptInterface
+        public String otaInfo() {
+            return OtaUpdater.status(getApplicationContext(), getAssets(), otaEnabled());
+        }
+
+        @JavascriptInterface
+        public boolean otaCheck() {
+            if (!otaEnabled()) return false;
+            startOtaCheck();
+            return true;
+        }
+
+        @JavascriptInterface
+        public void otaApply() {
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (otaEnabled() && OtaUpdater.applyPending(MainActivity.this)) {
+                        LocalServer.webDir = OtaUpdater.activeDir(MainActivity.this, getAssets());
+                        web.reload();
+                    }
+                }
+            });
         }
 
         @JavascriptInterface

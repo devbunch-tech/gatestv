@@ -1,22 +1,15 @@
 // Áreas do YouTube (CLARK, Sergio, Paula; para assinantes: Youtube e Youtube Crianças): canais com os
 // vídeos mais recentes, vídeos avulsos, sugestões e canais adicionados pelo nome (lib/clark.js: YT_AREAS).
 import { useEffect, useRef, useState } from 'react';
-import { Link, Navigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useStore } from '../store';
 import { PageHeader, Row } from '../components/Media';
 import Icon from '../components/Icon';
-import { YT_AREAS, allVideosPage, areaById, areasFor, channelVideos, searchChannels, thumb } from '../lib/clark';
-import { useKeyHandler } from '../lib/keys';
+import { YT_AREAS, allVideosPage, areaById, areasFor, channelVideos, loadAdded, searchChannels, thumb } from '../lib/clark';
+import { isTvMode, useKeyHandler } from '../lib/keys';
 import { EDITION, native } from '../lib/device';
-
-// Canais adicionados em cada área (guardados no aparelho).
-const loadAdded = (key) => {
-  try {
-    return JSON.parse(localStorage.getItem(key) || '[]');
-  } catch {
-    return [];
-  }
-};
+import YtComments from '../components/YtComments';
+import { socialAllowed } from '../lib/ytsocial';
 
 function VideoCard({ v, onPlay, sub }) {
   return (
@@ -128,8 +121,13 @@ function ChannelAll({ ch, onPlay, onBack }) {
 
 // Player do YouTube em tela cheia, controlado pelo controle remoto:
 // OK pausa/continua · ◀ ▶ 10 s · ▲ ▼ vídeo anterior/próximo · Voltar fecha.
+// Comentários (e chat, se for live) ao lado: segurar OK, Info ou Menu (components/YtComments.jsx).
 function YtPlayer({ list, start, onClose }) {
   const [i, setI] = useState(start);
+  const { profile } = useStore();
+  const socialOk = socialAllowed(profile);
+  const [social, setSocial] = useState(false);
+  const okHold = useRef(null); // { at, was, fired }: segurar OK abre os comentários
   const v = list[i];
   const frame = useRef(null);
   const info = useRef({ t: 0, state: -1 });
@@ -160,9 +158,21 @@ function YtPlayer({ list, start, onClose }) {
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
   }, [i, list.length]);
-  useKeyHandler((k) => {
+  useKeyHandler((k, e) => {
     if (k === 'back') close.current();
-    else if (k === 'ok' || k === 'playpause') cmd(info.current.state === 1 ? 'pauseVideo' : 'playVideo');
+    else if (socialOk && (k === 'info' || k === 'menu')) setSocial((o) => !o);
+    else if (k === 'ok' && e?.repeat) {
+      // Segurou OK: desfaz a pausa do primeiro toque e abre os comentários.
+      const h = okHold.current;
+      if (socialOk && h && !h.fired && Date.now() - h.at > 550) {
+        h.fired = true;
+        cmd(h.was === 1 ? 'playVideo' : 'pauseVideo');
+        setSocial(true);
+      }
+    } else if (k === 'ok' || k === 'playpause') {
+      if (k === 'ok') okHold.current = { at: Date.now(), was: info.current.state, fired: false };
+      cmd(info.current.state === 1 ? 'pauseVideo' : 'playVideo');
+    }
     else if (k === 'play') cmd('playVideo');
     else if (k === 'pause') cmd('pauseVideo');
     else if (k === 'left') cmd('seekTo', [Math.max(0, info.current.t - 10), true]);
@@ -174,7 +184,7 @@ function YtPlayer({ list, start, onClose }) {
   const listen = () => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
   const origin = encodeURIComponent(window.location.origin);
   return (
-    <div className="ck-player" data-nav-root>
+    <div className={`ck-player${social ? ' yc-open' : ''}`} data-nav-root>
       <iframe
         key={v.key}
         ref={frame}
@@ -202,8 +212,16 @@ function YtPlayer({ list, start, onClose }) {
             </button>
           </span>
         )}
-        <small className="muted ck-hint">OK pausa · ◀ ▶ 10 s · ▲ ▼ outro vídeo · Voltar fecha</small>
+        {socialOk && (
+          <button className={`icon-btn ck-social ${social ? 'on' : ''}`} onClick={() => setSocial((o) => !o)} tabIndex={-1} title="Comentários do vídeo (e chat, se for live)">
+            <Icon name="chat" /> <span>Comentários</span>
+          </button>
+        )}
+        <small className="muted ck-hint">
+          OK pausa · ◀ ▶ 10 s · ▲ ▼ outro vídeo · {socialOk && (isTvMode() ? 'segure OK: comentários · ' : 'i: comentários · ')}Voltar fecha
+        </small>
       </div>
+      {social && <YtComments v={v.key} title={v.title} onClose={() => setSocial(false)} />}
     </div>
   );
 }
@@ -291,6 +309,12 @@ function YoutubeArea({ area }) {
   const [playing, setPlaying] = useState(null); // { list, start }
   const [allOf, setAllOf] = useState(null); // canal aberto em "Ver todos os vídeos"
   const { notify } = useStore();
+  // Canal escolhido na busca (canal do YouTube ou narrador): abre direto em todos os vídeos.
+  const location = useLocation();
+  const fromSearch = location.state?.ch;
+  useEffect(() => {
+    if (fromSearch?.id) setAllOf(fromSearch);
+  }, [fromSearch]);
   const save = (l) => {
     setAdded(l);
     try {

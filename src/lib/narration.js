@@ -35,6 +35,35 @@ export const isSubscribed = (id) => load(SUB_KEY, []).includes(id);
 export const markSubscribed = (id) => save(SUB_KEY, [...new Set([...load(SUB_KEY, []), id])]);
 export const subscribeUrl = (id) => `https://www.youtube.com/channel/${id}?sub_confirmation=1`;
 
+// ---------- Sincronia automática (anti-deriva) ----------
+// Ponta do ao vivo estimada pelo relógio. A ponta informada pelos players só anda aos saltos (a cada
+// trecho novo da live), então guarda o maior "ponta - relógio" dos últimos 20 s: a leitura mais fresca.
+// Ponta parada há mais de 15 s (live sem DVR, player sem a informação): desconhecida (NaN).
+export function edgeClock() {
+  let hist = [];
+  let raw = NaN;
+  let up = 0;
+  return {
+    feed(edge, at = Date.now()) {
+      if (!Number.isFinite(edge) || edge <= 0) return;
+      // A ponta voltou bem mais do que um salto normal: a fonte recarregou, recomeça.
+      if (edge < raw - 15) {
+        hist = [];
+        up = at;
+      } else if (!(edge <= raw)) up = at;
+      raw = edge;
+      hist = hist.filter((h) => at - h.at < 20000);
+      hist.push({ e: edge - at / 1000, at });
+    },
+    get: (now = Date.now()) => (hist.length && now - up < 15000 ? now / 1000 + Math.max(...hist.map((h) => h.e)) : NaN),
+    reset() {
+      hist = [];
+      raw = NaN;
+    },
+  };
+}
+export const median = (l) => [...l].sort((a, b) => a - b)[l.length >> 1];
+
 // Termo de busca para um jogo (ex.: "Flamengo x Vasco narração ao vivo").
 export const queryFor = (game) => (game ? `${game.homeShort || game.home} x ${game.awayShort || game.away} narração ao vivo` : 'narração ao vivo futebol');
 

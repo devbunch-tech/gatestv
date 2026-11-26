@@ -1,0 +1,40 @@
+[
+  {
+    "versao": "1.0.25",
+    "data": "2026-11-26",
+    "itens": [
+      "Novo menu \"Procurar atualizações\": veja a versão instalada, as novidades e atualize na hora.",
+      "Busca por voz: toque no microfone da busca (ou no botão de voz do controle) e fale o filme, a série, o canal ou o narrador.",
+      "A busca agora também encontra canais do YouTube e narradores.",
+      "Narração: o atraso fica guardado para cada narrador e a sincronia é mantida automaticamente durante o jogo.",
+      "Narração: botão \"Sincronizar pelo lance\" — toque quando vir o lance e quando ouvir o narrador, e o app acerta o atraso sozinho.",
+      "Comentários e chat ao vivo do YouTube: veja e comente no vídeo da narração e nos vídeos das áreas do YouTube, direto na TV."
+    ]
+  },
+  {
+    "versao": "1.0.24",
+    "data": "2026-11-23",
+    "itens": [
+      "Janela da narração: botão para esconder (a narração continua tocando) e mostrar de novo.",
+      "Sincronia com botões claros: atrasar 1/5/10/30 s, adiantar e zerar.",
+      "O atraso ajustado fica salvo e vale para a próxima narração."
+    ]
+  },
+  {
+    "versao": "1.0.23",
+    "data": "2026-11-23",
+    "itens": [
+      "Janela da narração com tamanho ajustável, escolha do canto da tela e opção de inverter (live em tela cheia).",
+      "Busca de narrações corrigida no Android."
+    ]
+  },
+  {
+    "versao": "1.0.22",
+    "data": "2026-11-23",
+    "itens": [
+      "Narração do YouTube nos jogos: ouça seu narrador favorito com a imagem do jogo.",
+      "Áreas do YouTube: \"Ver todos os vídeos\" de cada canal.",
+      "Ao adicionar um canal do YouTube, escolha se ele vai para o perfil Adulto ou Infantil."
+    ]
+  }
+]
