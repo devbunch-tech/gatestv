@@ -114,6 +114,7 @@
       <p class="muted" style="margin:0 0 6px"><b>1.</b> Na TV, abra o app <b>Downloader</b> e digite:</p>
       <div class="fact" style="margin-bottom:6px"><b id="tvLink" style="font-size:22px;letter-spacing:.02em">—</b></div>
       <p class="muted" style="margin:0 0 14px;font-size:13px">TV Box mais simples ou travando? Use a versão leve: <b id="tvLite">—</b>. O endereço é seu e vale sempre. <span id="tvWait" hidden>Ele começa a funcionar assim que o pagamento for confirmado.</span></p>
+      <p class="muted" style="margin:-8px 0 14px;font-size:13px">🎙️ <b>GATES Narração</b> (narração do YouTube por cima do Globoplay, Prime Video e outros apps): <b id="tvNarr">—</b></p>
       <p id="tvHand" style="margin:0 0 12px;padding:12px 14px;border-radius:10px;background:rgba(236,11,67,.12);color:#fff" hidden>📺 Confirme abaixo para começar o download na TV.</p>
       <p class="muted" style="margin:0 0 6px">Ou digite só <b>gatesapptv.pages.dev/tv</b> no Downloader: a TV mostra um código; digite-o aqui embaixo.</p>
       <p class="muted" style="margin:0 0 6px"><b>2.</b> Abra o GATES! TV na TV. Baixado por esse endereço, ele <b>já entra sozinho</b> na sua conta. Se aparecer um código na tela, digite aqui:</p>
@@ -219,6 +220,7 @@
     $('tvCard').hidden = !a.tvLink || (a.status === 'suspended' && !waiting);
     $('tvLink').textContent = a.tvLink || '—';
     $('tvLite').textContent = a.tvLink ? a.tvLink + '/lite' : '—';
+    $('tvNarr').textContent = a.tvLink ? a.tvLink + '/narracao' : '—';
     $('tvWait').hidden = !waiting;
     $('devCount').textContent = `(${a.devices.length} de ${a.maxDevices})`;
     const box = $('devices');
