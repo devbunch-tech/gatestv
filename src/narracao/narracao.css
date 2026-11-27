@@ -1,0 +1,220 @@
+/* GATES Narração (narracao.html): telas, o player do YouTube que acompanha a tela e os modos de janela
+   (janela flutuante do Android, janelinha do Windows). Usa as variáveis e componentes do styles.css. */
+html.narracao, html.narracao body { overflow: hidden; }
+.np-app {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(1200px 600px at 70% -10%, #2a2228 0%, transparent 60%), var(--bg);
+}
+.np-app.is-pip, .np-app.is-mini { background: #000; }
+.np-screens { position: absolute; inset: 0; }
+.np-screens[hidden] { display: none; }
+/* Telas em pilha: as de baixo ficam montadas e invisíveis (guardam a busca e a rolagem). */
+.np-screen { position: absolute; inset: 0; overflow-y: auto; padding: 28px 40px 48px; visibility: hidden; }
+.np-screen.on { visibility: visible; }
+.np-app.has-dock .np-screen { padding-bottom: 260px; }
+
+/* ---------- Cabeçalho e seções ---------- */
+.np-head { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+.np-logo { height: 40px; width: auto; }
+.np-head-title { flex: 1; min-width: 0; }
+.np-head h1 { font-size: 24px; }
+.np-head-title p { margin: 2px 0 0; }
+.np-sec { margin-bottom: 26px; }
+.np-sec h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 18px; }
+.np-sec h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; font-size: 15px; }
+.np-sec p.small { margin: 0 0 10px; font-size: 13px; }
+.np-h-btn { margin-left: 4px; }
+.np-wait { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.np-center { text-align: center; margin-top: -12px; }
+.np-foot { margin-top: 30px; font-size: 12px; }
+
+.np-search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
+.np-search .search { max-width: 560px; height: 42px; }
+.np-list { display: flex; flex-direction: column; gap: 4px; max-width: 900px; }
+.np-row .narr-pick strong { display: flex; align-items: center; gap: 6px; }
+.np-row .narr-pick strong svg { color: var(--brand); }
+.np-row .narr-pick:hover { background: rgba(255, 255, 255, 0.09); }
+.np-row .narr-pick:focus-visible, .tv .np-row .narr-pick:focus { outline: none; background: var(--brand-soft); box-shadow: inset 0 0 0 2px var(--brand); }
+.np-row.off .narr-pick:hover { background: rgba(255, 255, 255, 0.05); }
+
+.np-nowcard {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  max-width: 900px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--brand-soft);
+  border: 1px solid rgba(236, 11, 67, 0.35);
+}
+.np-nowcard > div { flex: 1; min-width: 200px; display: flex; flex-direction: column; }
+.np-nowcard strong { font-size: 17px; }
+
+.np-games.sg-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.np-game-head { flex: 1; gap: 18px; }
+.np-game-head .sg-crest { width: 64px; height: 64px; }
+.np-game-head .sg-team > strong { font-size: 18px; text-align: center; }
+.np-game-head .sg-vs { margin-top: -24px; font-size: 16px; color: var(--text); }
+
+/* ---------- Narração tocando ---------- */
+.np-player { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(340px, 1fr); gap: 28px; align-items: start; }
+.np-left { position: sticky; top: 0; min-width: 0; }
+.np-right { min-width: 0; }
+.np-slot { width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; background: #000; }
+.np-now { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 12px 0 4px; }
+.np-now-text { min-width: 0; display: flex; flex-direction: column; }
+.np-now-text strong { font-size: 20px; }
+.np-now-text span { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-now small { flex: none; }
+.np-actions { margin-top: 10px; gap: 8px; }
+.np-actions .btn.on svg { color: #f5b301; }
+.np-right .np-sec { margin-bottom: 14px; padding: 14px 16px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
+.np-offset { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-weight: 600; }
+.np-offset svg { color: var(--brand); }
+
+.np-vol { display: flex; align-items: center; gap: 8px; }
+.np-vol > svg { flex: none; color: var(--muted); }
+.np-vol input[type='range'], .np-audio-row input[type='range'] { flex: 1; min-width: 80px; accent-color: var(--brand); }
+.np-vol-n { min-width: 40px; text-align: right; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.np-app input[type='range']:focus-visible, .tv .np-app input[type='range']:focus { outline: 2px solid var(--brand); outline-offset: 4px; border-radius: 4px; }
+
+/* Android TV: apps de jogos */
+.np-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin: 8px 0 10px; }
+.np-applink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  text-align: center;
+  outline: 3px solid transparent;
+  transition: background 0.15s, outline-color 0.15s;
+}
+.np-applink svg { color: var(--brand); }
+.np-applink span { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.np-applink:hover { background: rgba(255, 255, 255, 0.12); }
+.np-applink:focus-visible, .tv .np-applink:focus { outline-color: var(--brand); background: var(--brand-soft); }
+.np-toggle { margin: 10px 0 0; }
+
+/* Windows: volume dos outros apps e atalhos */
+.np-audio { display: flex; flex-direction: column; gap: 8px; }
+.np-audio-row { display: flex; align-items: center; gap: 8px; }
+.np-audio-name { flex: 1 1 140px; min-width: 0; display: flex; flex-direction: column; }
+.np-audio-name strong, .np-audio-name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.np-keys { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; margin: 0; }
+.np-keys > div { display: flex; align-items: center; gap: 8px; }
+.np-keys dt { margin: 0; }
+.np-keys dd { margin: 0; font-size: 13px; color: var(--muted); }
+.np-app kbd { padding: 2px 6px; border-radius: 5px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.1); font: 12px ui-monospace, Consolas, monospace; white-space: nowrap; }
+.np-sub-row { display: flex; align-items: center; gap: 14px; }
+.np-sub-row .qr-code { flex: none; border-radius: 6px; }
+
+/* ---------- Player do YouTube ---------- */
+.np-frame { position: fixed; z-index: 50; overflow: hidden; background: #000; }
+.np-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+.np-frame-slot { border-radius: 12px; }
+/* Nas outras telas: no canto (o YouTube exige o player visível, mín. 200 px). */
+.np-frame-dock { right: 20px; bottom: 20px; width: min(356px, calc(100vw - 20px)); height: 200px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); }
+.np-dock-btn {
+  position: fixed;
+  z-index: 51;
+  right: 20px;
+  bottom: 226px;
+  max-width: min(356px, calc(100vw - 20px));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(20, 20, 24, 0.95);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  outline: 2px solid transparent;
+}
+.np-dock-btn svg { flex: none; color: var(--brand); }
+.np-dock-btn:focus-visible, .tv .np-dock-btn:focus { outline-color: var(--brand); }
+.np-frame-fill { inset: 0; }
+.np-frame-mini { top: 0; left: 0; right: 0; bottom: var(--np-mini-bar, 64px); }
+
+/* Android: selo da janela flutuante (a página inteira vira o player; o selo acompanha o tamanho da janela). */
+.np-pip-badge {
+  position: fixed;
+  z-index: 70;
+  left: 1.5vh;
+  top: 1.5vh;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: max(11px, 5.5vh);
+  font-weight: 700;
+  pointer-events: none;
+  animation: np-flash 1.2s ease-out;
+}
+.np-pip-badge svg { width: 0.8em; height: 0.8em; }
+@keyframes np-flash {
+  0% { background: var(--brand); transform: scale(1.12); }
+  100% { background: rgba(0, 0, 0, 0.7); transform: none; }
+}
+.np-pip-empty { position: fixed; inset: 0; display: grid; place-items: center; padding: 10px; text-align: center; font-size: max(12px, 6vh); }
+
+/* Windows: barra da janelinha (arrasta a janela pelo fundo da barra). */
+.np-mini-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 6px 8px;
+  background: rgba(18, 18, 20, 0.97);
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  -webkit-app-region: drag;
+}
+.np-mini-bar button, .np-mini-bar input { -webkit-app-region: no-drag; }
+.np-mini-bar .chip { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; font-size: 12px; }
+.np-mini-group { display: inline-flex; align-items: center; gap: 4px; }
+.np-mini-end { margin-left: auto; }
+.np-mini-off { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.np-mini-msg { flex: 1; }
+.np-vol.compact { flex: 1 1 90px; min-width: 90px; gap: 4px; }
+.np-vol.compact .np-vol-n { min-width: 32px; font-size: 11px; }
+
+/* Avisos */
+.np-app.has-dock .np-toasts { bottom: 270px; }
+.is-mini .np-toasts { top: 6px; right: 6px; left: 6px; bottom: auto; align-items: stretch; }
+.is-mini .np-toasts .toast { max-width: none; padding: 6px 10px; font-size: 12px; }
+/* Sincronizar pela IA: os avisos saem da frente do player durante as fotos da tela */
+.np-reading .np-toasts { opacity: 0 !important; transition: none !important; }
+
+/* Como usar */
+.np-help { width: min(620px, 94vw); }
+.np-help h2 { margin-bottom: 10px; }
+.np-help ol { margin: 0 0 12px; padding-left: 20px; line-height: 1.6; }
+
+/* ---------- Telas estreitas (celular, janela pequena) ---------- */
+@media (max-width: 860px) {
+  .np-screen { padding: 16px 14px 32px; }
+  .np-player { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .np-left { position: static; }
+  .np-frame-dock { right: 10px; bottom: 10px; }
+  .np-dock-btn { right: 10px; bottom: 216px; }
+  .np-app.has-dock .np-screen { padding-bottom: 250px; }
+  .np-keys { grid-template-columns: 1fr; }
+  .np-head h1 { font-size: 20px; }
+  .np-logo { height: 32px; }
+}

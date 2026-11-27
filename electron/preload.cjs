@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('GatesDesktop', {
   otaInfo: () => ipcRenderer.invoke('gates:ota-info'),
   otaCheck: () => ipcRenderer.invoke('gates:ota-check'),
   otaApply: () => ipcRenderer.invoke('gates:ota-apply'),
+  captureFrame: (opts) => ipcRenderer.invoke('gates:capture', opts), // { image (JPEG base64), w, h } | null
 });

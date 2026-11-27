@@ -12,6 +12,7 @@ import { matchResponse } from './match.js';
 import { channelVideosPage } from './youtube.js';
 import { ytForget, ytSocialRoute } from './ytsocial.js';
 import { VOICE_MAX, VOICE_PER_DAY, transcribe } from './voice.js';
+import { CLOCK_MAX, CLOCK_PER_DAY, readClocks } from './narrclock.js';
 import { applyReferralSplit, ensureTvCode, makeSubscribers, newRefCode, recordCommission, normPhone, PHONE_ERROR, startCheckout, startTrial } from './subscribers.js';
 
 const json = (code, obj, headers = {}) =>
@@ -56,6 +57,9 @@ export const APKS = {
   tabletLite: { key: 'apk:tabletLite', name: 'GatesTV-Tablet-LITE.apk', label: 'Tablet Android (LITE)' },
   // Instalador do Windows (~86 MB): guardado em partes (limite de 25 MB por arquivo no plano grátis).
   windows: { key: 'apk:windows', name: 'GatesTV-Windows-Setup.exe', label: 'Computador Windows', chunked: true, type: 'application/octet-stream' },
+  // GATES Narração: app à parte que toca a narração do YouTube por cima de outros apps de jogos.
+  narrTv: { key: 'apk:narrTv', name: 'GatesNarracao-TV.apk', label: 'GATES Narração — Android TV / TV Box' },
+  narrWindows: { key: 'apk:narrWindows', name: 'GatesNarracao-Windows-Setup.exe', label: 'GATES Narração — Computador Windows', chunked: true, type: 'application/octet-stream' },
 };
 const DL_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const dlCode = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), (x) => DL_CHARS[x % DL_CHARS.length]).join('');
@@ -317,6 +321,36 @@ async function route(req, env, cfg) {
       return json(503, { ok: false, error: 'unavailable', message: 'Não foi possível reconhecer a voz agora. Tente de novo.' });
     }
   }
+  // ---------- App: relógio da partida para sincronizar a narração ----------
+  // A IA lê o cronômetro do placar no quadro do jogo e no da live do narrador (tirados no mesmo instante).
+  // GET: o app pergunta se está disponível (503 = sem a ligação de IA).
+  if (p === '/api/v1/narr/clock') {
+    if (!env.AI) return json(503, { ok: false, error: 'ai_off', message: 'A sincronia automática não está disponível.' });
+    if (req.method !== 'POST') return json(200, { ok: true });
+    const t = await readToken(b.token, cfg);
+    if (!t || (b.deviceId && b.deviceId !== t.did)) return fail(401, 'invalid_token');
+    // JPEG em base64 (aceita também com o prefixo data:image/...;base64,).
+    const img = (x) => {
+      const s = typeof x === 'string' ? x.replace(/^data:image\/[a-z]+;base64,/, '') : '';
+      return s.length >= 1000 && s.length <= CLOCK_MAX && /^[A-Za-z0-9+/]+={0,2}$/.test(s) ? s : null;
+    };
+    const game = img(b.game);
+    const narr = img(b.narr);
+    if (!game || !narr) return json(400, { ok: false, error: 'bad_request', message: 'Envie as duas imagens em JPEG (até ~250 KB cada).' });
+    if (await db.limited('clock:' + t.did, 20, 10 * 60e3)) return fail(429, 'rate_limited');
+    const c = await db.get(t.email);
+    if (!c?.devices?.[t.did]) return fail(401, 'invalid_token');
+    const st = evaluate(c, cfg).status;
+    if (st !== 'active' && st !== 'grace') return json(403, { ok: false, error: 'not_active', message: 'A sincronia automática fica disponível com a assinatura em dia.' });
+    if (await db.limited('clock:' + t.email, CLOCK_PER_DAY, 24 * 3600e3))
+      return json(429, { ok: false, error: 'rate_limited', message: 'Limite diário da sincronia automática atingido. Ajuste o atraso manualmente ou tente amanhã.' });
+    try {
+      return json(200, { ok: true, ...(await readClocks(env.AI, game, narr)) });
+    } catch (e) {
+      console.warn('[relógio]', e?.message);
+      return json(503, { ok: false, error: 'unavailable', message: 'Não foi possível ler o relógio agora. Tente de novo.' });
+    }
+  }
   if (p === '/api/v1/logout' && req.method === 'POST') {
     const t = await readToken(b.token, cfg);
     if (t) await db.update(t.email, (x) => (delete x.devices?.[t.did], x));
@@ -410,8 +444,9 @@ async function route(req, env, cfg) {
     if (!apk) return new Response('Link de download expirado. Gere um novo em ' + cfg.publicUrl + '/conta', { status: 410, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     return serveFile(env, apk, apk.chunked ? null : await newInstallTag(db, row.email));
   }
-  // Link fixo da TV (digitado no app Downloader): /tv/123456 = Android TV, /tv/123456/lite = LITE.
-  const tv = p.match(/^\/tv\/(\d{6})(\/lite)?\/?$/i);
+  // Link fixo da TV (digitado no app Downloader): /tv/123456 = Android TV, /tv/123456/lite = LITE,
+  // /tv/123456/narracao = app GATES Narração.
+  const tv = p.match(/^\/tv\/(\d{6})(\/lite|\/narracao)?\/?$/i);
   if (tv && req.method === 'GET') {
     if (await db.limited('dl:' + ip, 40, 15 * 60e3)) return fail(429, 'rate_limited');
     let c = await db.byTvCode(tv[1]);
@@ -428,7 +463,8 @@ async function route(req, env, cfg) {
         : st.reason === 'trial_ended'
         ? tvPage('Seu teste terminou', `Gostou? Assine em <b>${tvHost(cfg)}/assinar</b> e este mesmo endereço volta a baixar o app.`)
         : tvPage('Assinatura suspensa', `Regularize o pagamento em <b>${tvHost(cfg)}/conta</b> e tente de novo.`);
-    return serveFile(env, APKS[tv[2] ? 'tvLite' : 'tv'], await newInstallTag(db, c.email));
+    const which = !tv[2] ? 'tv' : /narracao/i.test(tv[2]) ? 'narrTv' : 'tvLite';
+    return serveFile(env, APKS[which], await newInstallTag(db, c.email));
   }
   if (p === '/api/v1/account/downloads' && req.method === 'POST') {
     const email = normEmail(b.email);

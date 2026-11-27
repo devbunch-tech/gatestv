@@ -1,18 +1,33 @@
 // Narração do YouTube nos jogos ao vivo (lib/narration.js): escolha da live pelo nome do canal,
 // favoritos, player pequeno no canto com o som da narração (o som do jogo fica mudo ou baixo),
 // ajuste de sincronia (atrasar/adiantar) e, depois de 3 minutos, o convite para se inscrever no canal.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Icon from './Icon';
 import QrCode from './QrCode';
 import { Modal } from './Overlays';
 import { SMART_TV, hasNative, isTouch, native } from '../lib/device';
 import { isTvMode } from '../lib/keys';
-import { channelLive, edgeClock, isSubscribed, loadFavs, markSubscribed, median, queryFor, searchLives, subscribeUrl, toggleFav } from '../lib/narration';
+import { CHECK_EVERY, SYNC_MODES, aiMessage, aiSupported, aiSync, ensureCapture, loadSyncMode, releaseCapture, saveSyncMode, videoBox } from '../lib/clocksync';
+import {
+  channelLive,
+  edgeClock,
+  isSubscribed,
+  loadFavs,
+  loadOffset,
+  markSubscribed,
+  median,
+  narrEmbedUrl,
+  offsetText,
+  queryFor,
+  saveOffset,
+  searchLives,
+  subscribeUrl,
+  toggleFav,
+} from '../lib/narration';
 
 const ASK_AFTER = 3 * 60e3; // convite para se inscrever depois de 3 min ouvindo
 const ASK_AGAIN = 15 * 60e3; // "Agora não": pergunta de novo depois de 15 min
 const openExternal = (url) => !SMART_TV && (hasNative('openUrl') ? native('openUrl', url) : window.open(url, '_blank', 'noopener'));
-const offsetText = (o) => (o === 0 ? 'sincronia original' : o > 0 ? `narração ${o} s atrasada` : `narração ${-o} s adiantada`);
 
 // Janela menor (picture-in-picture): tamanho, canto da tela e "inverter" (a live do YouTube em tela
 // cheia e o jogo na janela menor). A janela nunca some: o YouTube exige o player visível (mín. 200 px).
@@ -36,52 +51,23 @@ const loadView = () => {
     return { size: 's', pos: 'br', swap: false, hidden: false };
   }
 };
-// Atraso da narração guardado por narrador (id do canal do YouTube): cada canal tem o seu atraso.
-// O último ajuste ('gates:narr:offset', a chave antiga) vale como padrão para narradores novos.
-const OFFSET_KEY = 'gates:narr:offset';
-const OFFSETS_KEY = 'gates:narr:offsets';
-const loadOffsets = () => {
-  try {
-    return JSON.parse(localStorage.getItem(OFFSETS_KEY) || 'null') || {};
-  } catch {
-    return {};
-  }
-};
-const loadOffset = (ch) => {
-  try {
-    const by = loadOffsets();
-    const n = Number(ch && by[ch] != null ? by[ch] : localStorage.getItem(OFFSET_KEY));
-    return Number.isFinite(n) ? Math.round(n) : 0;
-  } catch {
-    return 0;
-  }
-};
-const saveOffset = (ch, n) => {
-  try {
-    if (ch) localStorage.setItem(OFFSETS_KEY, JSON.stringify({ ...loadOffsets(), [ch]: n }));
-    localStorage.setItem(OFFSET_KEY, String(n));
-  } catch {
-    /* armazenamento cheio */
-  }
-};
-// Sincronia automática (anti-deriva): ligada por padrão; desligar fica guardado no aparelho.
-const AUTO_KEY = 'gates:narr:auto';
-const loadAuto = () => {
-  try {
-    return localStorage.getItem(AUTO_KEY) !== '0';
-  } catch {
-    return true;
-  }
-};
+// Atraso guardado por narrador e sincronia automática: lib/narration.js (loadOffset, saveOffset, loadAuto).
 const LANCE_WAIT = 60e3; // "Sincronizar pelo lance": desiste se o segundo toque não vier em 1 min
+let deniedOnce = false; // a pessoa negou a captura da tela: avisa uma vez e não pergunta de novo sozinho
 const nextOf = (list, id) => list[(list.findIndex((x) => x.id === id) + 1) % list.length].id;
 
 // Botões de sincronia. A narração do YouTube costuma chegar bem antes da TV (20 s a 1 min),
 // por isso há passos grandes para atrasar.
 const DELAYS = [1, 5, 10, 30];
 const ADVANCES = [1, 5, 10];
-function SyncButtons({ shift, offset, compact, autofocus, lance, markLance }) {
+function SyncButtons({ shift, offset, compact, autofocus, lance, markLance, ai }) {
   const tab = compact ? { tabIndex: -1 } : {};
+  // Sincronizar pela IA (lib/clocksync.js): lê o relógio do placar no jogo e na narração.
+  const aiBtn = ai?.ok && (
+    <button className={`chip ${ai.busy ? 'active' : ''}`} {...tab} onClick={ai.run} title="A IA lê o relógio do placar no jogo e na narração e acerta o atraso">
+      <Icon name="clock" size={12} /> {ai.busy ? 'Lendo o relógio…' : compact ? 'IA' : 'Sincronizar pela IA'}
+    </button>
+  );
   return (
     <>
       <div className="narr-sync">
@@ -114,7 +100,14 @@ function SyncButtons({ shift, offset, compact, autofocus, lance, markLance }) {
         <button className={`chip ${lance?.kind === 'heard' ? 'active' : ''}`} {...tab} onClick={() => markLance('heard')} title="Toque quando ouvir o narrador reagir ao mesmo lance">
           <Icon name="volume" size={12} /> Ouvi o narrador
         </button>
+        {compact && aiBtn}
       </div>
+      {!compact && aiBtn && (
+        <div className="narr-sync">
+          <span className="narr-sync-label">Pela IA (lê o relógio do placar no jogo e na narração)</span>
+          {aiBtn}
+        </div>
+      )}
     </>
   );
 }
@@ -148,7 +141,19 @@ export function useNarration(videoRef, notify) {
   const moveRef = useRef(null);
   // Sincronia automática: 'ref' é a diferença de "distância do ao vivo" (narração - jogo) logo depois
   // de começar ou de um ajuste; 'samples', as últimas leituras (1 por segundo).
-  const [auto, setAuto] = useState(loadAuto);
+  // Sincronia: 'ai' (IA pelo relógio; na TV, o padrão), 'auto' (anti-deriva) ou 'manual'. No modo IA a
+  // anti-deriva fica desligada, a não ser que a IA não funcione nesta narração (sem autorização, narrador sem relógio).
+  const aiOk = useMemo(aiSupported, []);
+  const [aiOff, setAiOff] = useState(false); // a nuvem está sem a IA
+  const canAi = aiOk && !aiOff;
+  const [syncMode, setSyncModeState] = useState(() => loadSyncMode(aiOk, isTvMode()));
+  const [aiDown, setAiDown] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [reading, setReading] = useState(false); // tirando as fotos: janelinha visível, controles fora da frente
+  const auto = syncMode === 'auto' || (syncMode === 'ai' && (aiDown || !canAi));
+  // at: quando rodar a primeira leitura (TV); last: a última; synced: já sincronizou pela IA nesta narração.
+  const ai = useRef({ gen: 0, busy: false, at: 0, last: 0, synced: false, armed: false, tries: 0, fails: 0 });
+  const quietUntil = useRef(0); // ajuste em andamento (narração ou jogo segurados): não lê o relógio
   const sync = useRef({ ref: null, samples: [], waitUntil: 0, lastFix: 0, lastCheck: 0 });
   const narrEdge = useRef(edgeClock());
   const gameEdge = useRef(edgeClock());
@@ -165,9 +170,16 @@ export function useNarration(videoRef, notify) {
     setLance(null);
     clearTimeout(lanceTimer.current);
     setViewState((v) => ({ ...v, swap: false, hidden: false }));
+    ai.current = { ...ai.current, gen: ai.current.gen + 1, busy: false };
+    setAiBusy(false);
+    setReading(false);
+    releaseCapture();
   }, []);
   const start = useCallback((n) => {
     info.current = { t: 0, d: 0, at: 0 };
+    ai.current = { gen: ai.current.gen + 1, busy: false, at: 0, last: 0, synced: false, armed: false, tries: 0, fails: 0 };
+    setAiBusy(false);
+    setAiDown(false);
     narrEdge.current.reset();
     sync.current = { ref: null, samples: [], waitUntil: Date.now() + 8000, lastFix: 0, lastCheck: 0 };
     setViewState((v) => ({ ...v, swap: false, hidden: false }));
@@ -211,6 +223,11 @@ export function useNarration(videoRef, notify) {
         narrEdge.current.feed(m.info.duration);
       }
       if (m?.info?.playerState != null) info.current.s = m.info.playerState;
+      // Na TV (modo IA), a primeira leitura do relógio ~8 s depois de a live tocar com o atraso salvo.
+      if (!ai.current.armed && info.current.s === 1 && info.current.t > 0) {
+        ai.current.armed = true;
+        if (isTvMode()) ai.current.at = Date.now() + (pending.current ? 9500 : 8000);
+      }
       // Live tocando: aplica o atraso padrão (o guardado para este narrador).
       if (pending.current && info.current.s === 1 && info.current.t > 0) {
         const p = pending.current;
@@ -314,23 +331,32 @@ export function useNarration(videoRef, notify) {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [narr, auto, videoRef]);
-  const toggleAuto = () => {
-    const on = !auto;
-    setAuto(on);
-    try {
-      localStorage.setItem(AUTO_KEY, on ? '1' : '0');
-    } catch {
-      /* armazenamento cheio */
+  const setSyncMode = (m) => {
+    if (m === syncMode) return;
+    setSyncModeState(m);
+    saveSyncMode(m);
+    if (m === 'auto') resync(2000);
+    if (m === 'ai') {
+      setAiDown(false);
+      // Na TV a IA começa sozinha logo depois de escolher; no computador/celular, pelo botão.
+      if (isTvMode() && !ai.current.synced) ai.current.at = Date.now() + 1500;
     }
-    if (on) resync(2000);
-    notify(on ? 'Sincronia automática ligada: se o jogo ou a narração travar, o atraso é corrigido sozinho.' : 'Sincronia automática desligada.');
+    notify(
+      m === 'ai'
+        ? `Sincronia pela IA: ela lê o relógio do placar no jogo e na narração e acerta o atraso${isTvMode() ? ' (e confere a cada 3 minutos).' : '. Toque em “Sincronizar pela IA”.'}`
+        : m === 'auto'
+          ? 'Sincronia automática ligada: se o jogo ou a narração travar, o atraso é corrigido sozinho.'
+          : 'Sincronia manual: use os botões de atrasar e adiantar ou o “Sincronizar pelo lance”.'
+    );
   };
+  const toggleAuto = () => setSyncMode(auto ? 'manual' : 'auto');
 
   const cmd = (func, args = []) => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*');
   const listen = () => frame.current?.contentWindow?.postMessage(JSON.stringify({ event: 'listening', id: 1, channel: 'widget' }), '*');
 
   // Segura a narração d segundos (pausa e retoma do mesmo ponto): atrasa mesmo sem a posição da live.
   const hold = (d) => {
+    quietUntil.current = Math.max(quietUntil.current, Date.now() + d * 1000 + 2500);
     cmd('pauseVideo');
     timers.current.push(setTimeout(() => cmd('playVideo'), d * 1000));
   };
@@ -340,6 +366,7 @@ export function useNarration(videoRef, notify) {
   // ('cur', avançando a live); o que passar disso segura o vídeo do jogo pelo mesmo tempo.
   const move = (d, cur) => {
     const { t } = info.current;
+    quietUntil.current = Math.max(quietUntil.current, Date.now() + 3000);
     if (d > 0) {
       if (t > d + 1) {
         const target = t - d;
@@ -354,6 +381,7 @@ export function useNarration(videoRef, notify) {
     const rest = -d - back;
     const v = videoRef.current;
     if (rest > 0 && v && !v.paused) {
+      quietUntil.current = Math.max(quietUntil.current, Date.now() + rest * 1000 + 2500);
       v.pause();
       timers.current.push(setTimeout(() => v.play().catch(() => {}), rest * 1000));
     }
@@ -370,6 +398,129 @@ export function useNarration(videoRef, notify) {
     saveOffset(narr?.channelId, n);
     notify(`${why}Sincronia: ${offsetText(n)}.`);
   };
+  const shiftRef = useRef(shift);
+  shiftRef.current = shift;
+
+  // ---------- Sincronizar pela IA (lib/clocksync.js) ----------
+  // Onde estão os dois vídeos na tela e o que fica por cima de cada um (pintado de preto na foto).
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const aiTargets = () => {
+    const v = videoRef.current;
+    const f = frame.current;
+    if (!v || !f) return null;
+    const swap = viewRef.current.swap;
+    const dock = f.parentElement?.getBoundingClientRect();
+    return { game: videoBox(v), narr: f.getBoundingClientRect(), gameMask: swap ? [] : [dock], narrMask: swap ? [v.getBoundingClientRect()] : [] };
+  };
+  // '' = pode ler; senão, o motivo (o jogo e a narração precisam estar tocando, sem ajuste em andamento).
+  const aiWait = () => {
+    const v = videoRef.current;
+    if (!v || v.paused) return 'Dê play no jogo para a IA ler o relógio.';
+    if (v.seeking || v.readyState < 3) return 'Espere o jogo carregar e tente de novo.';
+    if (info.current.s !== 1) return 'Espere a narração começar a tocar e tente de novo.';
+    if (pending.current || Date.now() < quietUntil.current) return 'Espere o último ajuste terminar e tente de novo.';
+    return '';
+  };
+  // manual: pelo botão (avisa tudo); check: conferência periódica (1 foto, quieta).
+  const runAi = async ({ manual = false, check = false } = {}) => {
+    const a = ai.current;
+    if (!canAi) return;
+    if (a.busy) return manual && notify('A IA já está lendo o relógio…');
+    const why = aiWait();
+    if (why) return manual && notify(why);
+    const gen = a.gen;
+    const alive = () => ai.current.gen === gen;
+    a.busy = true;
+    setAiBusy(true);
+    try {
+      // Android/navegador: autorização para capturar a tela (na conferência não pergunta de novo).
+      let okCap = false;
+      try {
+        okCap = await ensureCapture({ ask: !check && (manual || !deniedOnce) });
+      } catch (e) {
+        if (manual) notify(e.message);
+      }
+      if (!alive()) return;
+      if (!okCap) {
+        if (manual) return notify(aiMessage('denied'));
+        // Sem autorização (ou o sistema encerrou a captura): fica a sincronia automática.
+        setAiDown(true);
+        if (!deniedOnce) notify('Sem autorização para capturar a tela, a IA não lê o relógio: a sincronia automática ficou ligada. Para usar a IA, toque em “Sincronizar pela IA”.');
+        deniedOnce = true;
+        return;
+      }
+      // A janela de autorização do sistema pode ter segurado o jogo ou a narração: espera voltarem.
+      for (let i = 0; i < 12 && aiWait() && alive(); i++) await new Promise((r) => setTimeout(r, 500));
+      if (!alive()) return;
+      const late = aiWait();
+      if (late) {
+        if (manual) notify(late);
+        else if (!check) a.at = Date.now() + 5000;
+        return;
+      }
+      if (manual) notify('Lendo o relógio do placar no jogo e na narração…');
+      const res = await aiSync({
+        targets: aiTargets,
+        cover: (on) => alive() && setReading(on),
+        apply: (d, w) => alive() && (shiftRef.current(d, w), true),
+        settle: () => Math.max(0, quietUntil.current - Date.now()),
+        ready: aiWait,
+        notify,
+        check,
+        alive,
+      });
+      if (!alive() || res.error === 'gone') return;
+      a.last = Date.now();
+      if (res.ok) {
+        a.synced = true;
+        a.fails = 0;
+        setAiDown(false);
+        return;
+      }
+      if (res.error === 'ai_off') setAiOff(true);
+      // Narrador sem relógio: a IA não serve para esta narração (fica a anti-deriva no modo IA).
+      if (res.error === 'narr' && !check) setAiDown(true);
+      if (check) {
+        // Conferências falhando seguidas (placar sumiu, narrador tirou o relógio): para de conferir.
+        if (++a.fails >= 3) {
+          setAiDown(true);
+          notify(`${res.message} A sincronia automática ficou ligada.`);
+        }
+        return;
+      }
+      // Primeira leitura automática (TV) que falhou por um motivo passageiro: tenta de novo em 1 min.
+      if (!manual && res.error !== 'narr' && res.error !== 'ai_off' && ++a.tries < 3) a.at = Date.now() + 60e3;
+      if (manual || a.tries <= 1 || res.error === 'narr') notify(res.message, 'err');
+    } finally {
+      if (alive()) {
+        a.busy = false;
+        setAiBusy(false);
+      }
+    }
+  };
+  const runAiRef = useRef(runAi);
+  runAiRef.current = runAi;
+  // Modo IA: a primeira leitura na TV (quando a live já toca com o atraso salvo) e a conferência a cada
+  // 3 min depois de sincronizar.
+  useEffect(() => {
+    if (!narr || syncMode !== 'ai' || !canAi || aiDown) return undefined;
+    const id = setInterval(() => {
+      const a = ai.current;
+      const now = Date.now();
+      if (a.busy || aiWait()) return;
+      if (a.at && now >= a.at) {
+        a.at = 0;
+        runAiRef.current();
+        // Conferência periódica só na TV; no computador e no celular a IA roda só pelo botão.
+      } else if (isTvMode() && a.synced && now - a.last >= CHECK_EVERY) runAiRef.current({ check: true });
+    }, 2000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [narr, syncMode, canAi, aiDown]);
+  useEffect(() => () => releaseCapture(), []);
+  const aiRun = () => runAi({ manual: true });
+  const aiCtl = { ok: canAi, busy: aiBusy, run: aiRun };
 
   // Sincronizar pelo lance: o tempo entre "Vi o lance" e "Ouvi o narrador" vira o ajuste.
   // Ouviu depois de ver: a narração está atrás do jogo, adianta; ouviu antes: atrasa pelo mesmo tempo.
@@ -402,14 +553,13 @@ export function useNarration(videoRef, notify) {
     }
   };
 
-  const origin = encodeURIComponent(window.location.origin);
   const dock = narr && (
     <div className="narr-dock">
       <iframe
         key={narr.key}
         ref={frame}
         onLoad={listen}
-        src={`https://www.youtube-nocookie.com/embed/${narr.key}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=0&enablejsapi=1&hl=pt-BR&origin=${origin}`}
+        src={narrEmbedUrl(narr.key)}
         title={`Narração: ${narr.channel}`}
         allow="autoplay; encrypted-media"
         tabIndex={-1}
@@ -418,10 +568,16 @@ export function useNarration(videoRef, notify) {
         <Icon name="volume" size={14} />
         <strong title={narr.title}>{narr.channel}</strong>
         <small className="muted">{offsetText(offset)}</small>
-        {auto && (
+        {auto ? (
           <small className="muted" title="Sincronia mantida automaticamente: se o jogo ou a narração travar, o atraso é corrigido sozinho">
             · auto
           </small>
+        ) : (
+          syncMode === 'ai' && (
+            <small className="muted" title="Sincronia pela IA: ela lê o relógio do placar no jogo e na narração">
+              · IA
+            </small>
+          )
         )}
       </div>
       {!isTvMode() && (
@@ -443,7 +599,7 @@ export function useNarration(videoRef, notify) {
           </button>
         </div>
       )}
-      {!isTvMode() && <SyncButtons shift={shift} offset={offset} lance={lance} markLance={markLance} compact />}
+      {!isTvMode() && <SyncButtons shift={shift} offset={offset} lance={lance} markLance={markLance} ai={aiCtl} compact />}
     </div>
   );
 
@@ -473,9 +629,10 @@ export function useNarration(videoRef, notify) {
   );
 
   // Classes no <div className="player">: posicionam a janela menor (a narração ou, invertido, o jogo).
-  const wrapClass = narr ? `narr-on narr-${view.size} narr-${view.pos}${view.swap ? ' narr-swap' : ''}${view.hidden ? ' narr-hidden' : ''}` : '';
+  // Lendo o relógio: a janela escondida aparece e os controles saem da frente dos vídeos (narr-reading).
+  const wrapClass = narr ? `narr-on narr-${view.size} narr-${view.pos}${view.swap ? ' narr-swap' : ''}${view.hidden && !reading ? ' narr-hidden' : ''}${reading ? ' narr-reading' : ''}` : '';
 
-  return { narr, start, stop, shift, offset, auto, toggleAuto, lance, markLance, gameVol, setGameVol, dock, askModal, view, setView, cycleSize, cycleCorner, toggleSwap, toggleHidden, wrapClass };
+  return { narr, start, stop, shift, offset, auto, toggleAuto, syncMode, setSyncMode, aiOk: canAi, aiBusy, aiSync: aiRun, ai: aiCtl, lance, markLance, gameVol, setGameVol, dock, askModal, view, setView, cycleSize, cycleCorner, toggleSwap, toggleHidden, wrapClass };
 }
 
 // Uma linha de narração (live): toca ao escolher; a estrela favorita o canal.
@@ -546,12 +703,18 @@ export function NarrationPicker({ n, game, title, onClose }) {
           <h3>
             Ouvindo: {n.narr.channel} <small className="muted">· {offsetText(n.offset)}</small>
           </h3>
-          <p className="muted">A narração está na frente do jogo? Atrase. Está atrás? Adiante. Ou use “Vi o lance” e “Ouvi o narrador” num gol ou apito. O ajuste fica salvo para este narrador e vale como padrão para os novos.</p>
-          <SyncButtons shift={n.shift} offset={n.offset} lance={n.lance} markLance={n.markLance} autofocus />
+          <p className="muted">
+            A narração está na frente do jogo? Atrase. Está atrás? Adiante. Ou use “Vi o lance” e “Ouvi o narrador” num gol ou apito{n.aiOk ? ', ou deixe a IA ler o relógio do placar' : ''}. O ajuste fica salvo para este narrador e vale como padrão para os novos.
+          </p>
+          {/* "Sincronizar pela IA" fecha a janela: a IA precisa ver o jogo e a narração. */}
+          <SyncButtons shift={n.shift} offset={n.offset} lance={n.lance} markLance={n.markLance} ai={n.ai && { ...n.ai, run: () => (onClose(), n.ai.run()) }} autofocus />
           <div className="narr-sync">
-            <button className={`chip ${n.auto ? 'active' : ''}`} onClick={n.toggleAuto} title="Se o jogo ou a narração travar, corrige o atraso sozinho">
-              <Icon name="refresh" size={12} /> {n.auto ? 'Sincronia mantida automaticamente (toque para desligar)' : 'Sincronia automática desligada (toque para ligar)'}
-            </button>
+            <span className="narr-sync-label">Sincronia</span>
+            {SYNC_MODES.filter((m) => m.id !== 'ai' || n.aiOk).map((m) => (
+              <button key={m.id} className={`chip ${n.syncMode === m.id ? 'active' : ''}`} onClick={() => n.setSyncMode(m.id)} title={m.hint}>
+                <Icon name={m.id === 'ai' ? 'clock' : m.id === 'auto' ? 'refresh' : 'remote'} size={12} /> {m.label}
+              </button>
+            ))}
           </div>
           <div className="narr-sync">
             <button className={`chip ${!n.gameVol ? 'active' : ''}`} onClick={() => n.setGameVol(0)}>Som do jogo: mudo</button>

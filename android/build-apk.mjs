@@ -6,12 +6,14 @@
 //   tablet -> GatesTV-Tablet-x.y.z.apk   (tablet, toque, gira livremente)
 //   phone-admin -> GatesTV-Celular-Admin-x.y.z.apk (celular, só o perfil Admin)
 //   tablet-admin -> GatesTV-Tablet-Admin-x.y.z.apk (tablet, só o perfil Admin)
+//   narracao (narr-tv) -> GatesNarracao-TV-x.y.z.apk (GATES Narração: narração por cima de outros apps)
 // Ferramentas esperadas em %LOCALAPPDATA%\GatesBuildTools (ou GATES_BUILD_TOOLS).
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildWeb } from '../scripts/web-builds.mjs';
+import { makeNarracaoIcons } from '../scripts/make-narracao-icons.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, '..');
@@ -66,6 +68,9 @@ const FLAVORS = {
   // Admin Crianças (igual ao instalador Gates-TV-Admin-Criancas): só Leticia e Melissa, abre na Melissa.
   'kids-tv': { pkg: 'br.com.gatestv.criancas.tv', label: 'GATES! Crianças', port: 47146, file: 'Gates-TV-Admin-Criancas-TV', orientation: 'sensorLandscape', tv: true, device: 'tv', edition: 'kids' },
   'kids-tablet': { pkg: 'br.com.gatestv.criancas.tablet', label: 'GATES! Crianças', port: 47147, file: 'Gates-TV-Admin-Criancas-Tablet', orientation: 'fullUser', device: 'tablet', edition: 'kids' },
+  // GATES Narração: toca a narração de uma live do YouTube na janela flutuante (Picture-in-Picture)
+  // por cima de outros apps (Globoplay, Prime Video…). Abre /narracao.html do build de assinantes.
+  'narr-tv': { pkg: 'br.com.gatestv.narracao', label: 'GATES Narração', port: 47150, file: 'GatesNarracao-TV', orientation: 'sensorLandscape', tv: true, device: 'tv', edition: 'subscriber', web: 'dist-sub', app: 'narracao', res: 'res-narracao' },
 };
 
 function manifest(name, f) {
@@ -78,18 +83,32 @@ function manifest(name, f) {
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Captura da tela (relógio do placar para sincronizar a narração): serviço em primeiro plano. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- Busca por voz: o app precisa enxergar o reconhecedor de voz do aparelho (Android 11+). -->
     <queries>
         <intent>
             <action android:name="android.speech.action.RECOGNIZE_SPEECH" />
         </intent>
+        <!-- Tela de autorização da captura (fica no System UI), para saber se o aparelho a tem. -->
+        <package android:name="com.android.systemui" />${f.app === 'narracao' ? `
+        <!-- Narração: lista dos apps da TV para abrir por baixo da janela flutuante. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>` : ''}
     </queries>
 ${f.tv
     ? `    <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />`
     : `    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <supports-screens android:smallScreens="true" android:normalScreens="true" android:largeScreens="true" android:xlargeScreens="true" android:anyDensity="true" />`}
-    <application
+    <application${f.app === 'narracao' ? '\n        android:name="br.com.gatestv.app.NarrApp"' : ''}
         android:label="${f.label}"
         android:icon="@mipmap/ic_launcher"${f.tv ? '\n        android:banner="@drawable/banner"' : ''}
         android:usesCleartextTraffic="true"
@@ -98,7 +117,8 @@ ${f.tv
         android:allowBackup="true"
         android:theme="${f.tv ? '@android:style/Theme.Black.NoTitleBar.Fullscreen' : '@android:style/Theme.Material.NoActionBar'}">
         <meta-data android:name="gates.device" android:value="${f.device || name}" />${f.edition ? `
-        <meta-data android:name="gates.edition" android:value="${f.edition}" />` : ''}
+        <meta-data android:name="gates.edition" android:value="${f.edition}" />` : ''}${f.app ? `
+        <meta-data android:name="gates.app" android:value="${f.app}" />` : ''}
         <meta-data android:name="gates.port" android:value="${f.port}" />
         <meta-data android:name="gates.lite" android:value="${f.lite ? 'true' : 'false'}" />${f.web === 'dist-sub' ? `
         <meta-data android:name="gates.ota" android:value="${ota.manifestUrl}" />
@@ -106,7 +126,9 @@ ${f.tv
         <activity
             android:name="br.com.gatestv.app.MainActivity"
             android:exported="true"
-            android:launchMode="singleTask"
+            android:launchMode="singleTask"${f.app === 'narracao' ? `
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"` : ''}
             android:screenOrientation="${f.orientation}"
             android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density">
@@ -116,6 +138,7 @@ ${f.tv
             </intent-filter>
         </activity>
         <receiver android:name="br.com.gatestv.app.ReminderReceiver" android:exported="false" />
+        <service android:name="br.com.gatestv.app.CaptureService" android:exported="false" android:foregroundServiceType="mediaProjection" />
     </application>
 </manifest>
 `;
@@ -126,12 +149,15 @@ const GROUPS = {
   all: Object.keys(FLAVORS).filter((n) => !FLAVORS[n].web),
   assinantes: Object.keys(FLAVORS).filter((n) => FLAVORS[n].web === 'dist-sub'),
   teste: ['test-tv', 'test-phone'],
+  narracao: ['narr-tv'],
 };
 const names = GROUPS[arg] || arg.split(',');
 for (const n of names) if (!FLAVORS[n]) (console.error('Versão desconhecida:', n), process.exit(1));
 // Assinantes e teste usam builds próprios do app (sem dados pessoais).
 if (names.some((n) => FLAVORS[n].web === 'dist-sub')) buildWeb('sub');
 if (names.some((n) => FLAVORS[n].web === 'dist-test')) buildWeb('test');
+// Ícones próprios (GATES Narração): gerados uma vez a partir de android/res.
+if (names.some((n) => FLAVORS[n].res === 'res-narracao') && !fs.existsSync(path.join(here, 'res-narracao'))) await makeNarracaoIcons();
 for (const n of names) build(n, FLAVORS[n]);
 
 function build(name, flavor) {
@@ -147,8 +173,8 @@ fs.writeFileSync(path.join(out, 'AndroidManifest.xml'), manifest(name, flavor));
 // que no Windows grava os caminhos com barra invertida e o Android não acharia os arquivos.
 fs.cpSync(path.join(root, flavor.web || 'dist'), path.join(out, 'apkroot', 'assets', 'web'), { recursive: true });
 
-// 2) recursos (ícones e banner da Android TV)
-run(path.join(bt, 'aapt2.exe'), ['compile', '--dir', path.join(here, 'res'), '-o', path.join(out, 'res.zip')]);
+// 2) recursos (ícones e banner da Android TV; o GATES Narração tem os seus)
+run(path.join(bt, 'aapt2.exe'), ['compile', '--dir', path.join(here, flavor.res || 'res'), '-o', path.join(out, 'res.zip')]);
 run(path.join(bt, 'aapt2.exe'), [
   'link', '-I', androidJar, '--manifest', path.join(out, 'AndroidManifest.xml'),
   '--min-sdk-version', '21', '--target-sdk-version', '34',
@@ -156,11 +182,16 @@ run(path.join(bt, 'aapt2.exe'), [
   '-o', path.join(out, 'base.apk'), path.join(out, 'res.zip'),
 ]);
 
-// 3) código Java -> classes.dex
-run(path.join(jdk, 'bin', 'javac.exe'), [
+// 3) código Java -> classes.dex. O src-hidden usa construtores que o android.jar esconde: compila
+// contra android/stubs (os stubs não entram no APK) e depois o resto do código contra ele.
+const javac = (cp, dest, dir) => run(path.join(jdk, 'bin', 'javac.exe'), [
   '-encoding', 'UTF-8', '-source', '8', '-target', '8', '-nowarn', '-Xlint:-options',
-  '-classpath', androidJar, '-d', path.join(out, 'classes'), ...listFiles(path.join(here, 'src'), '.java'),
+  '-classpath', cp.join(path.delimiter), '-d', dest, ...listFiles(path.join(here, dir), '.java'),
 ]);
+fs.mkdirSync(path.join(out, 'stubs'), { recursive: true });
+javac([androidJar], path.join(out, 'stubs'), 'stubs');
+javac([path.join(out, 'stubs'), androidJar], path.join(out, 'classes'), 'src-hidden');
+javac([androidJar, path.join(out, 'classes')], path.join(out, 'classes'), 'src');
 run(q(path.join(bt, 'd8.bat')), ['--release', '--min-api', '21', '--lib', q(androidJar), '--output', q(path.join(out, 'dex')), ...listFiles(path.join(out, 'classes'), '.class').map(q)]);
 
 // 4) junta o classes.dex ao APK, alinha e assina

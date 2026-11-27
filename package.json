@@ -4,7 +4,7 @@
   "description": "GATES! TV — IPTV com interface no estilo Plex",
   "author": "GATES! TV",
   "private": true,
-  "version": "1.0.25",
+  "version": "1.0.26",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -19,6 +19,7 @@
     "build:admin": "vite build && node android/build-apk.mjs phone-admin,tablet-admin",
     "build:criancas": "vite build && node android/build-apk.mjs kids-tv,kids-tablet",
     "build:assinantes": "node android/build-apk.mjs assinantes",
+    "build:narracao:android": "node android/build-apk.mjs narracao",
     "build:win:assinante": "node scripts/build-win-assinante.mjs",
     "build:win:criancas": "node scripts/build-win-criancas.mjs",
     "build:teste": "node android/build-apk.mjs teste && node scripts/build-win-teste.mjs",
@@ -26,7 +27,8 @@
     "license-server": "node license-server/server.mjs",
     "test:license": "node --test license-server/test/e2e.test.mjs license-server/test/nuvemshop.test.mjs license-server/test/checkout.test.mjs",
     "build:apks": "vite build && node android/build-apk.mjs all",
-    "build:smarttv": "node scripts/build-smarttv.mjs"
+    "build:smarttv": "node scripts/build-smarttv.mjs",
+    "build:narracao:win": "node scripts/build-win-narracao.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

@@ -147,26 +147,34 @@ if (args.has('--apks')) {
     }
     wr(['kv', 'key', 'put', 'apk:' + key, '--path', JSON.stringify(file), '--namespace-id', KV, '--remote']);
   }
-  // Instalador do Windows: em partes de 20 MB (limite de 25 MB por arquivo no plano grátis).
-  const exe = path.join(root, 'release', `GatesTV-Windows-Setup-${version}.exe`);
-  if (args.has('--sem-windows')) console.log('• instalador Windows mantido (--sem-windows)');
-  else if (fs.existsSync(exe)) {
+  // App GATES Narração para Android TV.
+  const narrApk = path.join(root, 'release', `GatesNarracao-TV-${version}.apk`);
+  if (fs.existsSync(narrApk)) wr(['kv', 'key', 'put', 'apk:narrTv', '--path', JSON.stringify(narrApk), '--namespace-id', KV, '--remote']);
+  else console.warn('⚠ não encontrado:', path.relative(root, narrApk));
+  // Instaladores do Windows: em partes de 20 MB (limite de 25 MB por arquivo no plano grátis).
+  const sendChunked = (key, exe, label) => {
+    if (!fs.existsSync(exe)) return console.warn(`⚠ ${label} não encontrado:`, path.relative(root, exe));
     const data = fs.readFileSync(exe);
     const PART = 20 * 1024 * 1024;
     const parts = Math.ceil(data.length / PART);
     const tmp = path.join(here, '.wrangler', 'partes');
     fs.mkdirSync(tmp, { recursive: true });
     for (let i = 0; i < parts; i++) {
-      const f = path.join(tmp, `windows-${i}.bin`);
+      const f = path.join(tmp, `${key}-${i}.bin`);
       fs.writeFileSync(f, data.subarray(i * PART, (i + 1) * PART));
-      wr(['kv', 'key', 'put', `apk:windows:${i}`, '--path', JSON.stringify(f), '--namespace-id', KV, '--remote']);
+      wr(['kv', 'key', 'put', `apk:${key}:${i}`, '--path', JSON.stringify(f), '--namespace-id', KV, '--remote']);
     }
-    const metaFile = path.join(tmp, 'windows-meta.json');
+    const metaFile = path.join(tmp, `${key}-meta.json`);
     fs.writeFileSync(metaFile, JSON.stringify({ parts, size: data.length }));
-    wr(['kv', 'key', 'put', 'apk:windows:meta', '--path', JSON.stringify(metaFile), '--namespace-id', KV, '--remote']);
+    wr(['kv', 'key', 'put', `apk:${key}:meta`, '--path', JSON.stringify(metaFile), '--namespace-id', KV, '--remote']);
     fs.rmSync(tmp, { recursive: true, force: true });
-    console.log(`✓ instalador Windows enviado (${parts} partes)`);
-  } else console.warn('⚠ instalador Windows não encontrado:', path.relative(root, exe));
+    console.log(`✓ ${label} enviado (${parts} partes)`);
+  };
+  if (args.has('--sem-windows')) console.log('• instaladores Windows mantidos (--sem-windows)');
+  else {
+    sendChunked('windows', path.join(root, 'release', `GatesTV-Windows-Setup-${version}.exe`), 'instalador Windows');
+    sendChunked('narrWindows', path.join(root, 'release', `GatesNarracao-Windows-Setup-${version}.exe`), 'instalador Windows do GATES Narração');
+  }
   console.log('✓ APKs enviados');
 }
 

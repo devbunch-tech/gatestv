@@ -35,6 +35,58 @@ export const isSubscribed = (id) => load(SUB_KEY, []).includes(id);
 export const markSubscribed = (id) => save(SUB_KEY, [...new Set([...load(SUB_KEY, []), id])]);
 export const subscribeUrl = (id) => `https://www.youtube.com/channel/${id}?sub_confirmation=1`;
 
+// ---------- Atraso da narração ----------
+// Guardado por narrador (id do canal do YouTube): cada canal tem o seu atraso.
+// O último ajuste ('gates:narr:offset', a chave antiga) vale como padrão para narradores novos.
+const OFFSET_KEY = 'gates:narr:offset';
+const OFFSETS_KEY = 'gates:narr:offsets';
+const loadOffsets = () => {
+  try {
+    return JSON.parse(localStorage.getItem(OFFSETS_KEY) || 'null') || {};
+  } catch {
+    return {};
+  }
+};
+export const loadOffset = (ch) => {
+  try {
+    const by = loadOffsets();
+    const n = Number(ch && by[ch] != null ? by[ch] : localStorage.getItem(OFFSET_KEY));
+    return Number.isFinite(n) ? Math.round(n) : 0;
+  } catch {
+    return 0;
+  }
+};
+export const saveOffset = (ch, n) => {
+  try {
+    if (ch) localStorage.setItem(OFFSETS_KEY, JSON.stringify({ ...loadOffsets(), [ch]: n }));
+    localStorage.setItem(OFFSET_KEY, String(n));
+  } catch {
+    /* armazenamento cheio */
+  }
+};
+export const offsetText = (o) => (o === 0 ? 'sincronia original' : o > 0 ? `narração ${o} s atrasada` : `narração ${-o} s adiantada`);
+
+// Sincronia automática (anti-deriva): ligada por padrão; desligar fica guardado no aparelho.
+const AUTO_KEY = 'gates:narr:auto';
+export const loadAuto = () => {
+  try {
+    return localStorage.getItem(AUTO_KEY) !== '0';
+  } catch {
+    return true;
+  }
+};
+export const saveAuto = (on) => {
+  try {
+    localStorage.setItem(AUTO_KEY, on ? '1' : '0');
+  } catch {
+    /* armazenamento cheio */
+  }
+};
+
+// Player do YouTube da narração (visível, como o YouTube exige), controlado pela IFrame API (postMessage).
+export const narrEmbedUrl = (key) =>
+  `https://www.youtube-nocookie.com/embed/${key}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&fs=0&enablejsapi=1&hl=pt-BR&origin=${encodeURIComponent(window.location.origin)}`;
+
 // ---------- Sincronia automática (anti-deriva) ----------
 // Ponta do ao vivo estimada pelo relógio. A ponta informada pelos players só anda aos saltos (a cada
 // trecho novo da live), então guarda o maior "ponta - relógio" dos últimos 20 s: a leitura mais fresca.

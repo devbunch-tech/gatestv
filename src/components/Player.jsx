@@ -259,7 +259,8 @@ function PlayerView({ item, rawQueue }) {
         { key: 'source', icon: 'refresh', label: 'Outra fonte', run: findOtherSource },
         narrOk && { key: 'narr', icon: 'volume', label: narration.narr ? `Narração: ${narration.narr.channel}` : 'Narração do YouTube', run: openNarr },
         chatOk && { key: 'narr-chat', icon: 'chat', label: chatOn ? 'Fechar o chat da live' : 'Chat da live', run: openChat },
-        // Sincronizar pelo lance no controle remoto: o painel fica embaixo e deixa ver o jogo.
+        // Sincronizar pela IA (lê o relógio do placar) e pelo lance no controle remoto: o painel fica embaixo e deixa ver o jogo.
+        narration.narr && narration.aiOk && { key: 'narr-ai', icon: 'clock', label: narration.aiBusy ? 'Lendo o relógio…' : 'Sincronizar pela IA', run: narration.aiSync },
         narration.narr && { key: 'narr-saw', icon: 'eye', label: narration.lance?.kind === 'saw' ? 'Vi o lance ✓' : 'Vi o lance', run: () => narration.markLance('saw') },
         narration.narr && { key: 'narr-heard', icon: 'volume', label: narration.lance?.kind === 'heard' ? 'Ouvi o narrador ✓' : 'Ouvi o narrador', run: () => narration.markLance('heard') },
         narration.narr && { key: 'narr-hide', icon: 'eye', label: narration.view.hidden ? 'Mostrar a janela da narração' : 'Esconder a janela da narração (só o som)', run: narration.toggleHidden },

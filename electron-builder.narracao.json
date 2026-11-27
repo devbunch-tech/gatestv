@@ -1,0 +1,52 @@
+{
+  "appId": "br.com.gatestv.narracao",
+  "productName": "GATES Narracao",
+  "copyright": "PALMER TECH LTDA",
+  "directories": {
+    "output": "release/narracao-win",
+    "buildResources": "build"
+  },
+  "files": [
+    "dist-sub/**/*",
+    "server/**/*",
+    "electron/**/*",
+    "build/icon-narracao.png",
+    "package.json",
+    "ota.config.json"
+  ],
+  "extraMetadata": {
+    "name": "gates-narracao",
+    "productName": "GATES Narracao",
+    "main": "electron/narracao.cjs",
+    "gatesWeb": "dist-sub",
+    "gatesPort": 47152,
+    "gatesTitle": "GATES Narração",
+    "gatesUserData": "GATES Narracao",
+    "gatesOta": true
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "icon": "build/icon-narracao.png",
+    "artifactName": "GatesNarracao-Windows-Setup-${version}.exe"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "GATES Narração",
+    "uninstallDisplayName": "GATES Narração",
+    "installerLanguages": [
+      "pt_BR"
+    ],
+    "language": "1046"
+  }
+}

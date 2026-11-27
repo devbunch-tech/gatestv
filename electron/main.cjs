@@ -103,6 +103,18 @@ ipcMain.handle('gates:ota-apply', (e) => {
   app.exit(0);
 });
 
+// "Sincronizar pela IA": foto da página (inclui o vídeo do jogo e o iframe do YouTube da narração),
+// reduzida a no máx. 'maxW' px de largura. O quadro é a área da página: x_px = x_css * w / innerWidth.
+ipcMain.handle('gates:capture', async (e, opts) => {
+  if (!win || e.sender !== win.webContents) return null;
+  const img = await win.webContents.capturePage();
+  if (img.isEmpty()) return null;
+  const maxW = Math.max(320, Math.min(1920, Number(opts?.maxW) || 1280));
+  const out = img.getSize().width > maxW ? img.resize({ width: maxW, quality: 'good' }) : img;
+  const { width: w, height: h } = out.getSize();
+  return { image: out.toJPEG(80).toString('base64'), w, h };
+});
+
 app.on('second-instance', () => {
   if (!win) return;
   if (win.isMinimized()) win.restore();

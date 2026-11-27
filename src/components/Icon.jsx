@@ -43,6 +43,7 @@ const PATHS = {
   shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
   guide: 'M3 5h18v14H3zM3 10h18M9 10v9',
   remote: 'M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zM12 5.5v.01M9.5 9h5M12 6.5v5',
+  clock: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 7v5l3.5 2',
 };
 
 const FILLED = new Set(['play', 'pause', 'prev', 'next', 'more', 'star']);

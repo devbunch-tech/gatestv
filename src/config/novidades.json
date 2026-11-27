@@ -1,5 +1,15 @@
 [
   {
+    "versao": "1.0.26",
+    "data": "2026-11-26",
+    "itens": [
+      "Novo app GATES Narração (Android TV e Windows): ouça a narração do YouTube por cima do Globoplay, Prime Video e outros apps de jogos, com ajuste de atraso e “Sincronizar pelo lance”.",
+      "Windows: a janelinha da narração fica por cima do jogo e controla o volume de cada app (abaixe ou tire o som do jogo).",
+      "Baixe o GATES Narração em “Minha conta” no site.",
+      "Narração: novo “Sincronizar pela IA” — a IA lê o relógio do placar no jogo e na narração e acerta o atraso sozinha, esteja a narração adiantada ou atrasada. Na TV ela já sincroniza ao começar e confere a cada 3 minutos."
+    ]
+  },
+  {
     "versao": "1.0.25",
     "data": "2026-11-26",
     "itens": [
